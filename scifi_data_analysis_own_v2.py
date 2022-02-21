@@ -173,17 +173,19 @@ completeTable = completeTable.merge(matrix_filtered_out,left_index=True, right_i
 
 DF_All = completeTable
 DF_All
+DF_All.T.index
 
 #SCANPY
 ########################################
 ########################################
 #make the anndata matrix
-annMatrix = DF_All.T.iloc[:,1:]
-annMatrix
-annObs = pd.DataFrame(index=completeTable.T.iloc[:,0:1].index, data={'CellBarcode' : completeTable.T.iloc[:,0:1].index,'Sample' : completeTable.T['0_Sample'].tolist()})
-annObs
-annVar = pd.DataFrame(index=completeTable.iloc[1:,0:1].index, data=completeTable.iloc[1:,0:1].index, columns=['Gene'])
-annVar
+annMatrix1 = DF_All.T.iloc[:,1:]
+annMatrix1.index
+annObs1 = pd.DataFrame(index=completeTable.T.iloc[:,0:1].index, data={'CellBarcode' : completeTable.T.iloc[:,0:1].index,'Sample' : completeTable.T['0_Sample'].tolist()})
+annObs1.index
+annObs1
+annVar1 = pd.DataFrame(index=completeTable.iloc[1:,0:1].index, data=completeTable.iloc[1:,0:1].index, columns=['Gene'])
+annVar1
 adata_TX = ad.AnnData(X = annMatrix, obs = annObs, var = annVar)
 adata_TX.obs_names_make_unique(join="-")
 
@@ -218,7 +220,7 @@ plt.hist(gene_counts, bins=100)
 
 
 #categorise cells based on the number of a syn copies in them to see marker gene expression
-
+#DF_All = DF_All.drop('0_Sample', axis=0) #remove sample row at least for now as it interferes with generation of anndata object
 adata_TX_df= DF_All
 adata_TX_df = adata_TX_df.T
 
@@ -272,72 +274,172 @@ for key in dfs_grouped.keys():
     print(key)
 
 #now we have dfs for each individual group. Should we have instead used the DF_All_T_reorg and just use the copy number groups as equivalents of "samples" used prior?
-dfs_grouped["5"]
-dfs_grouped["2"]
 
+
+pd0 = dfs_grouped["0"]
 pd1 = dfs_grouped["1"]
 pd2 = dfs_grouped["2"]
 pd3 = dfs_grouped["3"]
 pd4 = dfs_grouped["4"]
 pd5 = dfs_grouped["5"]
+a = len(dfs_grouped["0"]) + len(dfs_grouped["1"]) + len(dfs_grouped["2"]) + len(dfs_grouped["3"]) + len(dfs_grouped["4"]) + len(dfs_grouped["5"])
+a
 
-final_df = pd.concat([pd1,pd2,pd3,pd4,pd5], axis=0)
+final_df = pd.concat([pd0,pd1,pd2,pd3,pd4,pd5], axis=0)
 final_df_T = final_df.T  #so genes are indeces, cells are cols
+final_df_T.index
 final_df_T
+
 fd = final_df.copy()
 fd = fd.T
 
-
+final_df_T.columns
 # adding a level to the column, i.e. grouping cells based on the number of asyn copies
 
-groups = final_df['asyn_copies'].tolist()
-len(groups)
 
+#final_df_T2 = final_df_T.T
+
+groups_asyn = final_df['asyn_copies'].tolist()
+len(groups_asyn)
+#final_df = final_df.drop('asyn_copies', axis=1) #remove sample row at least for now as it interferes with generation of anndata object
+
+
+#the issue I had was due to the multiindexing and thus generating columns with multiple layers. earlier the sample column was a row of values instead. gotta do the same.
 #generate a multi index for the df and assign it
-final_df_T.columns = pd.MultiIndex.from_arrays([groups, final_df_T.columns])
+
+
+# Approach 2
+
+
+#add sampleName so scifi5, 6 etc.
+topRow = pd.DataFrame(columns=matrix_filtered_F_g.columns, index=['0_Sample']).fillna(sample_Name)
+topRow 
+#topRow.loc['_Sample'] = sample_Name
+matrix_filtered_out = pd.concat([topRow, matrix_filtered_F_g])
+#Merge into a compete dataframe
+completeTable = completeTable.merge(matrix_filtered_out,left_index=True, right_index=True, how='outer').fillna(0)
+
+groups = pd.DataFrame(columns=final_df_T.columns, index=['asyn_copies'])
+groups = final_df_T.iloc[-1,:] #last row, i.e. asyn copies and all cols
+
+#Series is a type of list in pandas which can take integer values, string values, double values and more. groups data type was a list initially so had to transform into df!!
+#But in Pandas Series we return an object in the form of list, having index starting from 0 to n, Where n is the length of values in series.
+# series can take a single list, i.e. it is a list but a pd version of it. df can take multiple series.
+groups_df = pd.DataFrame(groups).T
+groups_df.columns
+
+groups_l = groups_df.values.tolist()
+
+final_df_T.iloc[:,1] #
+final_df_T
+#                     0_Sample A1bg A1cf  A2m A2ml1 A3galt2 A4galt A4gnt AA926063  ... hist1h2ail2 mageb1l1 mrpl11 mrpl24 mrpl9 mt-Rnr1 mt-Rnr2 rnf141 tGap1
+#AAAGATGAGACGAAAG  2_S2_SciFi5  0.0  0.0  0.0   0.0     0.0    0.0   0.0      0.0  ...         0.0      0.0    0.0    1.0   1.0     0.0     1.0    0.0   0.0
+#.... 
+#
+#replace 0_sample with the asyn copy number
+
+final_df_T.columns
+
+
+#groups.loc['asyn_copies'] = sample_Name
+
+groups_df1 = groups_df.drop('asyn_copies', axis=1)
+groups_df1
+
+final_df_T_WORKS = pd.concat([groups_df1, final_df_T], axis=0)
+final_df_T_WORKS
+
+
+
+
+final_df_T.columns
+final_df_T
+groups_df = groups.drop("asyn_copies", axis=0) #remove the asyn copies
+final_df_T= final_df_T.drop("asyn_copies", axis=0)
+
+#make the df containing cell ids and the asyn copies as a row in the original df, 
+Fulltable = completeTable.merge(final_df_T_g,left_index=True, right_index=True, how='outer').fillna(0)
+
+inner_merged = pd.merge(groups_df1, final_df_T)
+inner_merged
+
+Fulltable = completeTable.merge(final_df_T_g,left_index=True, right_index=True, how='outer').fillna(0)
+Fulltable
+final_df_T_g
+
+annMatrix = final_df_T_WORKS.T
+#annMatrix = annMatrix.drop("asyn_copies", axis=1) #.iloc[:,1:]get_level_values('first')
+annMatrix
+annMatrix.index
+final_df_T_g.T['asyn_copies'].tolist()
+
+final_df_T_g
+annObs = pd.DataFrame(index=final_df_T_WORKS.T.iloc[:,0:1].index, data={'CellBarcode':final_df_T_WORKS.T.iloc[:,0:1].index, 'N(A_syn)':final_df_T_WORKS.loc['asyn_copies']})
+
+#annObs = pd.DataFrame(index=completeTable.T.iloc[:,0:1].index, data={'CellBarcode' : .T.iloc[:,0:1].index,'Sample' : completeTable.T['0_Sample'].tolist()})
+
+annObs
+annObs.index
+annVar = pd.DataFrame(index=final_df_T_WORKS.iloc[:,0:1].index, data=final_df_T_WORKS.iloc[:,0:1].index, columns=['Gene'])
+annVar
+#adata = ad.AnnData(annMatrix, obs=annObs)
+
+#the levels are ogranised differently between annmatrix and annobs
+adata_TX = ad.AnnData(X = annMatrix, obs = annObs, var = annVar)
+adata_TX.obs_names_make_unique(join="-")
+
+adata_TX
+
+
+
+
+
+
+final_df_T.columns = pd.MultiIndex.from_arrays([final_df_T.columns, groups_asyn])
+
+#final_df_T.columns = final_df_T.columns.swaplevel(0, 1)
+#final_df_T.sort_index(axis=1, level=0, inplace=True)
 final_df_T.columns.levels[0]
 final_df_T.head()
+df.index = df.index.get_level_values(0)
+annMatrix = final_df_T.T.iloc[:,1:]
+annMatrix = final_df_T.T.iloc[:,final_df_T.columns.get_level_values(0)]
+
+annMatrix = final_df
+annMatrix = annMatrix.drop("asyn_copies", axis=1) #.iloc[:,1:]get_level_values('first')
+final_df_T.T
+annMatrix
+annMatrix.index
+
+#annMatrix = annMatrix.drop('0_Sample', axis=0) #remove sample row at least for now as it interferes with generation of anndata object
+#completeTable.iloc[:,0:1].index takes the index (gene) names
+#annObs = pd.DataFrame(index=final_df_T.T.iloc[:,0:1].index, data={'CellBarcode':final_df_T.T.iloc[:,0:1].index, 'N(A_syn)':groups})
+annObs = pd.DataFrame(index=final_df_T.T.iloc[:,0:1].index, data={'CellBarcode':final_df_T.T.iloc[:,0:1].index, 'N(A_syn)': groups})
+#annObs = pd.DataFrame(index=final_df_T.T.iloc[:,0:1].index.get_level_values(0), data={'CellBarcode':final_df_T.T.iloc[:,0:1].index.get_level_values(0), 'N(A_syn)': final_df_T.T['asyn_copies'].tolist()})
+a = final_df_T.T.iloc[:,0:1].index
+a.index
+annObs = pd.DataFrame(index=completeTable.T.iloc[:,0:1].index, data={'CellBarcode' : completeTable.T.iloc[:,0:1].index,'Sample' : completeTable.T['0_Sample'].tolist()})
+
+groups = final_df_T.T['asyn_copies'].tolist()*2
+groups
+annObs
+annObs.index
+annVar = pd.DataFrame(index=final_df.T.iloc[:,0:1].index, data=final_df.T.iloc[:,0:1].index, columns=['Gene'])
+annVar
+adata = ad.AnnData(annMatrix, obs=annObs)
+
+#the levels are ogranised differently between annmatrix and annobs
+adata_TX = ad.AnnData(X = annMatrix, obs = annObs, var = annVar)
+adata_TX.obs_names_make_unique(join="-")
+
+adata_TX
+
+#DF_All = DF_All.drop('0_Sample', axis=0) #remove sample row at least for now as it interferes with generation of anndata object
+
 
 #final_df2=final_df_T.T
 #final_df2.head()
-
-#Other tattemps, didnt work though
-groups_df = pd.MultiIndex.from_product([col_names], names =[groups])
-groups_df
-groups_df = pd.MultiIndex.from_product(groups, col_names)
-
-groups = pd.DataFrame(columns=final_df.columns, index=['asyn_copies'])
-groups 
-#topRow.loc['_Sample'] = sample_Name
-matrix_filtered_out = pd.concat([topRow, matrix_filtered_F_g])
-
-groups = final_df['asyn_copies'].tolist()
-groups
-
-topRow = pd.DataFrame(columns=final_df.columns, index=['asyn_copies']).fillna(sample_Name)
-
-
-final_df = pd.concat(dfs_grouped["0"], dfs_grouped["1", dfs_grouped["2"], dfs_grouped["3"], dfs_grouped["4"], dfs_grouped["5"]], axis=0)
-
-final_df = pd.concat([dfs_grouped["0"], dfs_grouped["1", dfs_grouped["2"], dfs_grouped["3"], dfs_grouped["4"], dfs_grouped["5"]]], axis=0)
-
-final_df = pd.concat([dfs_grouped["0"], dfs_grouped["1", dfs_grouped["2"], dfs_grouped["3"], dfs_grouped["4"], dfs_grouped["5"]]], ignore_index=True)
-
-
-
-topRow = pd.DataFrame(columns=matrix_filtered_F_g.columns, index=['0_Sample']).fillna(sample_Name)
-
-
-###############
-
-
-
-
-
-
-
-
-
+adata = ad.AnnData(df, obs=obs_meta)
 
 
 # create a backup anndata object 
