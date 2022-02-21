@@ -175,46 +175,6 @@ DF_All = completeTable
 DF_All
 DF_All.T.index
 
-#SCANPY
-########################################
-########################################
-#make the anndata matrix
-annMatrix1 = DF_All.T.iloc[:,1:]
-annMatrix1.index
-annObs1 = pd.DataFrame(index=completeTable.T.iloc[:,0:1].index, data={'CellBarcode' : completeTable.T.iloc[:,0:1].index,'Sample' : completeTable.T['0_Sample'].tolist()})
-annObs1.index
-annObs1
-annVar1 = pd.DataFrame(index=completeTable.iloc[1:,0:1].index, data=completeTable.iloc[1:,0:1].index, columns=['Gene'])
-annVar1
-adata_TX = ad.AnnData(X = annMatrix, obs = annObs, var = annVar)
-adata_TX.obs_names_make_unique(join="-")
-
-adata_TX
-
-# remove cells with less than given amount of genes from the main frame if desired
-adata_TX_red = adata_TX.copy()
-adata_TX_red.obs['read_counts'] = np.sum(adata_TX.X, axis=1)
-adata_TX_red = adata_TX_red[adata_TX_red.obs['read_counts'] >= 2200].copy()
-
-adata_TX_red[adata_TX_red.obs['Sample'] == 'SciFi6', :]
-
-# plot histogram of transcript count per cell
-
-gene_counts = np.sum(adata_TX_red.X, axis=1)
-gene_counts.shape
-
-# delete cells witl less then 5000 transcripts from visualization
-# gene_counts_filt = np.delete(gene_counts, np.where(gene_counts < 5000))
-# print(len(gene_counts_filt))
-print("Minimum number of transcripts per cell:", np.min(gene_counts), 
-      "\n Median number of transcripts per cell:", np.median(gene_counts),
-      "\n Maximum number of transcripts per cell:", np.max(gene_counts))
-plt.hist(gene_counts, bins=100)
-#plt.savefig('SciFiAll_Histogram_2200.pdf')
-#plt.show()
-
-
-
 ########################################
 ########################################
 
@@ -294,32 +254,13 @@ fd = final_df.copy()
 fd = fd.T
 
 final_df_T.columns
-# adding a level to the column, i.e. grouping cells based on the number of asyn copies
-
-
-#final_df_T2 = final_df_T.T
-
-groups_asyn = final_df['asyn_copies'].tolist()
-len(groups_asyn)
-#final_df = final_df.drop('asyn_copies', axis=1) #remove sample row at least for now as it interferes with generation of anndata object
-
 
 #the issue I had was due to the multiindexing and thus generating columns with multiple layers. earlier the sample column was a row of values instead. gotta do the same.
 #generate a multi index for the df and assign it
 
 
-# Approach 2
+# A functional approach
 
-
-#add sampleName so scifi5, 6 etc.
-topRow = pd.DataFrame(columns=matrix_filtered_F_g.columns, index=['0_Sample']).fillna(sample_Name)
-topRow 
-#topRow.loc['_Sample'] = sample_Name
-matrix_filtered_out = pd.concat([topRow, matrix_filtered_F_g])
-#Merge into a compete dataframe
-completeTable = completeTable.merge(matrix_filtered_out,left_index=True, right_index=True, how='outer').fillna(0)
-
-groups = pd.DataFrame(columns=final_df_T.columns, index=['asyn_copies'])
 groups = final_df_T.iloc[-1,:] #last row, i.e. asyn copies and all cols
 
 #Series is a type of list in pandas which can take integer values, string values, double values and more. groups data type was a list initially so had to transform into df!!
@@ -332,40 +273,32 @@ groups_l = groups_df.values.tolist()
 
 final_df_T.iloc[:,1] #
 final_df_T
+
+# the original format used in the example was:
+#
 #                     0_Sample A1bg A1cf  A2m A2ml1 A3galt2 A4galt A4gnt AA926063  ... hist1h2ail2 mageb1l1 mrpl11 mrpl24 mrpl9 mt-Rnr1 mt-Rnr2 rnf141 tGap1
 #AAAGATGAGACGAAAG  2_S2_SciFi5  0.0  0.0  0.0   0.0     0.0    0.0   0.0      0.0  ...         0.0      0.0    0.0    1.0   1.0     0.0     1.0    0.0   0.0
 #.... 
 #
-#replace 0_sample with the asyn copy number
+# replace 0_sample with the asyn copy number
 
 final_df_T.columns
 
 
-#groups.loc['asyn_copies'] = sample_Name
 
-groups_df1 = groups_df.drop('asyn_copies', axis=1)
+groups_df1 = groups_df.drop('asyn_copies', axis=1) #remove the asyn_copies column
 groups_df1
 
 final_df_T_WORKS = pd.concat([groups_df1, final_df_T], axis=0)
 final_df_T_WORKS
 
-
-
-
 final_df_T.columns
-final_df_T
-groups_df = groups.drop("asyn_copies", axis=0) #remove the asyn copies
-final_df_T= final_df_T.drop("asyn_copies", axis=0)
+#final_df_T
 
-#make the df containing cell ids and the asyn copies as a row in the original df, 
-Fulltable = completeTable.merge(final_df_T_g,left_index=True, right_index=True, how='outer').fillna(0)
 
-inner_merged = pd.merge(groups_df1, final_df_T)
-inner_merged
-
-Fulltable = completeTable.merge(final_df_T_g,left_index=True, right_index=True, how='outer').fillna(0)
-Fulltable
-final_df_T_g
+#originally a full table (name was CompleteTable) was created but no need I think
+#Fulltable = completeTable.merge(final_df_T_WORKS,left_index=True, right_index=True, how='outer').fillna(0)
+#Fulltable
 
 annMatrix = final_df_T_WORKS.T
 #annMatrix = annMatrix.drop("asyn_copies", axis=1) #.iloc[:,1:]get_level_values('first')
@@ -391,59 +324,34 @@ adata_TX.obs_names_make_unique(join="-")
 adata_TX
 
 
+#save the unprocessed anndata object for future use
+adata_TX.write(filename="/media/data/AtteR/scifi-analysis/R-scifi-analysis/objects/Scifi5_anndata.h5ad")
 
+test_obj = sc.read_h5ad("/media/data/AtteR/scifi-analysis/R-scifi-analysis/objects/Scifi5_anndata.h5ad")
 
+adata_TX_red = adata_TX.copy()
+adata_TX_red.obs['read_counts'] = np.sum(adata_TX.X, axis=1)
+adata_TX_red = adata_TX_red[adata_TX_red.obs['read_counts'] >= 2200].copy()
 
+#adata_TX_red[adata_TX_red.obs['Sample'] == 'SciFi6', :]
 
-final_df_T.columns = pd.MultiIndex.from_arrays([final_df_T.columns, groups_asyn])
+# plot histogram of transcript count per cell
 
-#final_df_T.columns = final_df_T.columns.swaplevel(0, 1)
-#final_df_T.sort_index(axis=1, level=0, inplace=True)
-final_df_T.columns.levels[0]
-final_df_T.head()
-df.index = df.index.get_level_values(0)
-annMatrix = final_df_T.T.iloc[:,1:]
-annMatrix = final_df_T.T.iloc[:,final_df_T.columns.get_level_values(0)]
+gene_counts = np.sum(adata_TX_red.X, axis=1)   #Take each column (cell) and count the cells
+gene_counts.shape
 
-annMatrix = final_df
-annMatrix = annMatrix.drop("asyn_copies", axis=1) #.iloc[:,1:]get_level_values('first')
-final_df_T.T
-annMatrix
-annMatrix.index
-
-#annMatrix = annMatrix.drop('0_Sample', axis=0) #remove sample row at least for now as it interferes with generation of anndata object
-#completeTable.iloc[:,0:1].index takes the index (gene) names
-#annObs = pd.DataFrame(index=final_df_T.T.iloc[:,0:1].index, data={'CellBarcode':final_df_T.T.iloc[:,0:1].index, 'N(A_syn)':groups})
-annObs = pd.DataFrame(index=final_df_T.T.iloc[:,0:1].index, data={'CellBarcode':final_df_T.T.iloc[:,0:1].index, 'N(A_syn)': groups})
-#annObs = pd.DataFrame(index=final_df_T.T.iloc[:,0:1].index.get_level_values(0), data={'CellBarcode':final_df_T.T.iloc[:,0:1].index.get_level_values(0), 'N(A_syn)': final_df_T.T['asyn_copies'].tolist()})
-a = final_df_T.T.iloc[:,0:1].index
-a.index
-annObs = pd.DataFrame(index=completeTable.T.iloc[:,0:1].index, data={'CellBarcode' : completeTable.T.iloc[:,0:1].index,'Sample' : completeTable.T['0_Sample'].tolist()})
-
-groups = final_df_T.T['asyn_copies'].tolist()*2
-groups
-annObs
-annObs.index
-annVar = pd.DataFrame(index=final_df.T.iloc[:,0:1].index, data=final_df.T.iloc[:,0:1].index, columns=['Gene'])
-annVar
-adata = ad.AnnData(annMatrix, obs=annObs)
-
-#the levels are ogranised differently between annmatrix and annobs
-adata_TX = ad.AnnData(X = annMatrix, obs = annObs, var = annVar)
-adata_TX.obs_names_make_unique(join="-")
-
-adata_TX
-
-#DF_All = DF_All.drop('0_Sample', axis=0) #remove sample row at least for now as it interferes with generation of anndata object
-
-
-#final_df2=final_df_T.T
-#final_df2.head()
-adata = ad.AnnData(df, obs=obs_meta)
-
+# delete cells witl less then 5000 transcripts from visualization
+# gene_counts_filt = np.delete(gene_counts, np.where(gene_counts < 5000))
+# print(len(gene_counts_filt))
+print("Minimum number of transcripts per cell:", np.min(gene_counts), 
+      "\n Median number of transcripts per cell:", np.median(gene_counts),
+      "\n Maximum number of transcripts per cell:", np.max(gene_counts))
+plt.hist(gene_counts, bins=100)
+plt.savefig('SciFiAll_Histogram_2200.pdf')
+plt.show()
 
 # create a backup anndata object 
-adata_TX_ref = adata_TX_red.copy()
+adata_TX_ref = adata_TX.copy()
 
 # create a slot with raw counts
 adata_TX_red.raw = adata_TX_red.copy()
@@ -461,29 +369,20 @@ sc.pp.neighbors(adata_TX_red, n_pcs=30, n_neighbors=40, random_state=1)
 sc.tl.tsne(adata_TX_red, perplexity=20, random_state=1)
 sc.tl.umap(adata_TX_red, min_dist = 0.8, spread = 1.5, n_components=3, random_state=1)
 
-import os
-os.system("pip3 install leidenalg")
+#import os
+#os.system("pip3 install leidenalg")
 
 
-sc.tl.leiden(adata_TX_red, resolution=0.125, key_added = 'leiden_r0125', random_state=1) # change resolution if desired, this value is low
+sc.tl.leiden(adata_TX_red, resolution=0.75, key_added = 'leiden_r0125', random_state=1) # change resolution if desired. the prev val was 0.125
 figsize(5,5)
-sc.pl.tsne(adata_TX_red, color=['leiden_r0125', 'Sample'], frameon=False, save='allSamples')
+sc.pl.tsne(adata_TX_red, color=['leiden_r0125', 'N(A_syn)'], frameon=False, save='allSamples')
+adata_TX_red
+sc.pl.umap(adata_TX_red, color=['leiden_r0125', 'N(A_syn)'], frameon=False, save='allSamples')
 
-sc.pl.umap(adata_TX_red, color=['leiden_r0125', 'Sample'], frameon=False, save='allSamples')
-
-sc.pl.tsne(adata_TX_red, color=['TH','SLC6A3','KCNJ6','CALB1', 'NR4A2', 'DRD2','GFAP','AAV_ASYN','AAV_H2BGFP'], color_map=sns.cubehelix_palette(dark=0, light=.9, as_cmap=True), ncols=3, vmax=25, frameon=False, save='_individualGenes')
+#sc.pl.tsne(adata_TX_red, color=['Th','SLC6A3','KCNJ6','CALB1', 'NR4A2', 'DRD2','GFAP','AAV_ASYN','AAV_H2BGFP'], color_map=sns.cubehelix_palette(dark=0, light=.9, as_cmap=True), ncols=3, vmax=25, frameon=False, save='_individualGenes')
 
 sc.pl.umap(adata_TX_red, color=['Th','Slc6a3','Kcnj6','Calb1', 'Nr4a2', 'Drd2','Gfap','AAV_ASYN','AAV_H2BGFP'], color_map=sns.cubehelix_palette(dark=0, light=.9, as_cmap=True), ncols=3, vmax=25, frameon=False, save='_individualGenes')
 
 
 
 #Analysing subgroups 
-
-annMatrix = DF_All.T.iloc[:,1:]
-annMatrix
-annObs = pd.DataFrame(index=completeTable.T.iloc[:,0:1].index, data={'CellBarcode' : completeTable.T.iloc[:,0:1].index,'Sample' : completeTable.T['0_Sample'].tolist()})
-annVar = pd.DataFrame(index=completeTable.iloc[1:,0:1].index, data=completeTable.iloc[1:,0:1].index, columns=['Gene'])
-adata_TX = ad.AnnData(X = annMatrix, obs = annObs, var = annVar)
-adata_TX.obs_names_make_unique(join="-")
-
-adata_TX
