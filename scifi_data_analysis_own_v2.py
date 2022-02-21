@@ -181,7 +181,9 @@ DF_All
 annMatrix = DF_All.T.iloc[:,1:]
 annMatrix
 annObs = pd.DataFrame(index=completeTable.T.iloc[:,0:1].index, data={'CellBarcode' : completeTable.T.iloc[:,0:1].index,'Sample' : completeTable.T['0_Sample'].tolist()})
+annObs
 annVar = pd.DataFrame(index=completeTable.iloc[1:,0:1].index, data=completeTable.iloc[1:,0:1].index, columns=['Gene'])
+annVar
 adata_TX = ad.AnnData(X = annMatrix, obs = annObs, var = annVar)
 adata_TX.obs_names_make_unique(join="-")
 
@@ -206,41 +208,9 @@ print("Minimum number of transcripts per cell:", np.min(gene_counts),
       "\n Median number of transcripts per cell:", np.median(gene_counts),
       "\n Maximum number of transcripts per cell:", np.max(gene_counts))
 plt.hist(gene_counts, bins=100)
-plt.savefig('SciFiAll_Histogram_2200.pdf')
-plt.show()
+#plt.savefig('SciFiAll_Histogram_2200.pdf')
+#plt.show()
 
-# create a backup anndata object 
-adata_TX_ref = adata_TX_red.copy()
-
-# create a slot with raw counts
-adata_TX_red.raw = adata_TX_red.copy()
-sc.pp.log1p(adata_TX_red)
-
-sc.pp.scale(adata_TX_red, max_value=10)
-sc.tl.pca(adata_TX_red, svd_solver='arpack', n_comps=80, use_highly_variable=False)
-
-# only keep the top 30 PC
-adata_TX_red.obsm['X_pca'] = adata_TX_red.obsm['X_pca'][:, :30]
-adata_TX_red.varm['PCs'] = adata_TX_red.varm['PCs'][:, :30]
-    
-#compute neighbours with top 30
-sc.pp.neighbors(adata_TX_red, n_pcs=30, n_neighbors=40, random_state=1)
-sc.tl.tsne(adata_TX_red, perplexity=20, random_state=1)
-sc.tl.umap(adata_TX_red, min_dist = 0.8, spread = 1.5, n_components=3, random_state=1)
-
-import os
-os.system("pip3 install leidenalg")
-
-
-sc.tl.leiden(adata_TX_red, resolution=0.125, key_added = 'leiden_r0125', random_state=1) # change resolution if desired, this value is low
-figsize(5,5)
-sc.pl.tsne(adata_TX_red, color=['leiden_r0125', 'Sample'], frameon=False, save='allSamples')
-
-sc.pl.umap(adata_TX_red, color=['leiden_r0125', 'Sample'], frameon=False, save='allSamples')
-
-sc.pl.tsne(adata_TX_red, color=['TH','SLC6A3','KCNJ6','CALB1', 'NR4A2', 'DRD2','GFAP','AAV_ASYN','AAV_H2BGFP'], color_map=sns.cubehelix_palette(dark=0, light=.9, as_cmap=True), ncols=3, vmax=25, frameon=False, save='_individualGenes')
-
-sc.pl.umap(adata_TX_red, color=['Th','Slc6a3','Kcnj6','Calb1', 'Nr4a2', 'Drd2','Gfap','AAV_ASYN','AAV_H2BGFP'], color_map=sns.cubehelix_palette(dark=0, light=.9, as_cmap=True), ncols=3, vmax=25, frameon=False, save='_individualGenes')
 
 
 ########################################
@@ -302,8 +272,106 @@ for key in dfs_grouped.keys():
     print(key)
 
 #now we have dfs for each individual group. Should we have instead used the DF_All_T_reorg and just use the copy number groups as equivalents of "samples" used prior?
+dfs_grouped["5"]
+dfs_grouped["2"]
+
+pd1 = dfs_grouped["1"]
+pd2 = dfs_grouped["2"]
+pd3 = dfs_grouped["3"]
+pd4 = dfs_grouped["4"]
+pd5 = dfs_grouped["5"]
+
+final_df = pd.concat([pd1,pd2,pd3,pd4,pd5], axis=0)
+final_df_T = final_df.T  #so genes are indeces, cells are cols
+final_df_T
+fd = final_df.copy()
+fd = fd.T
+
+
+# adding a level to the column, i.e. grouping cells based on the number of asyn copies
+
+groups = final_df['asyn_copies'].tolist()
+len(groups)
+
+#generate a multi index for the df and assign it
+final_df_T.columns = pd.MultiIndex.from_arrays([groups, final_df_T.columns])
+final_df_T.columns.levels[0]
+final_df_T.head()
+
+#final_df2=final_df_T.T
+#final_df2.head()
+
+#Other tattemps, didnt work though
+groups_df = pd.MultiIndex.from_product([col_names], names =[groups])
+groups_df
+groups_df = pd.MultiIndex.from_product(groups, col_names)
+
+groups = pd.DataFrame(columns=final_df.columns, index=['asyn_copies'])
+groups 
+#topRow.loc['_Sample'] = sample_Name
+matrix_filtered_out = pd.concat([topRow, matrix_filtered_F_g])
+
+groups = final_df['asyn_copies'].tolist()
+groups
+
+topRow = pd.DataFrame(columns=final_df.columns, index=['asyn_copies']).fillna(sample_Name)
+
+
+final_df = pd.concat(dfs_grouped["0"], dfs_grouped["1", dfs_grouped["2"], dfs_grouped["3"], dfs_grouped["4"], dfs_grouped["5"]], axis=0)
+
+final_df = pd.concat([dfs_grouped["0"], dfs_grouped["1", dfs_grouped["2"], dfs_grouped["3"], dfs_grouped["4"], dfs_grouped["5"]]], axis=0)
 
 final_df = pd.concat([dfs_grouped["0"], dfs_grouped["1", dfs_grouped["2"], dfs_grouped["3"], dfs_grouped["4"], dfs_grouped["5"]]], ignore_index=True)
+
+
+
+topRow = pd.DataFrame(columns=matrix_filtered_F_g.columns, index=['0_Sample']).fillna(sample_Name)
+
+
+###############
+
+
+
+
+
+
+
+
+
+
+
+# create a backup anndata object 
+adata_TX_ref = adata_TX_red.copy()
+
+# create a slot with raw counts
+adata_TX_red.raw = adata_TX_red.copy()
+sc.pp.log1p(adata_TX_red)
+
+sc.pp.scale(adata_TX_red, max_value=10)
+sc.tl.pca(adata_TX_red, svd_solver='arpack', n_comps=80, use_highly_variable=False)
+
+# only keep the top 30 PC
+adata_TX_red.obsm['X_pca'] = adata_TX_red.obsm['X_pca'][:, :30]
+adata_TX_red.varm['PCs'] = adata_TX_red.varm['PCs'][:, :30]
+    
+#compute neighbours with top 30
+sc.pp.neighbors(adata_TX_red, n_pcs=30, n_neighbors=40, random_state=1)
+sc.tl.tsne(adata_TX_red, perplexity=20, random_state=1)
+sc.tl.umap(adata_TX_red, min_dist = 0.8, spread = 1.5, n_components=3, random_state=1)
+
+import os
+os.system("pip3 install leidenalg")
+
+
+sc.tl.leiden(adata_TX_red, resolution=0.125, key_added = 'leiden_r0125', random_state=1) # change resolution if desired, this value is low
+figsize(5,5)
+sc.pl.tsne(adata_TX_red, color=['leiden_r0125', 'Sample'], frameon=False, save='allSamples')
+
+sc.pl.umap(adata_TX_red, color=['leiden_r0125', 'Sample'], frameon=False, save='allSamples')
+
+sc.pl.tsne(adata_TX_red, color=['TH','SLC6A3','KCNJ6','CALB1', 'NR4A2', 'DRD2','GFAP','AAV_ASYN','AAV_H2BGFP'], color_map=sns.cubehelix_palette(dark=0, light=.9, as_cmap=True), ncols=3, vmax=25, frameon=False, save='_individualGenes')
+
+sc.pl.umap(adata_TX_red, color=['Th','Slc6a3','Kcnj6','Calb1', 'Nr4a2', 'Drd2','Gfap','AAV_ASYN','AAV_H2BGFP'], color_map=sns.cubehelix_palette(dark=0, light=.9, as_cmap=True), ncols=3, vmax=25, frameon=False, save='_individualGenes')
 
 
 
