@@ -1,3 +1,4 @@
+from turtle import color
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -419,10 +420,63 @@ adata_TX_red
 #normalise counts
 sc.pp.normalize_total(adata_TX_red, target_sum=1e4)
 #sc.pp.normalize_per_cell(adata_TX_red, counts_per_cell_after=1e4)
-sc.pp.log1p(adata_TX)
-
-#logarithmise data 
 sc.pp.log1p(adata_TX_red)
+
+#find the highly variable genes
+sc.pp.highly_variable_genes(adata_TX_red, min_mean=0.0125, max_mean=3, min_disp=0.5)
+
+sc.pl.highly_variable_genes(adata_TX_red)
+
+
+#filter based on the highly var features 
+adata_TX_red_f = adata_TX_red[:, adata_TX_red.var.highly_variable]
+sc.pp.regress_out(adata_TX_red_f, ['total_counts', 'pct_counts_mt'])
+
+#Scale each gene to unit variance
+sc.pp.scale(adata_TX_red_f, max_value=10)
+
+adata_pca = adata_TX_red_f
+
+#PCA
+sc.tl.pca(adata_pca, svd_solver='arpack')
+#scatter plot of the pca coordinates
+sc.pl.pca(adata_pca, color='TH')
+
+#inspect the contribution of the total no of PCAs to the variance in data 
+sc.pl.pca_variance_ratio(adata_pca, log=True)
+#results_file = "/media/data/AtteR/scifi-analysis/Python-scifi-analysis/scifi5.h5ad"
+#adata_pca.write(results_file)
+
+
+# neighborhood graphs embedding
+sc.pp.neighbors(adata_pca, n_neighbors=10, n_pcs=30)
+#
+sc.tl.leiden(adata_pca)
+# had to add leiden prior to next line for some reason
+sc.tl.paga(adata_pca)
+sc.pl.paga(adata_pca, plot=False)  # remove `plot=False` if you want to see the coarse-grained graph
+sc.tl.umap(adata_pca, init_pos='paga')
+
+sc.tl.umap(adata_pca)
+sc.pl.umap(adata_pca)
+adata_pca.var["Gene"]
+sc.pl.umap(adata_pca, color=['FOXA2', 'CALB1', 'CHST8'])
+
+
+#As we set the .raw attribute of adata, the previous plots showed the “raw” (normalized, logarithmized, but uncorrected) gene expression. 
+# You can also plot the scaled and corrected gene expression by explicitly stating that you don’t want to use .raw.
+
+sc.pl.umap(adata_pca, color=['TH', 'DAT', 'CALB1'], use_raw=False)
+
+# Leiden clustering
+sc.tl.leiden(adata_pca)
+
+sc.pl.umap(adata, color=['leiden', 'CST3', 'NKG7'])
+
+#Find marker genes 
+sc.tl.rank_genes_groups(adata, 'leiden', method='t-test')
+sc.pl.rank_genes_groups(adata, n_genes=25, sharey=False)
+
 
 # create a slot with raw counts
 adata_TX_red.raw = adata_TX_red.copy()
