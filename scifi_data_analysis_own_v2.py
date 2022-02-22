@@ -42,16 +42,16 @@ for sample_id in samples_list:
     #matrix_filtered=pd.read_pickle(path + "matrix.mtx")
     #matrix_filtered_W=pd.read_pickle(path.replace("oDT", "WP") + "matrix.mtx")
 
-    matrix_filtered = sc.read_mtx(path + "matrix.mtx").T
+    matrix_filtered = sc.read_mtx(path + "matrix.mtx.gz").T
 
-    genes = pd.read_csv(path + 'features.tsv', header=None, sep='\t')
+    genes = pd.read_csv(path + 'features.tsv.gz', header=None, sep='\t')
     matrix_filtered.var['gene_ids'] = genes[0].values
     matrix_filtered.var['gene_symbols'] = genes[1].values
     matrix_filtered.var_names = matrix_filtered.var['gene_symbols']
     # Make sure the gene names are unique
     matrix_filtered.var_names_make_unique(join="-")
 
-    cells = pd.read_csv(path + 'barcodes.tsv', header=None, sep='\t')
+    cells = pd.read_csv(path + 'barcodes.tsv.gz', header=None, sep='\t')
     matrix_filtered.obs['barcode'] = cells[0].values
     matrix_filtered.obs_names = cells[0]
     # Make sure the cell names are unique
@@ -59,16 +59,16 @@ for sample_id in samples_list:
     print("imported odt")                          # write a cache file for faster subsequent reading
 
     #########################3
-    matrix_filtered_W = sc.read_mtx(path.replace("oDT", "WP") + "matrix.mtx").T
+    matrix_filtered_W = sc.read_mtx(path.replace("oDT", "WP") + "matrix.mtx.gz").T
 
-    genes = pd.read_csv(path.replace("oDT", "WP") + 'features.tsv', header=None, sep='\t')
+    genes = pd.read_csv(path.replace("oDT", "WP") + 'features.tsv.gz', header=None, sep='\t')
     matrix_filtered_W.var['gene_ids'] = genes[0].values
     matrix_filtered_W.var['gene_symbols'] = genes[1].values
     matrix_filtered_W.var_names = matrix_filtered_W.var['gene_symbols']
     # Make sure the gene names are unique
     matrix_filtered_W.var_names_make_unique(join="-")
 
-    cells = pd.read_csv(path.replace("oDT", "WP") + 'barcodes.tsv', header=None, sep='\t')
+    cells = pd.read_csv(path.replace("oDT", "WP") + 'barcodes.tsv.gz', header=None, sep='\t')
     matrix_filtered_W.obs['barcode'] = cells[0].values
     matrix_filtered_W.obs_names = cells[0]
     # Make sure the cell names are unique
@@ -263,6 +263,7 @@ final_df_T.columns
 
 groups = final_df_T.iloc[-1,:] #last row, i.e. asyn copies and all cols
 
+#groups2 = groups.drop("0_Sample", axis=1)
 #Series is a type of list in pandas which can take integer values, string values, double values and more. groups data type was a list initially so had to transform into df!!
 #But in Pandas Series we return an object in the form of list, having index starting from 0 to n, Where n is the length of values in series.
 # series can take a single list, i.e. it is a list but a pd version of it. df can take multiple series.
@@ -282,39 +283,130 @@ final_df_T
 #
 # replace 0_sample with the asyn copy number
 
-final_df_T.columns
+final_df_T.index
 
 
+#def shit_row_to_top(df, index_to_shift):
+#    idx = [i for i in df.index if i!=index_to_shift]
+#    return df.loc[idx]
 
-groups_df1 = groups_df.drop('asyn_copies', axis=1) #remove the asyn_copies column
-groups_df1
+#groups_df
+#groups_df1 = groups_df.drop('asyn_copies', axis=0) #remove the asyn_copies column, earlier axis was 1
+#groups_df1
 
-final_df_T_WORKS = pd.concat([groups_df1, final_df_T], axis=0)
+#final_df_T_WORKS = pd.concat([final_df_T, groups_df], axis=0)
+#final_df_T_WORKS
+
+#extra
+# test = final_df_T_WORKS.drop('0_Sample', axis=0)
+# test
+# #move asyn copies as the first row (right after the title row)
+# test["row_indeces"] = range(1,len(test)+1)
+# test
+# test.iloc[34326,-1] = 0
+# test.sort_values("row_indeces").drop('row_indeces', axis=1)
+# test
+#
+
+
+######
+final_df_T_WORKS = final_df_T.drop('0_Sample', axis=0)
+#move asyn copies as the first row (right after the title row)
+final_df_T_WORKS["row_indeces"] = range(1,len(final_df_T_WORKS)+1)
+final_df_T_WORKS
+final_df_T_WORKS.iloc[34326,-1] = 0
+final_df_T_WORKS = final_df_T_WORKS.sort_values("row_indeces").drop('row_indeces', axis=1)
 final_df_T_WORKS
 
-final_df_T.columns
+
+
+
+
+
+DA_markers = ['ASYN_COPIES', 'A1BG', 'ABCC8','ADCYAP1','ADRA1B','AIF1','ALDH1A1','ALDOC','ANXA1','BNC2','C3','CADPS2','CALB1','CALB2','CALCA','CBLN1','CBLN4','CCK','CD9','CDH8','CHRNA5','CHST8','CLIP2','CNR1','CRHBP','CPLX1','DDC','DRD2','EN1','EN2','ENO3','EPHA4','ERLEC1','ETV1','EXT2','FGF1','FJX1','FOXA1','FOXA2','TH','SLC6A3','KCNJ6','CALB1', 'NR4A2', 'DRD2','GFAP', 'SNCG', 'VIP', 'NXPH4','GAD2', 'DAT', 'SOX6','VGLUT2', 'OTX2', 'CORIN1', 'WNT1', 'LMX1A', 'PBX1', 'PITX3', 'GRIN2B','HOMER2','AJAP1', 'EPHA4', 'CHRNA5', 'NRIP3', 'KCNS3', 'CPLX1', 'NDNF', 'KIFC3', 'CALB1', 'CHST8','IGFBP2', 'LAMA5', 'ANXA1', 'RBP4', 'ALDH1A7', 'ADCYAP1', 'LHFPL2', 'CBLN4', 'LPL', 'NHNIH2', 'OTX1', 'SYN2', 'CLBN1', 'GPX3', 'FJX1', 'FOXA2', 'EN2', 'NTF3', 'GFRA2', 'LIX1', 'PTPN5', 'FGF1', 'NOSTRIN', 'SERPINE2', 'KCNIP3', 'GRIK1', 'LYPD1', 'POU3F1', 'CD9', 'NEUROD6', 'GRP', 'TCF12', 'CALCA', 'GPR83','NPHP1', 'CHTF8', 'SLC32A1', 'CTXN3', 'ETV1', 'LMX1A']
+final_df_T_WORKS.index = map(str.upper, final_df_T_WORKS.index)
+
+
+
+genes = final_df_T_WORKS.shape[0]
+final_df_T_WORKS.index = map(str.upper, final_df_T_WORKS.index)
+
+def subset_df(df, markers):
+    df.index = map(str.upper, df.index)
+    genes = df.shape[0]
+
+    #remove any duplicates entered into the markers list by accident
+    markers = list( dict.fromkeys(markers) )
+    markers = list( dict.fromkeys(markers) ) 
+
+    genes = final_df_T_WORKS.shape[0]
+    final_df_T_WORKS.index = map(str.upper, final_df_T_WORKS.index)
+
+    subset_dict = dict()
+    i = 0
+    for gene in range(genes):
+        #print(gene)
+        if df.index[gene] in markers:
+            subset_dict[df.index[gene]] = df.iloc[gene,:]
+            i += 1
+    print("Found in total " + str(i) + " matches!")
+    df_DA = pd.DataFrame.from_dict(subset_dict).T
+
+    return df_DA
+
+df_DA = subset_df(final_df_T_WORKS, DA_markers)
+df_DA
+
+
+'''
+Find the genes that are in the list, save these into dic where the key is the gene and value is the cells with the values 
+   c c  c c c c 
+g
+g
+g
+g
+g
+'''
+
 #final_df_T
+
+#first need to go over the df, find rownames that do match with da markers, save the info of the matching markers into a list and then
+#subset
+final_df_T_WORKS
+
+DA_markers = ['A1BG', 'ABCC8','ADCYAP1','ADRA1B','AIF1','ALDH1A1','ALDOC','ANXA1','BNC2','C3','CADPS2','CALB1','CALB2','CALCA','CBLN1','CBLN4','CCK','CD9','CDH8','CHRNA5','CHST8','CLIP2','CNR1','CRHBP','CPLX1','DDC','DRD2','EN1','EN2','ENO3','EPHA4','ERLEC1','ETV1','EXT2','FGF1','FJX1','FOXA1','FOXA2','TH','SLC6A3','KCNJ6','CALB1', 'NR4A2', 'DRD2','GFAP', 'SNCG', 'VIP', 'NXPH4','GAD2', 'DAT', 'SOX6','VGLUT2', 'OTX2', 'CORIN1', 'WNT1', 'LMX1A', 'PBX1', 'PITX3', 'GRIN2B','HOMER2','AJAP1', 'EPHA4', 'CHRNA5', 'NRIP3', 'KCNS3', 'CPLX1', 'NDNF', 'KIFC3', 'CALB1', 'CHST8','IGFBP2', 'LAMA5', 'ANXA1', 'RBP4', 'ALDH1A7', 'ADCYAP1', 'LHFPL2', 'CBLN4', 'LPL', 'NHNIH2', 'OTX1', 'SYN2', 'CLBN1', 'GPX3', 'FJX1', 'FOXA2', 'EN2', 'NTF3', 'GFRA2', 'LIX1', 'PTPN5', 'FGF1', 'NOSTRIN', 'SERPINE2', 'KCNIP3', 'GRIK1', 'LYPD1', 'POU3F1', 'CD9', 'NEUROD6', 'GRP', 'TCF12', 'CALCA', 'GPR83','NPHP1', 'CHTF8', 'SLC32A1', 'CTXN3', 'ETV1', 'LMX1A']
+
+final_df_T_WORKS.index = map(str.upper, final_df_T_WORKS.index)
+final_df_T_WORKS.index
+final_df_T_WORKS_DA = final_df_T_WORKS.loc[DA_markers]
+final_df_T_WORKS_DA = final_df_T_WORKS[final_df_T_WORKS[:].isin(DA_markers)]
+final_df_T_WORKS_DA
+
+final_df_T_WORKS[:]
+final_df_T_WORKS
+fda[DA_markers].any()
+keyrows = pool[pool.Name.str.contains(key)]
 
 
 #originally a full table (name was CompleteTable) was created but no need I think
 #Fulltable = completeTable.merge(final_df_T_WORKS,left_index=True, right_index=True, how='outer').fillna(0)
 #Fulltable
 
-annMatrix = final_df_T_WORKS.T
+annMatrix = final_df_T_WORKS.T.iloc[:-1,:]
 #annMatrix = annMatrix.drop("asyn_copies", axis=1) #.iloc[:,1:]get_level_values('first')
 annMatrix
 annMatrix.index
-final_df_T_g.T['asyn_copies'].tolist()
+#final_df_T_g.T['asyn_copies'].tolist()
 
-final_df_T_g
-annObs = pd.DataFrame(index=final_df_T_WORKS.T.iloc[:,0:1].index, data={'CellBarcode':final_df_T_WORKS.T.iloc[:,0:1].index, 'N(A_syn)':final_df_T_WORKS.loc['asyn_copies']})
+#final_df_T_g    # had to add final_df_T_WORKS.T.iloc[:-1,0:1] -1 instead of just all since the last row is rowindeces
+annObs = pd.DataFrame(index=final_df_T_WORKS.T.iloc[:-1,0:1].index, data={'CellBarcode':final_df_T_WORKS.T.iloc[:-1,0:1].index, 'N_asyn':final_df_T_WORKS.loc['asyn_copies']})
 
 #annObs = pd.DataFrame(index=completeTable.T.iloc[:,0:1].index, data={'CellBarcode' : .T.iloc[:,0:1].index,'Sample' : completeTable.T['0_Sample'].tolist()})
 
 annObs
 annObs.index
 annVar = pd.DataFrame(index=final_df_T_WORKS.iloc[:,0:1].index, data=final_df_T_WORKS.iloc[:,0:1].index, columns=['Gene'])
-annVar
+annVar.index
 #adata = ad.AnnData(annMatrix, obs=annObs)
 
 #the levels are ogranised differently between annmatrix and annobs
@@ -323,22 +415,98 @@ adata_TX.obs_names_make_unique(join="-")
 
 adata_TX
 
-
-#save the unprocessed anndata object for future use
-adata_TX.write(filename="/media/data/AtteR/scifi-analysis/R-scifi-analysis/objects/Scifi5_anndata.h5ad")
-
-test_obj = sc.read_h5ad("/media/data/AtteR/scifi-analysis/R-scifi-analysis/objects/Scifi5_anndata.h5ad")
+#subset based on DA_markers 
+adata_TX_DA = adata_TX[adata_TX.var['Gene'].isin(['2', '3'])]
 
 adata_TX_red = adata_TX.copy()
+
+#in case you want to look at specific groups:
+#adata_TX_red[adata_TX_red.obs['N_asyn'] == '1', :]
+
+DA_markers = ['ABCC8','ADCYAP1','ADRA1B','AIF1','ALDH1A1','ALDOC','ANXA1','BNC2','C3','CADPS2','CALB1','CALB2','CALCA','CBLN1','CBLN4','CCK','CD9','CDH8','CHRNA5','CHST8','CLIP2','CNR1','CRHBP','CPLX1','DDC','DRD2','EN1','EN2','ENO3','EPHA4','ERLEC1','ETV1','EXT2','FGF1','FJX1','FOXA1','FOXA2','TH','SLC6A3','KCNJ6','CALB1', 'NR4A2', 'DRD2','GFAP', 'SNCG', 'VIP', 'NXPH4','GAD2', 'DAT', 'SOX6','VGLUT2', 'OTX2', 'CORIN1', 'WNT1', 'LMX1A', 'PBX1', 'PITX3', 'GRIN2B','HOMER2','AJAP1', 'EPHA4', 'CHRNA5', 'NRIP3', 'KCNS3', 'CPLX1', 'NDNF', 'KIFC3', 'CALB1', 'CHST8','IGFBP2', 'LAMA5', 'ANXA1', 'RBP4', 'ALDH1A7', 'ADCYAP1', 'LHFPL2', 'CBLN4', 'LPL', 'NHNIH2', 'OTX1', 'SYN2', 'CLBN1', 'GPX3', 'FJX1', 'FOXA2', 'EN2', 'NTF3', 'GFRA2', 'LIX1', 'PTPN5', 'FGF1', 'NOSTRIN', 'SERPINE2', 'KCNIP3', 'GRIK1', 'LYPD1', 'POU3F1', 'CD9', 'NEUROD6', 'GRP', 'TCF12', 'CALCA', 'GPR83','NPHP1', 'CHTF8', 'SLC32A1', 'CTXN3', 'ETV1', 'LMX1A']
+
+keyrows = pool[pool.Name.str.contains(key)]
+# selecting rows based on condition
+rslt_df = adata_TX_red[adata_TX_red['Stream'].isin(options)]
+#adata_TX_red.obs[:]
+
+adata_TX_red.var[adata_TX_red.var.Gene.isin(DA_markers)]
+
+adata_TX_red.var['Gene']
+adata_TX_red.var.Gene.isin(DA_markers)
+
+
+#knee plot to assess the number of cells we'll be filtering
+# Create the "knee plot"
+from datetime import datetime 
+from datetime import date
+run_date = date.today()
+str(run_date)
+
+knee = np.sort((np.array(annMatrix.T.sum(axis=1))).flatten())[::-1] #gotta transpose as annmatrix normally has genes as columns but we want cells
+fig, ax = plt.subplots(figsize=(10, 7))
+
+ax.loglog(knee, range(len(knee)),linewidth=5, color="g")
+
+ax.set_xlabel("UMI Counts")
+ax.set_ylabel("Set of Barcodes")
+
+plt.grid(True, which="both")
+#plt.savefig("/media/data/AtteR/scifi-analysis/Python-scifi-analysis/plots/Kneeplot_"+ str(run_date) + ".png")
+
+plt.show()
+plt.close(fig)    # close the figure window
+
+
 adata_TX_red.obs['read_counts'] = np.sum(adata_TX.X, axis=1)
-adata_TX_red = adata_TX_red[adata_TX_red.obs['read_counts'] >= 2200].copy()
+gene_counts = np.sum(adata_TX_red.X, axis=1)   #Take each column (cell) and count the number of transcripts
+
+
+adata_TX_red.obs['N_asyn']
+sc.pl.highest_expr_genes(adata_TX_red, n_top=20, )
+
+adata_TX_red
+adata_TX_red.obs['n_genes']  
+
+sc.pp.filter_cells(adata_TX_red, min_genes=1000)
+sc.pp.filter_genes(adata_TX_red, min_cells=3)
+adata_TX_red
+
+adata_TX_red.var['mt'] = adata_TX_red.var_names.str.startswith('mt-')  # annotate the group of mitochondrial genes as 'mt'
+sc.pp.calculate_qc_metrics(adata_TX_red, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
+#we would need the number of genes in a cell and the total number of molecules (n_count)
+sc.pl.violin(adata_TX_red, ['n_genes'],jitter=0.4, multi_panel=True)
+#adata_TX_red = adata_TX_red[adata_TX_red.obs['read_counts'] >= 1000].copy()
 
 #adata_TX_red[adata_TX_red.obs['Sample'] == 'SciFi6', :]
 
 # plot histogram of transcript count per cell
 
-gene_counts = np.sum(adata_TX_red.X, axis=1)   #Take each column (cell) and count the cells
+#useless since we already counted these into the obs var as n_genes...
+gene_counts = np.sum(adata_TX_red.X, axis=1)   #Take each column (cell) and count the number of transcripts
 gene_counts.shape
+
+adata_TX_red2 = adata_TX_red.copy()
+adata_TX_red.obs['n_count'] = np.sum(adata_TX_red.X, axis=1)
+
+
+#from scipy.sparse import csr_matrix
+#adata_TX_red.X = csr_matrix(adata_TX_red.X)
+#adata_TX_red.write(filename="/media/data/AtteR/scifi-analysis/R-scifi-analysis/objects/Scifi5_anndata.h5ad")
+
+adata_TX_red
+
+sc.pl.violin(adata_TX_red, ['n_genes', 'n_count'],jitter=0.4, multi_panel=True)
+
+sc.pl.violin(adata_TX_red, ['n_genes', 'n_count', 'pct_counts_mt'],jitter=0.4, multi_panel=True)
+plt.savefig("/media/data/AtteR/scifi-analysis/Python-scifi-analysis/plots/Scifi5_violincounts_"+ str(run_date) + ".png")
+plt.show()
+plt.close(fig)    # close the figure window
+
+#remove cells that contain mt genes 
+#sc.pl.scatter(adata, x='total_counts', y='pct_counts_mt')
+#sc.pl.scatter(adata, x='total_counts', y='n_genes_by_counts')
+
 
 # delete cells witl less then 5000 transcripts from visualization
 # gene_counts_filt = np.delete(gene_counts, np.where(gene_counts < 5000))
@@ -347,11 +515,29 @@ print("Minimum number of transcripts per cell:", np.min(gene_counts),
       "\n Median number of transcripts per cell:", np.median(gene_counts),
       "\n Maximum number of transcripts per cell:", np.max(gene_counts))
 plt.hist(gene_counts, bins=100)
-plt.savefig('SciFiAll_Histogram_2200.pdf')
+#plt.savefig('SciFiAll_Histogram_2200.pdf')
+plt.savefig("/media/data/AtteR/scifi-analysis/Python-scifi-analysis/plots/Scifi5_hist_"+ str(run_date) + ".png")
+
 plt.show()
+plt.close()    # close the figure window
 
 # create a backup anndata object 
 adata_TX_ref = adata_TX.copy()
+
+#sc.pl.scatter(adata_TX_red, x='total_counts', y='n_genes_by_counts')
+adata_TX_red
+matplotlib.pyplot.scatter(adata_TX_red.obs['n_count'], adata_TX_red.obs['n_genes'])
+plt.show()
+plt.close()
+#
+adata_TX_red = adata_TX_red.obs[adata_TX_red.obs['n_genes'] < 5800, :]
+adata_TX_red
+
+
+#normalise counts
+sc.pp.normalize_per_cell(adata_TX, counts_per_cell_after=1e4)
+sc.pp.log1p(adata_TX)
+
 
 # create a slot with raw counts
 adata_TX_red.raw = adata_TX_red.copy()
@@ -359,6 +545,9 @@ sc.pp.log1p(adata_TX_red)
 
 sc.pp.scale(adata_TX_red, max_value=10)
 sc.tl.pca(adata_TX_red, svd_solver='arpack', n_comps=80, use_highly_variable=False)
+
+sc.pl.violin(adata_TX_red, ['n_genes', 'n_counts', 'percent_mito'], jitter=0.4, multi_panel=True)
+
 
 # only keep the top 30 PC
 adata_TX_red.obsm['X_pca'] = adata_TX_red.obsm['X_pca'][:, :30]
