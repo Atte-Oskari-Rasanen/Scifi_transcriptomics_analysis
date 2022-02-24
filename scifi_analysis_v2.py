@@ -1,3 +1,5 @@
+
+
 from turtle import color
 import numpy as np
 import pandas as pd
@@ -164,95 +166,140 @@ DF_All.T.index
 DF_All.index = map(str.upper, DF_All.index)
 DF_All = DF_All.drop('0_SAMPLE', axis=0)
 
+DF_All_T=DF_All.T
 
-#originally a full table (name was CompleteTable) was created but no need I think
-#Fulltable = completeTable.merge(final_df_T_WORKS,left_index=True, right_index=True, how='outer').fillna(0)
-#Fulltable
+#earlier DF_All was DF_All_T
+cells = DF_All_T.shape[0]
+cells
+groups_list = []
 
-annMatrix = DF_All.T.iloc[:-1,:]
+#Manual approach
+#go over each row of the column AAV_ASYN, 
+for i in range(cells):
+    print(i)
+    # printing the third element of the column
+    print (DF_All_T['AAV_ASYN'][i])
+    groups_list.append(DF_All_T['AAV_ASYN'][i])
+    #if i==10:
+    #    break
+
+groups_list
+len(groups_list)
+cells
+DF_All_T['asyn_copies'] = groups_list
+DF_All_T
+
+#organise so that groups having same numbers are together
+DF_All_T_reorg = DF_All_T.sort_values(by = 'asyn_copies')
+#go over the row values, compare the value to the prev one, when the value changes, slice the df at this point!
+
+dfs_grouped = {}
+i=0
+io = 0 #starting index for slicing, the ending one will be defined within the for loop
+for i in range(cells-1):
+    cell1 = DF_All_T_reorg["asyn_copies"][i]
+    cell2 = DF_All_T_reorg["asyn_copies"][i+1]
+    
+    if cell1!=cell2:
+        print(cell1)
+        print(cell2)
+        asyn_cop = str(int(cell1)) 
+        df_name = asyn_cop
+        print(df_name)
+        dfs_grouped[df_name]=DF_All_T_reorg[io:i]
+        io=i  #make 
+
+    #groups_list.append(DF_All_T['AAV_ASYN'][i])
+
+for key in dfs_grouped.keys():
+    print(key)
+
+#now we have dfs for each individual group. Should we have instead used the DF_All_T_reorg and just use the copy number groups as equivalents of "samples" used prior?
+DA_markers = ['TH', 'DAT', 'A1BG', 'ABCC8','ADCYAP1','ADRA1B','AIF1','ALDH1A1','ALDOC','ANXA1','BNC2','C3','CADPS2','CALB1','CALB2','CALCA','CBLN1','CBLN4','CCK','CD9','CDH8','CHRNA5','CHST8','CLIP2','CNR1','CRHBP','CPLX1','DDC','DRD2','EN1','EN2','ENO3','EPHA4','ERLEC1','ETV1','EXT2','FGF1','FJX1','FOXA1','FOXA2','TH','SLC6A3','KCNJ6','CALB1', 'NR4A2', 'DRD2','GFAP', 'SNCG', 'VIP', 'NXPH4','GAD2', 'DAT', 'SOX6','VGLUT2', 'OTX2', 'CORIN1', 'WNT1', 'LMX1A', 'PBX1', 'PITX3', 'GRIN2B','HOMER2','AJAP1', 'EPHA4', 'CHRNA5', 'NRIP3', 'KCNS3', 'CPLX1', 'NDNF', 'KIFC3', 'CALB1', 'CHST8','IGFBP2', 'LAMA5', 'ANXA1', 'RBP4', 'ALDH1A7', 'ADCYAP1', 'LHFPL2', 'CBLN4', 'LPL', 'NHNIH2', 'OTX1', 'SYN2', 'CLBN1', 'GPX3', 'FJX1', 'FOXA2', 'EN2', 'NTF3', 'GFRA2', 'LIX1', 'PTPN5', 'FGF1', 'NOSTRIN', 'SERPINE2', 'KCNIP3', 'GRIK1', 'LYPD1', 'POU3F1', 'CD9', 'NEUROD6', 'GRP', 'TCF12', 'CALCA', 'GPR83','NPHP1', 'CHTF8', 'SLC32A1', 'CTXN3', 'ETV1', 'LMX1A']
+
+
+pd0 = dfs_grouped["0"]
+pd1 = dfs_grouped["1"]
+pd2 = dfs_grouped["2"]
+pd3 = dfs_grouped["3"]
+pd4 = dfs_grouped["4"]
+pd5 = dfs_grouped["5"]
+a = len(dfs_grouped["0"]) + len(dfs_grouped["1"]) + len(dfs_grouped["2"]) + len(dfs_grouped["3"]) + len(dfs_grouped["4"]) + len(dfs_grouped["5"])
+a
+
+final_df = pd.concat([pd0,pd1,pd2,pd3,pd4,pd5], axis=0)
+final_df_T = final_df.T  #so genes are indeces, cells are cols
+final_df_T.index
+final_df_T
+
+fd = final_df.copy()
+fd = fd.T
+
+
+######
+final_df_T_WORKS = final_df_T.drop('0_Sample', axis=0)
+final_df_T_WORKS = final_df_T
+#move asyn copies as the first row (right after the title row)
+final_df_T["row_indeces"] = range(1,len(final_df_T_WORKS)+1)
+final_df_T_WORKS
+final_df_T_WORKS.iloc[34326,-1] = 0
+final_df_T_WORKS = final_df_T_WORKS.sort_values("row_indeces").drop('row_indeces', axis=1)
+final_df_T_WORKS
+
+
+#use this when grouped by asyn but no filtering with regards to DA
+final_df_T_WORKS
+final_df_T_WORKS.index = map(str.upper, final_df_T_WORKS.index)
+
+#use this when raw
+DF_All 
+
+annMatrix = final_df_T_WORKS.T.iloc[:-1,:]
 #annMatrix = annMatrix.drop("asyn_copies", axis=1) #.iloc[:,1:]get_level_values('first')
 annMatrix
 annMatrix.index
 #final_df_T_g.T['asyn_copies'].tolist()
 
 #final_df_T_g    # had to add final_df_T_WORKS.T.iloc[:-1,0:1] -1 instead of just all since the last row is rowindeces
-annObs = pd.DataFrame(index=DF_All.T.iloc[:-1,0:1].index, data={'CellBarcode':DF_All.T.iloc[:-1,0:1].index})
+annObs = pd.DataFrame(index=final_df_T_WORKS.T.iloc[:-1,0:1].index, data={'CellBarcode':final_df_T_WORKS.T.iloc[:-1,0:1].index, 'N_asyn':final_df_T_WORKS.loc['ASYN_COPIES']})
 
 #annObs = pd.DataFrame(index=completeTable.T.iloc[:,0:1].index, data={'CellBarcode' : .T.iloc[:,0:1].index,'Sample' : completeTable.T['0_Sample'].tolist()})
 
 annObs
 annObs.index
-annVar = pd.DataFrame(index=DF_All.iloc[:,0:1].index, data=DF_All.iloc[:,0:1].index, columns=['Gene'])
+annVar = pd.DataFrame(index=final_df_T_WORKS.iloc[:,0:1].index, data=final_df_T_WORKS.iloc[:,0:1].index, columns=['Gene'])
 annVar.index
 #adata = ad.AnnData(annMatrix, obs=annObs)
 
 #the levels are ogranised differently between annmatrix and annobs
 adata_TX = ad.AnnData(X = annMatrix, obs = annObs, var = annVar)
 adata_TX.obs_names_make_unique(join="-")
+#adata_TX.write(filename="/media/data/AtteR/scifi-analysis/Python-scifi-analysis/plots_no_groups/All.h5ad", compression=None, compression_opts=None, force_dense=None, as_dense=())
 
 adata_TX
+
+adata_TX.obs['CellBarcode']
 
 
 adata_TX_red = adata_TX.copy()
 
+# mitochondrial genes
+adata_TX_red.var['mt'] = adata_TX_red.var_names.str.startswith('MT-') 
+# ribosomal genes
+adata_TX_red.var['ribo'] = adata_TX_red.var_names.str.startswith(("RPS","RPL"))
+# hemoglobin genes.
+adata_TX_red.var['hb'] = adata_TX_red.var_names.str.contains(("^HB[^(P)]"))
 
-#knee plot to assess the number of cells we'll be filtering
-# Create the "knee plot"
-from datetime import datetime 
-from datetime import date
-run_date = date.today()
-str(run_date)
+#sc.pp.calculate_qc_metrics(adata_TX_red, qc_vars=['mt','ribo','hb'], percent_top=None, log1p=False, inplace=True)
 
-knee = np.sort((np.array(annMatrix.T.sum(axis=1))).flatten())[::-1] #gotta transpose as annmatrix normally has genes as columns but we want cells
-fig, ax = plt.subplots(figsize=(10, 7))
-
-ax.loglog(knee, range(len(knee)),linewidth=5, color="g")
-
-ax.set_xlabel("UMI Counts")
-ax.set_ylabel("Set of Barcodes")
-
-plt.grid(True, which="both")
-#plt.savefig("/media/data/AtteR/scifi-analysis/Python-scifi-analysis/plots/Kneeplot_"+ str(run_date) + ".png")
-
-plt.show()
-plt.close()    # close the figure window
-
-adata_TX_red.obs['total_counts'] = np.sum(adata_TX_red.X, axis=1)  #earlier if was adata_TX
-gene_counts = np.sum(adata_TX_red.X, axis=1)   #Take each column (cell) and count the number of transcripts
-
-#How to count the n_genes and n_tot per cell?
-adata_TX_red.obs['total_counts']
-
-adata_TX_red
-sc.pl.highest_expr_genes(adata_TX_red, n_top=20, )
+# remove cells with less than given amount of genes from the main frame if desired
+adata_TX_red = adata_TX.copy()
+adata_TX_red.obs['read_counts'] = np.sum(adata_TX_red.X, axis=1)
+adata_TX_red = adata_TX_red[adata_TX_red.obs['read_counts'] >= 2200].copy()
 adata_TX_red
 
-
-#adata_TX_red.obs['n_genes']  
-
-sc.pp.filter_cells(adata_TX_red, min_genes=200)
-sc.pp.filter_genes(adata_TX_red, min_cells=3)
-adata_TX_red
-
-adata_TX_red.var['mt'] = adata_TX_red.var_names.str.startswith('mt-')  # annotate the group of mitochondrial genes as 'mt'
-sc.pp.calculate_qc_metrics(adata_TX_red, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
-#we would need the number of genes in a cell and the total number of molecules (n_count)
-sc.pl.violin(adata_TX_red, ['n_genes', 'total_counts', 'total_counts_mt'],jitter=0.4, multi_panel=True)
-#adata_TX_red = adata_TX_red[adata_TX_red.obs['read_counts'] >= 1000].copy()
-
-#adata_TX_red[adata_TX_red.obs['Sample'] == 'SciFi6', :]
-
-# plot histogram of transcript count per cell
-
-
-plt.savefig("/media/data/AtteR/scifi-analysis/Python-scifi-analysis/plots/Scifi5_violincounts_"+ str(run_date) + ".png")
-plt.show()
-plt.close()    # close the figure window
-
-#remove cells that contain mt genes 
-#sc.pl.scatter(adata, x='total_counts', y='pct_counts_mt')
-#sc.pl.scatter(adata, x='total_counts', y='n_genes_by_counts')
-
+gene_counts = np.sum(adata_TX_red.X, axis=1)
+gene_counts.shape
 
 # delete cells witl less then 5000 transcripts from visualization
 # gene_counts_filt = np.delete(gene_counts, np.where(gene_counts < 5000))
@@ -261,145 +308,110 @@ print("Minimum number of transcripts per cell:", np.min(gene_counts),
       "\n Median number of transcripts per cell:", np.median(gene_counts),
       "\n Maximum number of transcripts per cell:", np.max(gene_counts))
 plt.hist(gene_counts, bins=100)
-#plt.savefig('SciFiAll_Histogram_2200.pdf')
-plt.savefig("/media/data/AtteR/scifi-analysis/Python-scifi-analysis/plots/Scifi5_hist_"+ str(run_date) + ".png")
-
+plt.savefig('SciFiDA_Histogram_2200.pdf')
 plt.show()
-plt.close()    # close the figure window
 
 # create a backup anndata object 
-adata_TX_ref = adata_TX.copy()
-
-#sc.pl.scatter(adata_TX_red, x='total_counts', y='n_genes_by_counts')
-adata_TX_red
-matplotlib.pyplot.scatter(adata_TX_red.obs['total_counts'], adata_TX_red.obs['n_genes'])
-plt.show()
-plt.close()
-#
-
-#remove outliers 
-adata_TX_red = adata_TX_red.obs[adata_TX_red.obs['n_genes'] < 5800, :]
-adata_TX_red
-
-
-#normalise counts
-sc.pp.normalize_total(adata_TX_red, target_sum=1e4)
-#sc.pp.normalize_per_cell(adata_TX_red, counts_per_cell_after=1e4)
-sc.pp.log1p(adata_TX_red)
-
-#find the highly variable genes
-sc.pp.highly_variable_genes(adata_TX_red, min_mean=0.0125, max_mean=3, min_disp=0.5)
-
-sc.pl.highly_variable_genes(adata_TX_red)
-
-
-#filter based on the highly var features 
-adata_TX_red_f = adata_TX_red[:, adata_TX_red.var.highly_variable]
-sc.pp.regress_out(adata_TX_red_f, ['total_counts', 'pct_counts_mt'])
-
-#Scale each gene to unit variance
-sc.pp.scale(adata_TX_red_f, max_value=10)
-
-adata_pca = adata_TX_red_f
-
-
-#PCA
-sc.tl.pca(adata_pca, svd_solver='arpack')
-#scatter plot of the pca coordinates
-sc.pl.pca(adata_pca, color='n_genes')
-adata_pca
-
-#inspect the contribution of the total no of PCAs to the variance in data 
-sc.pl.pca_variance_ratio(adata_pca, log=True)
-#results_file = "/media/data/AtteR/scifi-analysis/Python-scifi-analysis/scifi5.h5ad"
-#adata_pca.write(results_file)
-
-
-# neighborhood graphs embedding - tried different ones but separation still poor.
-sc.pp.neighbors(adata_pca, n_neighbors=20, n_pcs=30)
-#
-sc.tl.leiden(adata_pca)
-# had to add leiden prior to next line for some reason
-sc.tl.paga(adata_pca)
-sc.pl.paga(adata_pca, plot=False)  # remove `plot=False` if you want to see the coarse-grained graph
-sc.tl.umap(adata_pca, init_pos='paga')
-
-#n_componenents is the dims equivalent of seurat
-sc.tl.umap(adata_pca, min_dist=0.5, spread=0.1, n_components=2)
-sc.tl.umap(adata_pca, n_components=10)
-
-sc.pl.umap(adata_pca, color=['A_SYN'], use_raw=False)
-
-####################
-
-
-sc.pl.umap(adata_pca)
-adata_pca.var["Gene"]
-sc.pl.umap(adata_pca, color=['FOXA2', 'CALB1', 'CHST8'])
-
-
-#As we set the .raw attribute of adata, the previous plots showed the “raw” (normalized, logarithmized, but uncorrected) gene expression. 
-# You can also plot the scaled and corrected gene expression by explicitly stating that you don’t want to use .raw.
-
-sc.pl.umap(adata_pca, color=['TH', 'DAT', 'CALB1'], use_raw=False)
-sc.pl.umap(adata_pca, color=['leiden'], use_raw=False)
-
-# Leiden clustering
-sc.tl.leiden(adata_pca)
-
-sc.pl.umap(adata_pca, color=['leiden'])
-sc.pl.umap(adata_pca, color=['AAV_ASYN'])
-
-adata_pca
-adata_pca.var['Gene']
-#sc.pl.umap(adata_pca, color=['N_asyn'])
-
-
-
-
-#Find marker genes 
-sc.tl.rank_genes_groups(adata_pca, 'leiden', method='t-test')
-sc.pl.rank_genes_groups(adata_pca, n_genes=25, sharey=False)
+adata_TX_ref = adata_TX_red.copy()
 
 
 # create a slot with raw counts
-adata_pca.raw = adata_pca.copy()
-sc.pp.log1p(adata_pca)
+adata_TX_red.raw = adata_TX_red.copy()
+sc.pp.log1p(adata_TX_red)
 
-adata_pca
-sc.pp.scale(adata_pca, max_value=10)
-sc.tl.pca(adata_pca, svd_solver='arpack', n_comps=80, use_highly_variable=False)
+# regress out unwanted variables
+sc.pp.regress_out(adata_TX_red, ['total_counts'])
 
-sc.pl.violin(adata_pca, ['n_genes', 'total_counts', 'pct_counts_mt'], jitter=0.4, multi_panel=True)
-
+sc.pp.scale(adata_TX_red, max_value=10)
+sc.tl.pca(adata_TX_red, svd_solver='arpack', n_comps=80, use_highly_variable=False)
 
 # only keep the top 30 PC
-adata_pca.obsm['X_pca'] = adata_pca.obsm['X_pca'][:, :30]
-adata_pca.varm['PCs'] = adata_pca.varm['PCs'][:, :30]
-    
+adata_TX_red.obsm['X_pca'] = adata_TX_red.obsm['X_pca'][:, :30]
+adata_TX_red.varm['PCs'] = adata_TX_red.varm['PCs'][:, :30]
+adata_TX_red
 #compute neighbours with top 30
-sc.pp.neighbors(adata_pca, n_pcs=20, n_neighbors=40, random_state=1)
-sc.tl.tsne(adata_pca, perplexity=20, random_state=1)
-sc.tl.umap(adata_pca, min_dist = 0.8, spread = 1.5, n_components=3, random_state=1)
+sc.pp.neighbors(adata_TX_red, n_pcs=20, n_neighbors=40, random_state=1)
+sc.tl.umap(adata_TX_red, min_dist = 0.8, spread = 1.5, n_components=3, random_state=1)
+adata_TX_red
 
-#import os
-#os.system("pip3 install leidenalg")
+adata_TX_red.obs['N_asyn'] = adata_TX_red.obs['N_asyn'].astype('category')
+
+sc.pl.violin(adata_TX_red, ["read_counts"], jitter=0.4, groupby = 'N_asyn', rotation= 45)
+sc.tl.leiden(adata_TX_red, resolution=1.2, key_added = 'leiden_r12', random_state=1) # change resolution if desired, this value is low
+figsize(5,5)
+sc.pl.umap(adata_TX_red, color=['leiden_r12', "N_asyn"], frameon=False, save='allSamples')
+
+sc.pl.umap(adata_TX_red, color='N_asyn')
+
+sc.pl.umap(adata_TX_red, color=['TH','SLC6A3','KCNJ6','CALB1', 'NR4A2', 'DRD2','GFAP','AAV_ASYN','AAV_H2BGFP'], color_map=sns.cubehelix_palette(dark=0, light=.9, as_cmap=True), ncols=3, vmax=25, frameon=False, save='_individualGenes')
+sc.pl.umap(adata_TX_red, color=DA_markers10, color_map=sns.cubehelix_palette(dark=0, light=.9, as_cmap=True), ncols=3, vmax=25, frameon=False, save='_individualGenes')
+sc.pl.umap(adata_TX_red, color=DA_markers2, color_map=sns.cubehelix_palette(dark=0, light=.9, as_cmap=True), ncols=3, vmax=25, frameon=False, save='_individualGenes')
+
+#run with 10 components, save to a new object so that the umap with 2D is not overwritten.
+umap10 = sc.tl.umap(adata_TX_red, n_components=10, copy=True)
+fig, axs = plt.subplots(1, 3, figsize=(10,4),constrained_layout=True)
+
+sc.pl.umap(adata_TX_red, color='N_asyn',  title="UMAP")
+sc.pl.umap(umap10, color='N_asyn', title="UMAP10", show=False, ax=axs[1], components=[1,2])
+sc.pl.umap(umap10, color='N_asyn', title="UMAP10", show=False, ax=axs[2], components=[3,4])
+# we can also plot the umap with neighbor edges
+sc.pl.umap(adata_TX_red, color='N_asyn', title="UMAP", edges=True)
+
+#lets plot the scaled and normalised data
+# compute variable genes  0.0125
+sc.pp.highly_variable_genes(adata_TX_red, min_mean=0.0125, max_mean=3, min_disp=0.5)
+print("Highly variable genes: %d"%sum(adata_TX_red.var.highly_variable))
 
 
-sc.tl.leiden(adata_pca, resolution=1.2, key_added = 'leiden_r0125', random_state=1) # change resolution if desired. the prev val was 0.125
-#figsize(5,5)
-#sc.pl.tsne(adata_TX_red, color=['leiden_r0125', 'N(A_syn)'], frameon=False, save='allSamples')
+length = len(DA_markers)
 
-sc.pl.umap(adata_pca, color=['leiden_r0125', 'AAV_ASYN', 'TH'], frameon=False)
+middle_index = length//2
 
-adata_pca
-#sc.pl.tsne(adata_TX_red, color=['Th','SLC6A3','KCNJ6','CALB1', 'NR4A2', 'DRD2','GFAP','AAV_ASYN','AAV_H2BGFP'], color_map=sns.cubehelix_palette(dark=0, light=.9, as_cmap=True), ncols=3, vmax=25, frameon=False, save='_individualGenes')
-sc.pl.tsne(adata_pca, color=['TH','SLC6A3','KCNJ6','CALB1', 'NR4A2', 'DRD2','GFAP','AAV_ASYN','AAV_H2BGFP'], color_map=sns.cubehelix_palette(dark=0, light=.9, as_cmap=True), ncols=3, vmax=25, frameon=False, save='_individualGenes')
+DA_markers_1st = DA_markers[:middle_index]
+
+DA_markers_2nd = DA_markers[middle_index:]
+
+sc.pl.pca_loadings(adata_TX_red, components=[1,2,3,4,5,6,7,8])
+sc.pl.pca_loadings(adata_TX_red, components=[3,4])
+
+#plot variable genes
+sc.pl.highly_variable_genes(adata_TX_red)
+
+# subset for variable genes in the dataset
+adata_TX_red = adata_TX_red[:, adata_TX_red.var['highly_variable']]
+DA_markers
+var_genes = adata_TX_red.var.highly_variable
+var_genes.index[var_genes]
+varg = [x for x in DA_markers_1st if x in var_genes.index[var_genes]]
+sc.pl.umap(adata_TX_red, color=varg, use_raw=False)
 
 
-# if I dont subset the data prior, some of these genes end up being removed probably and thus wont be found in the analysis
-sc.pl.umap(adata_pca, color=['TH','KCNJ6','CALB1', 'NR4A2', 'DRD2','GFAP','AAV_ASYN','AAV_H2BGFP'], color_map=sns.cubehelix_palette(dark=0, light=.9, as_cmap=True), ncols=3, vmax=25, frameon=False, save='_individualGenes')
+
+########
+# calculate cluster enriched genes for leiden clustering
+#Different clustering methods
+sc.pl.dendrogram(adata_TX_red, groupby = "leiden_r12")
+sc.pl.dotplot(adata_TX_red, DA_markers, groupby='leiden_r12', dendrogram=True)
 
 
+#hierarch clustering
+from sklearn.cluster import KMeans
+from sklearn.metrics import adjusted_rand_score
 
-#Analysing subgroups 
+# extract pca coordinates
+X_pca = adata_TX_red.obsm['X_pca'] 
+X_pca
+
+# kmeans with k=5
+kmeans = KMeans(n_clusters=5, random_state=0).fit(X_pca) 
+adata_TX_red.obs['kmeans5'] = kmeans.labels_.astype(str)
+
+# kmeans with k=10
+kmeans = KMeans(n_clusters=10, random_state=0).fit(X_pca) 
+adata_TX_red.obs['kmeans10'] = kmeans.labels_.astype(str)
+
+# kmeans with k=15
+kmeans = KMeans(n_clusters=15, random_state=0).fit(X_pca) 
+adata_TX_red.obs['kmeans15'] = kmeans.labels_.astype(str)
+
+sc.pl.umap(adata_TX_red, color=['kmeans5', 'kmeans10', 'kmeans15'])
