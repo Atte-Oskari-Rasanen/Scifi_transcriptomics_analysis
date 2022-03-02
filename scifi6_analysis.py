@@ -25,62 +25,114 @@ import re
 basePath = 'SoloNova10x_correctAAV/'
 basePath= "/media/data/AtteR/scifi-analysis/scifi6/2nd_try/starsolo_outputs/"
 
+def import_sc(sample_path):
+    sample_id_W = ntpath.basename(sample_path).replace('_oDT','_WP')
+    sample_Name = ntpath.basename(sample_path).replace('_oDT','').replace('Scifi_library_','')
+    print(sample_Name)
+    path = sample_path + "/Solo.out/GeneFull/filtered/"
+    print(path)
+    path_w = path.replace("oDT", "WP")
+    print(path_w)
+    #matrix_filtered=pd.read_pickle(path + "matrix.mtx")
+    #matrix_filtered_W=pd.read_pickle(path.replace("oDT", "WP") + "matrix.mtx")
+
+    matrix_filtered = sc.read_mtx(path + "matrix.mtx.gz").T
+
+    genes = pd.read_csv(path + 'features.tsv.gz', header=None, sep='\t')
+    matrix_filtered.var['gene_ids'] = genes[0].values
+    matrix_filtered.var['gene_symbols'] = genes[1].values
+    matrix_filtered.var_names = matrix_filtered.var['gene_symbols']
+    # Make sure the gene names are unique
+    matrix_filtered.var_names_make_unique(join="-")
+
+    cells = pd.read_csv(path + 'barcodes.tsv.gz', header=None, sep='\t')
+    matrix_filtered.obs['barcode'] = cells[0].values
+    matrix_filtered.obs_names = cells[0]
+    # Make sure the cell names are unique
+    matrix_filtered.obs_names_make_unique(join="-")
+    print("imported odt")                          # write a cache file for faster subsequent reading
+
+    #########################
+    matrix_filtered_W = sc.read_mtx(path.replace("oDT", "WP") + "matrix.mtx.gz").T
+
+    genes = pd.read_csv(path.replace("oDT", "WP") + 'features.tsv.gz', header=None, sep='\t')
+    matrix_filtered_W.var['gene_ids'] = genes[0].values
+    matrix_filtered_W.var['gene_symbols'] = genes[1].values
+    matrix_filtered_W.var_names = matrix_filtered_W.var['gene_symbols']
+    # Make sure the gene names are unique
+    matrix_filtered_W.var_names_make_unique(join="-")
+
+    cells = pd.read_csv(path.replace("oDT", "WP") + 'barcodes.tsv.gz', header=None, sep='\t')
+    matrix_filtered_W.obs['barcode'] = cells[0].values
+    matrix_filtered_W.obs_names = cells[0]
+    # Make sure the cell names are unique
+    matrix_filtered_W.obs_names_make_unique(join="-")
+
+    matrices = [matrix_filtered, matrix_filtered_W]
+    return(matrices)
+    #matrix_filtered = sc.read_10x_mtx(
+
+#RT types
+#H+: F8, G8, odT_5, WP_5
+#H-: H8, A9, odT_6, odT_6
+
+#So we need to compare pools between each other and stuff within them
+
+#start by taking a single pool and group cells based on wheter they are H+ or H-
+
+
 samples_list = [dir for dir in sorted(glob.glob(basePath +"*")) if os.path.isdir(dir)] 
 samples_list= [item for item in samples_list if '_WP' not in item]
 
-samples_list
+P1_Hpos = [dir for dir in sorted(glob.glob(basePath +"*")) if os.path.isdir(dir)] 
+P1_Hpos= [item for item in samples_list if '_WP' not in item]
 
-# import gzip
-# import shutil
+P1_Hpos = ["F8", "G8"]
+P1_Hneg = ["H8", "A9"]
+P2_Hpos = ["oDT_5"]
+P2_Hneg = ["oDT_6"]
 
-# for sample_id in samples_list:
-#     if "oDT" in sample_id:
-#        # print(sample_id)
+a = P1_Hpos.append(P1_Hneg)
+P_RT_groups = [P1_Hpos, P1_Hneg, P2_Hpos, P2_Hneg]
+P_RT_groups
 
-#         sample_id_W = ntpath.basename(sample_id).replace('_oDT','_WP')
-#         sample_id_W = ntpath.basename(sample_id).replace('new','old')
-#         sample_id_W = ntpath.basename(sample_id).replace('Pool1','Pool2')
+res = [ele for ele in samples_list if(ele in P1_Hpos)]
+res
 
-#         path = sample_id + "/Solo.out/GeneFull/filtered/"
-#       #  print(path)
-#         try:
-#             for file in os.listdir(path):
-#                # print("file inside: " + file)
-#                 file_path = path + file 
-#                 os.system('gunzip --keep ' + file_path)
-#                 print(file + ' gzippped!')
+P1_Hpos_samples = [d for d in P1_Hpos if(d in samples_list)]
+P1_Hpos_samples
 
-#                 # with open(file_path, 'rb') as f_in:
-#                 #     gziped_file = path + file + ".gz"
-#                 #     print("gziped file" + gziped_file)
-#                 #     with gzip.open(gziped_file, 'wb') as f_out:
-#                 #         shutil.copyfileobj(f_in, f_out)
-#                 #         print(file + ' filtered!')
-#         except:
-#             FileNotFoundError
-#         path_w = path.replace("oDT", "WP")
-#         try:
-#             for file in os.listdir(path_w):
-#                 #print("file inside: " + file)
-#                 file_path = path + file 
-#                 os.system('gunzip --keep ' + file_path)
-#                 print(file + ' gzipped!')
+# go over the groups, when the match is found, import the data based on the other function with oDT and WP pairs. 
+# the list element name (i.e. the group) as the key and imported sc objects (oDT, WP) as value
 
-#                 # with open(file_path, 'rb') as f_in:
-#                 #     gziped_file = path + file + ".gz"
-#                 #     print("gziped file" + gziped_file)
+for group in P_RT_groups: 
+    print(group)
+grouped_sc = {}
+for group in P_RT_groups: 
+    for d in samples_list:
+        f = ntpath.basename(d)
+        #print(f)
+        check_match = [ele for ele in group if(ele in f)]
+        #check_match = [f for f in f if(f in P1_Hpos)]
 
-#                 #     with gzip.open(gziped_file, 'wb') as f_out:
-#                 #         shutil.copyfileobj(f_in, f_out)
-#                 #         print(file + ' filtered!')
+        #match = any(P2_Hpos in d for P2_Hpos in P2_Hpos)
+        if bool(check_match)==True:
+            group_name=check_match[0]
+            print("True: " + f)
+            print(d)
 
-#         except:
-#             FileNotFoundError
-#     else:
-#         continue
+            grouped_sc[group_name]=import_sc(d)
 
+grouped_sc.keys()
 
+grouped_sc['F8'][0]
 
+p = "/media/data/AtteR/scifi-analysis/scifi6/2nd_try/starsolo_outputs/SciFi_new_cDNA_Pool1__trimmed-Pool1__oDT_F8_Asyn"
+a = import_sc(p)
+a[0]
+
+# print result
+print("Does string contain any list element : " + str(bool(res)))
 for sample_id in samples_list:
     sample_id_W = ntpath.basename(sample_id).replace('_oDT','_WP')
     sample_Name = ntpath.basename(sample_id).replace('_oDT','').replace('Scifi_library_','')
@@ -140,14 +192,6 @@ matrix_filtered_W
 
 #Atm rows contain cells and columns the genes. We need to turn them around for later indexing based on gene names
 
-
-#RT types
-#H+: F8, G8, odT_5, WP_5
-#H-: H8, A9, odT_6, odT_6
-
-#So we need to compare pools between each other and stuff within them
-
-#start by taking a single pool and group cells based on wheter they are H+ or H-
 
 matrix_filtered = matrix_filtered.transpose()
 matrix_filtered_W = matrix_filtered_W.transpose()
