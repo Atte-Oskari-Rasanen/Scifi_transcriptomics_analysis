@@ -11,7 +11,7 @@ echo "output starsolo dir: $DIR"
     --soloCBwhitelist $WHITELIST --soloBarcodeMate 0 --soloBarcodeReadLength 0 \
     --soloFeatures GeneFull --readFilesCommand zcat --soloMultiMappers Uniform EM PropUnique Unique \
     --limitBAMsortRAM 220000000000 --soloUMIdedup 1MM_All --soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts \
-    --genomeLoad LoadAndRemove --soloStrand Unstranded \
+    --genomeLoad LoadAndKeep --soloStrand Unstranded \
     --clip3pAdapterSeq polyA --alignIntronMin 20 --alignIntronMax 1000000 \
     --readFilesIn $RV, $FW 
 mkdir $DIR
@@ -39,77 +39,77 @@ MAP=/media/data/AtteR/scifi-analysis/ref_genome/rat_index_aav
 
 #POOL1
 EXP="SciFi_new_cDNA_Pool1__trimmed-Pool1"
-ID="_oDT_A9_"
+ID="_oDT_A9"
 #we take the files with the above expressions, then run the solo_exec function
 
 #A9
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
 
 echo "FW strand: $FW"
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
-ID="_WP_A9_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
+ID="_WP_A9"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
 echo $FW
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
 echo "Done A9, pool1"
 #F8_Asyn
-ID="_oDT_F8_Asyn_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_oDT_F8_Asyn"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
-ID="_WP_F8_Asyn_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_WP_F8_Asyn"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
 echo "Done F8_Asyn, pool1"
 
 #G8
-ID="_oDT_G8_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_oDT_G8"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
-ID="_WP_G8_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_WP_G8"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
 #H8
-ID="_oDT_H8_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_oDT_H8"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
-ID="_WP_H8_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_WP_H8"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
 #5
-ID="_oDT_5_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_oDT_5"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
-ID="_WP_5_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_WP_5"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
 #6
-ID="_oDT_6_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_oDT_6"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
-ID="_WP_6_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_WP_6"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
 
@@ -117,76 +117,73 @@ echo "Pool1 done!"
 
 #Pool2
 EXP="SciFi_old_cDNA_Pool2__trimmed-Pool2"
-ID="_oDT_A9_"
+ID="_oDT_A9"
 #we take the files with the above expressions, then run the solo_exec function
 
 #A9
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-echo $FW
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
-ID="_WP_A9_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-echo $FW
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_WP_A9"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
 echo "Done A9, pool1"
 #F8_Asyn
-ID="_oDT_F8_Asyn_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_oDT_F8_Asyn"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
-ID="_WP_F8_Asyn_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_WP_F8_Asyn"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
-echo "Done F8_Asyn, pool1"
 
 #G8
-ID="_oDT_G8_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_oDT_G8"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
-ID="_WP_G8_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_WP_G8"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
 #H8
-ID="_oDT_H8_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_oDT_H8"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
-ID="_WP_H8_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_WP_H8"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
 #5
-ID="_oDT_5_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_oDT_5"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
-ID="_WP_5_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_WP_5"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
 #6
-ID="_oDT_6_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_oDT_6"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
-ID="_WP_6_"
-FW=$DATAPTH/${EXP}${ID}R21.fastq.gz
-RV=$DATAPTH/${EXP}${ID}R3.fastq.gz
+ID="_WP_6"
+FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
+RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
 
 
