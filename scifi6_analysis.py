@@ -105,8 +105,6 @@ P1_Hpos_samples
 # go over the groups, when the match is found, import the data based on the other function with oDT and WP pairs. 
 # the list element name (i.e. the group) as the key and imported sc objects (oDT, WP) as value
 
-for group in P_RT_groups: 
-    print(group)
 grouped_sc = {}
 for group in P_RT_groups: 
     for d in samples_list:
@@ -127,140 +125,222 @@ grouped_sc.keys()
 
 grouped_sc['F8'][0]
 
-p = "/media/data/AtteR/scifi-analysis/scifi6/2nd_try/starsolo_outputs/SciFi_new_cDNA_Pool1__trimmed-Pool1__oDT_F8_Asyn"
-a = import_sc(p)
-a[0]
 
-# print result
-print("Does string contain any list element : " + str(bool(res)))
-for sample_id in samples_list:
-    sample_id_W = ntpath.basename(sample_id).replace('_oDT','_WP')
-    sample_Name = ntpath.basename(sample_id).replace('_oDT','').replace('Scifi_library_','')
-    print(sample_Name)
-    path = sample_id + "/Solo.out/GeneFull/filtered/"
-    print(path)
-    path_w = path.replace("oDT", "WP")
-    print(path_w)
-    #matrix_filtered=pd.read_pickle(path + "matrix.mtx")
-    #matrix_filtered_W=pd.read_pickle(path.replace("oDT", "WP") + "matrix.mtx")
+#Pool1, RT H+
+matrix_filtered_p1_1 = grouped_sc['F8'][0].transpose()
+matrix_filtered_W_p1_1 = grouped_sc['F8'][1].transpose()
 
-    matrix_filtered = sc.read_mtx(path + "matrix.mtx.gz").T
-
-    genes = pd.read_csv(path + 'features.tsv.gz', header=None, sep='\t')
-    matrix_filtered.var['gene_ids'] = genes[0].values
-    matrix_filtered.var['gene_symbols'] = genes[1].values
-    matrix_filtered.var_names = matrix_filtered.var['gene_symbols']
-    # Make sure the gene names are unique
-    matrix_filtered.var_names_make_unique(join="-")
-
-    cells = pd.read_csv(path + 'barcodes.tsv.gz', header=None, sep='\t')
-    matrix_filtered.obs['barcode'] = cells[0].values
-    matrix_filtered.obs_names = cells[0]
-    # Make sure the cell names are unique
-    matrix_filtered.obs_names_make_unique(join="-")
-    print("imported odt")                          # write a cache file for faster subsequent reading
-
-    #########################3
-    matrix_filtered_W = sc.read_mtx(path.replace("oDT", "WP") + "matrix.mtx.gz").T
-
-    genes = pd.read_csv(path.replace("oDT", "WP") + 'features.tsv.gz', header=None, sep='\t')
-    matrix_filtered_W.var['gene_ids'] = genes[0].values
-    matrix_filtered_W.var['gene_symbols'] = genes[1].values
-    matrix_filtered_W.var_names = matrix_filtered_W.var['gene_symbols']
-    # Make sure the gene names are unique
-    matrix_filtered_W.var_names_make_unique(join="-")
-
-    cells = pd.read_csv(path.replace("oDT", "WP") + 'barcodes.tsv.gz', header=None, sep='\t')
-    matrix_filtered_W.obs['barcode'] = cells[0].values
-    matrix_filtered_W.obs_names = cells[0]
-    # Make sure the cell names are unique
-    matrix_filtered_W.obs_names_make_unique(join="-")
-
-    #matrix_filtered = sc.read_10x_mtx(
-    #path , # the directory with the `.mtx` file
-    #var_names='gene_ids',                # use gene symbols for the variable names (variables-axis index)
-    #cache=True)    
-    
-    #matrix_filtered_W = sc.read_10x_mtx(
-    #path_w , # the directory with the `.mtx` file
-    #var_names='gene_ids',                # use gene symbols for the variable names (variables-axis index)
-    #cache=True)                              # write a cache file for faster subsequent reading
-completeTable = pd.DataFrame()
-
-matrix_filtered
-matrix_filtered_W
-
-#Atm rows contain cells and columns the genes. We need to turn them around for later indexing based on gene names
+matrix_filtered_W_df_p1_1  = matrix_filtered_W_p1_1.to_df()
+matrix_filtered_df_p1_1  = matrix_filtered_p1_1.to_df()
 
 
-matrix_filtered = matrix_filtered.transpose()
-matrix_filtered_W = matrix_filtered_W.transpose()
+matrix_filtered_p1_2 = grouped_sc['G8'][0].transpose()
+matrix_filtered_W_p1_2  = grouped_sc['G8'][1].transpose()
+matrix_filtered_W_df_p1_2  = matrix_filtered_W_p1_2.to_df()
+matrix_filtered_df_p1_2  = matrix_filtered_p1_2.to_df()
 
-#sc.pl.highest_expr_genes(matrix_filtered_W, n_top=20, )
+Pool1_RT_Hpos_df = pd.concat([matrix_filtered_df_p1_1, matrix_filtered_df_p1_2], axis=1)
+Pool1_RT_Hpos_df_WP = pd.concat([matrix_filtered_W_df_p1_1, matrix_filtered_W_df_p1_2], axis=1)
 
-'''
-When creating the matrix afterwards you do the normal gene x cell matrix and add rows in the end corresponding to the viral bcs.
-Keep in mind that some of the viral ones can be found in oDT too due to technical reasons. Then you import the viral data separately 
-as gene x cell, count the number of them, and import this data to the rows in the original oDT gene x cell  matrix.
-'''
-
-
-#print(matrix_filtered_W['gene_ids'])
-print("check if column names of interest exist:")
-matrix_filtered_W_df = matrix_filtered_W.to_df()
-matrix_filtered_df = matrix_filtered.to_df()
-
-matrix_filtered_W_df.columns
-
-
-match_cols = [col for col in matrix_filtered_W_df.columns if 'AAV_ASYN' in col] #none found
-print(match_cols)
-print("done")
-
-AAV_data = matrix_filtered_W_df.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
-
+#get the aav vector data
+AAV_data = Pool1_RT_Hpos_df_WP.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
 AAV_data
+Pool1_final_RT_Hpos_full = pd.concat([Pool1_RT_Hpos_df, AAV_data], axis=1).fillna(0)
+Pool1_final_RT_Hpos_full
 
-#index_names = matrix_filtered_W_df[ (matrix_filtered_W_df['gene'] == 'AAV_CTE') | (matrix_filtered_W_df['gene'] == 'AAV_ASYN') | (matrix_filtered_W_df['gene'] == 'AAV_BFP') | (matrix_filtered_W_df['gene'] == 'AAV_H2BGFP')].index
-#index_names
+#############################################################################
+#############################################################################
+#############################################################################
 
-# merge and sum
-# we merge the oDT matrix with WP matrix that has been filtered to only contain the AAV genes (rows are genes, cols are bcs)
+#Pool1, RT H-
+matrix_filtered_p1_1 = grouped_sc['H8'][0].transpose()
+matrix_filtered_W_p1_1 = grouped_sc['H8'][1].transpose()
 
-
-
-matrix_filtered_F = matrix_filtered_df.T.merge(AAV_data.T,left_index=True, right_index=True, how='left').T
-#matrix_filtered_F = matrix_filtered_df.T.merge(matrix_filtered_W.T,left_index=True, right_index=True, how='left').T
-matrix_filtered_F
-matrix_filtered_F.index
-
-
-#setting gene_ids column as index but we dont have it so skipping it
-#matrix_filtered_F = matrix_filtered_F.set_index('gene_symbols').fillna(0)
-
-#matrix_filtered_F.index = matrix_filtered_F.index.str.upper()
-
-#group based on the indeces (genes) and sum
-matrix_filtered_F_g = matrix_filtered_F.groupby(matrix_filtered_F.index).sum()
-matrix_filtered_F_g
+matrix_filtered_W_df_p1_1  = matrix_filtered_W_p1_1.to_df()
+matrix_filtered_df_p1_1  = matrix_filtered_p1_1.to_df()
 
 
-#add sampleName so scifi5, 6 etc.
-topRow = pd.DataFrame(columns=matrix_filtered_F_g.columns, index=['0_Sample']).fillna(sample_Name)
-topRow.head() 
-topRow.tail() 
+matrix_filtered_p1_2 = grouped_sc['A9'][0].transpose()
+matrix_filtered_W_p1_2  = grouped_sc['A9'][1].transpose()
+matrix_filtered_W_df_p1_2  = matrix_filtered_W_p1_2.to_df()
+matrix_filtered_df_p1_2  = matrix_filtered_p1_2.to_df()
 
-#topRow.loc['_Sample'] = sample_Name
-matrix_filtered_out = pd.concat([topRow, matrix_filtered_F_g])
-#Merge into a compete dataframe
-completeTable = completeTable.merge(matrix_filtered_out,left_index=True, right_index=True, how='outer').fillna(0)
+Pool1_RT_Hneg_df = pd.concat([matrix_filtered_df_p1_1, matrix_filtered_df_p1_2], axis=1)
+Pool1_RT_Hneg_df_WP = pd.concat([matrix_filtered_W_df_p1_1, matrix_filtered_W_df_p1_2], axis=1)
 
-DF_All = completeTable
-DF_All
-DF_All.T.index
+#get the aav vector data
+AAV_data = Pool1_RT_Hneg_df_WP.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
+AAV_data
+Pool1_final_RT_Hneg_full = pd.concat([Pool1_RT_Hneg_df, AAV_data], axis=1)
 
+##################
+#Pool2, RT H+
+Pool2_RT_Hpos = grouped_sc['oDT_5'][0].transpose()
+Pool2_RT_Hpos_W = grouped_sc['oDT_5'][1].transpose()
+
+Pool2_RT_Hpos_W_df = Pool2_RT_Hpos_W.to_df()
+Pool2_RT_Hpos_df  = Pool2_RT_Hpos.to_df()
+
+#get the aav vector data
+AAV_data = Pool2_RT_Hpos_W_df.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
+AAV_data
+Pool2_final_RT_Hpos_full = pd.concat([Pool2_RT_Hpos_df, AAV_data], axis=1)
+Pool2_final_RT_Hpos_full
+
+
+#Pool2, RT H-
+Pool2_RT_Hneg = grouped_sc['oDT_6'][0].transpose()
+Pool2_RT_Hneg_W = grouped_sc['oDT_6'][1].transpose()
+
+Pool2_RT_Hneg_W_df = Pool2_RT_Hneg_W.to_df()
+Pool2_RT_Hneg_df  = Pool2_RT_Hneg.to_df()
+
+AAV_data = Pool2_RT_Hneg_W_df.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
+AAV_data
+Pool2_final_RT_Hneg_full = pd.concat([Pool2_RT_Hneg_df, AAV_data], axis=1)
+Pool2_final_RT_Hneg_full
+
+
+#Generate anndata matrices
+def df_to_anndata(df):
+    annMatrix = df.T.iloc[:-1,:]
+    #annMatrix = annMatrix.drop("asyn_copies", axis=1) #.iloc[:,1:]get_level_values('first')
+    annMatrix
+    annMatrix.index
+    #final_df_T_g.T['asyn_copies'].tolist()
+
+    #final_df_T_g    # had to add final_df_T_WORKS.T.iloc[:-1,0:1] -1 instead of just all since the last row is rowindeces
+    annObs = pd.DataFrame(index=df.T.iloc[:-1,0:1].index, data={'CellBarcode':df.T.iloc[:-1,0:1].index})
+
+    #annObs = pd.DataFrame(index=completeTable.T.iloc[:,0:1].index, data={'CellBarcode' : .T.iloc[:,0:1].index,'Sample' : completeTable.T['0_Sample'].tolist()})
+
+    annObs
+    annObs.index
+    annVar = pd.DataFrame(index=df.iloc[:,0:1].index, data=df.iloc[:,0:1].index, columns=['Gene'])
+    annVar.index
+    #adata = ad.AnnData(annMatrix, obs=annObs)
+
+    #the levels are ogranised differently between annmatrix and annobs
+    adata_TX = ad.AnnData(X = annMatrix, obs = annObs, var = annVar)
+    adata_TX.obs_names_make_unique(join="-")
+    #adata_TX.write(filename="/media/data/AtteR/scifi-analysis/Python-scifi-analysis/plots_no_groups/All.h5ad", compression=None, compression_opts=None, force_dense=None, as_dense=())
+    return(adata_TX)
+
+Pool1_final_RT_Hpos_full
+Pool1_final_RT_Hneg_full
+Pool2_final_RT_Hpos_full
+Pool2_final_RT_Hneg_full
+
+Pool1_RT_Hpos_adata = df_to_anndata(Pool1_final_RT_Hpos_full)
+Pool1_RT_Hpos_adata
+Pool1_RT_Hneg_adata = df_to_anndata(Pool1_final_RT_Hneg_full)
+Pool1_RT_Hneg_adata
+Pool2_RT_Hpos_adata = df_to_anndata(Pool2_final_RT_Hpos_full)
+Pool2_RT_Hpos_adata
+Pool2_RT_Hneg_adata = df_to_anndata(Pool2_final_RT_Hneg_full)
+Pool2_RT_Hneg_adata
+
+###################################################################
+###################################################################
+
+#Create a merged object
+
+P1Hp = Pool1_RT_Hpos_adata.copy()
+P1Hn = Pool1_RT_Hneg_adata.copy()
+P2Hp = Pool2_RT_Hpos_adata.copy()
+P2Hn = Pool2_RT_Hneg_adata.copy()
+P1Hn
+
+#All_data = P1Hp.concatenate(P1Hn, P2Hp, P2Hn)
+#value counts returns the count of unique values
+print(P2Hn.obs['CellBarcode'].value_counts())
+
+p = "/media/data/AtteR/scifi-analysis/scifi6/scanpy_analysis/plots/violinplot_P1Hp.pdf"
+
+P1Hp.obs['CellBarcode']
+P1Hp.var['mt'] = P1Hp.var_names.str.startswith('mt-')  # annotate the group of mitochondrial genes as 'mt'
+sc.pp.calculate_qc_metrics(P1Hp, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
+sc.pl.violin(P1Hp, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],multi_panel=True)
+
+sc.pl.scatter(P1Hp, "total_counts", "n_genes_by_counts")
+
+#knee plot
+#@title Threshold cells according to knee plot { run: "auto", vertical-output: true }
+#expected_num_cells =  50#@param {type:"integer"}
+knee = np.sort((np.array(P1Hn.X.sum(axis=1))).flatten())[::-1]
+fig, ax = plt.subplots(figsize=(10, 7))
+ax.loglog(knee, range(len(knee)), linewidth=5, color="g")
+#ax.axvline(x=knee[expected_num_cells], linewidth=3, color="k")
+#ax.axhline(y=expected_num_cells, linewidth=3, color="k")
+ax.set_xlabel("UMI Counts")
+ax.set_ylabel("Set of Barcodes")
+ax1.set_xticks([20, 300, 500])
+ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+
+plt.grid(True, which="both")
+plt.show()
+
+P1Hp.X
+##########
+gene_counts = np.sum(P2Hn.X, axis=1)
+gene_counts.shape
+
+all_genes = P2Hp.obs['total_counts']
+all_genes.shape
+print("Minimum number of transcripts per cell:", np.min(all_genes), 
+      "\n Median number of transcripts per cell:", np.median(all_genes),
+      "\n Maximum number of transcripts per cell:", np.max(all_genes))
+plt.hist(all_genes, bins=100)
+plt.savefig('SciFiAll_Histogram_2200.pdf')
+plt.show()
+
+
+# delete cells witl less then 5000 transcripts from visualization
+# gene_counts_filt = np.delete(gene_counts, np.where(gene_counts < 5000))
+# print(len(gene_counts_filt))
+
+#TURHA, poista vaa
+print("Minimum number of transcripts per cell:", np.min(gene_counts), 
+      "\n Median number of transcripts per cell:", np.median(gene_counts),
+      "\n Maximum number of transcripts per cell:", np.max(gene_counts))
+plt.hist(gene_counts, bins=100)
+plt.savefig('SciFiAll_Histogram_2200.pdf')
+plt.show()
+#################
+
+# Removes cells with less than 1070 umi counts
+adata = P2Hn[np.asarray(P2Hp.X.sum(axis=1)).reshape(-1) > 640]   #1000, 1000, 650
+
+# Removes genes with 0 umi counts
+adata = adata[:, np.asarray(adata.X.sum(axis=0)).reshape(-1) > 0]
+adata
+print(adata.var['Gene'].value_counts())
+
+sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
+sc.pl.violin(adata, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],multi_panel=True)
+
+sc.pl.violin(adata, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],multi_panel=True)
+
+
+
+#count number of umis per barcode
+umi.per.barcode <- colSums(full_cm)
+x <- sort(umi.per.barcode, decreasing = TRUE)
+plot(x, log="xy",type="l", xlab="Barcodes", ylab="UMI counts")
+
+
+P1Hp.layers["counts"] = P1Hp.X.copy() # preserve counts
+sc.pp.normalize_total(P1Hp, target_sum=1e4) # scale each cell to a common library size
+sc.pp.log1p(P1Hp) # log(expression + 1)
+P1Hp.raw = P1Hp # freeze the state in `.raw`
+
+sc.pp.highly_variable_genes(P1Hp, n_top_genes=4000, layer="counts", flavor="seurat_v3")
 ########################################
 ########################################
+
+
+
+
 
 
 #categorise cells based on the number of a syn copies in them to see marker gene expression
