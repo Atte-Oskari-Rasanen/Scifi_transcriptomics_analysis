@@ -5,24 +5,29 @@ WHITELIST=/media/data/AtteR/scifi-analysis/737K-cratac-v1_RC.txt
 solo_exec () {
 DIR=$DATAOUT/${EXP}${ID}             
 echo "output starsolo dir: $DIR"
-/media/data/AtteR/Attes_bin/STAR-2.7.10a/bin/Linux_x86_64/STAR --genomeDir $MAP --runThreadN 24 \
+/media/data/AtteR/Attes_bin/STAR-2.7.10a/bin/Linux_x86_64/STAR --genomeDir $MAP --outTmpDir solo_tmp --runThreadN 24 \
     --soloType CB_UMI_Simple \
     --soloCBstart 1 --soloCBlen 16 --soloUMIstart 17 --soloUMIlen 12 \
-    --soloCBwhitelist $WHITELIST --soloBarcodeMate 0 --soloBarcodeReadLength 0 \
+    --soloCBwhitelist /media/data/AtteR/scifi-analysis/737K-cratac-v1_RC.txt --soloBarcodeMate 0 --soloBarcodeReadLength 0 \
     --soloFeatures GeneFull --readFilesCommand zcat --soloMultiMappers Uniform EM PropUnique Unique \
     --limitBAMsortRAM 220000000000 --soloUMIdedup 1MM_All --soloCBmatchWLtype 1MM_multi_Nbase_pseudocounts \
-    --genomeLoad LoadAndKeep --soloStrand Unstranded \
+    --genomeLoad LoadAndRemove --soloStrand Unstranded \
     --clip3pAdapterSeq polyA --alignIntronMin 20 --alignIntronMax 1000000 \
-    --readFilesIn $RV, $FW \
-    --soloCellFilter TopCells 1 0.99 10
+    --readFilesIn $RV, $FW  
+    #--soloOutFileNames $DIR/ features.tsv barcodes.tsv matrix.mtx \
+    
+
 mkdir $DIR
+chmod -R 755 $DIR
+
+mv Solo.out $DIR
+mv Log.final.out Log.out Log.progress.out SJ.out.tab Aligned.sortedByCoord.out.bam Aligned.out.sam $DIR/
+rm -rf solo_tmp
 #if test -f "Solo.out"; then
 #    echo "Solo.out exists!"
 #fi
-mv Solo.out $DIR/
-mv Log.final.out Log.out Log.progress.out SJ.out.tab Aligned.sortedByCoord.out.bam Aligned.out.sam $DIR/
-chmod -R 755 $DIR
-rm -rf _STARtmp
+--soloCellFilter TopCells 1 0.99 10 \
+
 }
 
 # cell_filter ()  {
@@ -44,10 +49,8 @@ mkdir $DATAOUT
 cd $DATAOUT
 
 
-"/media/data/AtteR/scifi-analysis/ref_genome/rat_index_aav"
-
 MAP=/media/data/AtteR/scifi-analysis/ref_genome/rat_index_aav
-echo "genome dir $MAP"
+echo "GENOME DIR: $MAP"
 # #### A9, G8, H8 F8_Asyn, 5, 6
 
 #POOL1
@@ -58,8 +61,9 @@ ID="_oDT_A9"
 #A9
 FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
 
-echo "FW strand: $FW"
 RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
+echo "RV strand: $RV"
+
 solo_exec 
 #give the starsolo the path where to find the raw files and then the output path
 # path_raw = $DATAOUT$EXP$ID/Solo.out/GeneFull/raw
@@ -68,22 +72,24 @@ solo_exec
 ####################
 ID="_WP_A9"
 FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
-echo $FW
 RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
-solo_exec 
-####################
+echo "RV strand: $RV"
 
-echo "Done A9, pool1"
+solo_exec 
+# ####################
+
 #F8_Asyn
 ID="_oDT_F8_Asyn"
 FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
 RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
+echo "RV strand: $RV"
 
 ID="_WP_F8_Asyn"
 FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
 RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
 solo_exec 
+echo "RV strand: $RV"
 
 echo "Done F8_Asyn, pool1"
 
@@ -91,6 +97,8 @@ echo "Done F8_Asyn, pool1"
 ID="_oDT_G8"
 FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
 RV=$DATAPTH/${EXP}${ID}_R3.fastq.gz
+echo "RV strand: $RV"
+
 solo_exec 
 ID="_WP_G8"
 FW=$DATAPTH/${EXP}${ID}_R21.fastq.gz
