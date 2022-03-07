@@ -84,25 +84,17 @@ def import_sc(sample_path):
 samples_list = [dir for dir in sorted(glob.glob(basePath +"*")) if os.path.isdir(dir)] 
 samples_list= [item for item in samples_list if '_WP' not in item]
 
-P1_Hpos = [dir for dir in sorted(glob.glob(basePath +"*")) if os.path.isdir(dir)] 
-P1_Hpos= [item for item in samples_list if '_WP' not in item]
 
 P1_Hpos = ["F8", "G8"]
 P1_Hneg = ["H8", "A9"]
 P2_Hpos = ["oDT_5"]
 P2_Hneg = ["oDT_6"]
 
-a = P1_Hpos.append(P1_Hneg)
 P_RT_groups = [P1_Hpos, P1_Hneg, P2_Hpos, P2_Hneg]
 P_RT_groups
 
-res = [ele for ele in samples_list if(ele in P1_Hpos)]
-res
 
-P1_Hpos_samples = [d for d in P1_Hpos if(d in samples_list)]
-P1_Hpos_samples
-
-# go over the groups, when the match is found, import the data based on the other function with oDT and WP pairs. 
+# go over the groups, when the match is found, import the data based on import_sc function with oDT and WP pairs. 
 # the list element name (i.e. the group) as the key and imported sc objects (oDT, WP) as value
 
 grouped_sc = {}
@@ -121,33 +113,122 @@ for group in P_RT_groups:
 
             grouped_sc[group_name]=import_sc(d)
 
-grouped_sc.keys()
-
-grouped_sc['F8'][0]
-
 
 #Pool1, RT H+
-matrix_filtered_p1_1 = grouped_sc['F8'][0].transpose()
+matrix_filtered_p1_1 = grouped_sc['F8'][0].transpose() #0 is odT, 1 is WP seq
 matrix_filtered_W_p1_1 = grouped_sc['F8'][1].transpose()
 
-matrix_filtered_W_df_p1_1  = matrix_filtered_W_p1_1.to_df()
+matrix_filtered_W_df_p1_1_W  = matrix_filtered_W_p1_1.to_df()
+matrix_filtered_W_df_p1_1_W
 matrix_filtered_df_p1_1  = matrix_filtered_p1_1.to_df()
 
+
+
+#index_names = matrix_filtered_W_df_p1_1_W[ (matrix_filtered_W_df_p1_1_W.iloc[0,:]== 'AAV_CTE') | (matrix_filtered_W_df_p1_1_W.iloc[0,:]== 'AAV_ASYN') | (matrix_filtered_W_df_p1_1_W.iloc[0,:] == 'AAV_BFP') | (matrix_filtered_W_df_p1_1_W.iloc[0,:] == 'AAV_H2BGFP')].index
+
+#index_names = matrix_filtered_W_p1_1[ (matrix_filtered_W_df_p1_1['gene_symbols']== 'AAV_CTE') | (matrix_filtered_W_df_p1_1['gene_ids'] == 'AAV_ASYN') | (matrix_filtered_W_df_p1_1['gene_ids'] == 'AAV_BFP') | (matrix_filtered_W_df_p1_1['gene_ids'] == 'AAV_H2BGFP')].index
+#print(index_names)
+#matrix_filtered_W = matrix_filtered_W_df_p1_1_W.T.loc[index_names]
+matrix_filtered_W_df_p1_1_W
 
 matrix_filtered_p1_2 = grouped_sc['G8'][0].transpose()
 matrix_filtered_W_p1_2  = grouped_sc['G8'][1].transpose()
 matrix_filtered_W_df_p1_2  = matrix_filtered_W_p1_2.to_df()
 matrix_filtered_df_p1_2  = matrix_filtered_p1_2.to_df()
 
+#Combine the dataframes 
 Pool1_RT_Hpos_df = pd.concat([matrix_filtered_df_p1_1, matrix_filtered_df_p1_2], axis=1)
-Pool1_RT_Hpos_df_WP = pd.concat([matrix_filtered_W_df_p1_1, matrix_filtered_W_df_p1_2], axis=1)
+Pool1_RT_Hpos_df_WP = pd.concat([matrix_filtered_W_df_p1_1_W, matrix_filtered_W_df_p1_2], axis=1)
 
-#get the aav vector data
+
+
+#get the aav vector data   --- do we need cte and bfp tho
 AAV_data = Pool1_RT_Hpos_df_WP.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
 AAV_data
-Pool1_final_RT_Hpos_full = pd.concat([Pool1_RT_Hpos_df, AAV_data], axis=1).fillna(0)
-Pool1_final_RT_Hpos_full
 
+genes = AAV_data.index
+genes
+
+Pool1_RT_Hpos_df.loc[:,"AAV_ASYN"]
+#left_index: If True, use the index (row labels) from the left DataFrame or Series as its join key(s)
+#we merge based on gene names meaning that need to transpose the dfs 
+all_df = Pool1_RT_Hpos_df.T.merge(AAV_data.T,left_index=True, right_index=True, how='left').fillna(0).T
+all_df = pd.merge(Pool1_RT_Hpos_df.T, AAV_data.T, left_index=True, right_index=True, how='left').fillna(0)
+all_df
+ASYN_sum = all_df.loc[:,"AAV_ASYN_x"] + all_df.loc[:,"AAV_ASYN_y"] 
+CTE_sum = all_df.loc[:,"AAV_CTE_x"] + all_df.loc[:,"AAV_CTE_y"]
+H2BGFP_sum = all_df.loc[:,"AAV_H2BGFP_x"] + all_df.loc[:,"AAV_H2BGFP_y"]
+BFP_sum = all_df.loc[:,"AAV_BFP_x"] + all_df.loc[:,"AAV_BFP_x"]
+'''
+ASYN_sum = all_df.T.loc[:,"AAV_ASYN_x"] + all_df.T.loc[:,"AAV_ASYN_y"] 
+CTE_sum = all_df.T.loc[:,"AAV_CTE_x"] + all_df.T.loc[:,"AAV_CTE_y"]
+H2BGFP_sum = all_df.T.loc[:,"AAV_H2BGFP_x"] + all_df.T.loc[:,"AAV_H2BGFP_y"]
+BFP_sum = all_df.T.loc[:,"AAV_BFP_x"] + all_df.T.loc[:,"AAV_BFP_x"]
+'''
+all_df["AAV_ASYN"] = ASYN_sum
+all_df["AAV_CTE"]= CTE_sum
+all_df["AAV_H2BGFP"] = H2BGFP_sum
+all_df["AAV_BFP"]= BFP_sum
+all_df
+del all_df["AAV_ASYN_x"]
+del all_df["AAV_ASYN_y"]
+del all_df["AAV_CTE_x"]
+del all_df["AAV_CTE_y"]
+del all_df["AAV_H2BGFP_x"]
+del all_df["AAV_H2BGFP_y"]
+del all_df["AAV_BFP_x"]
+del all_df["AAV_ASYN_x"]
+del all_df["AAV_BFP_y"]
+
+all_df = all_df.T
+
+
+df1 = Pool1_RT_Hpos_df.T
+df2 = AAV_data.T
+all_df = pd.merge(df1, df2, on=genes).T
+all_test = pd.merge(df1, df2, left_index=True, right_index=True)
+all_test = pd.merge(df1, df2, on=['AAV_CTE','AAV_ASYN', 'AAV_H2BGFP', 'AAV_BFP'])
+all_test = df1.merge(df2, left_index=True, right_index=True)
+all_test
+all_df
+
+all_df.iloc[:,1]
+all_df.loc[:,"AAV_CTE_x"]  
+#AAV_SYN_x and AAV_SYN_y are generated since there is a clash of columns which were not involved in 
+# the merge operation initially!
+all_df.loc[:,"AAV_CTE_y"]
+
+all_df = pd.merge(Pool1_RT_Hpos_df,AAV_data, on=BCs, how='left').T.fillna(0)
+all_df
+
+'''
+duplicated_columns_list = []
+list_of_all_columns = list(Pool1_RT_Hpos_df.columns)
+for column in list_of_all_columns:
+    if list_of_all_columns.count(column) > 1 and column in BCs:
+        duplicated_columns_list.append(column)
+len(duplicated_columns_list)
+Pool1_final_RT_Hpos_full['TGTACCCTGGGTGCAA']  #duplicates
+'''
+# merge and sum
+matrix_filtered_F_v2 = Pool1_RT_Hpos_df.T.merge(AAV_data.T,left_index=True, right_index=True, how='left').T
+
+
+matrix_filtered_F = matrix_filtered_F.set_index('gene_ids').fillna(0)
+matrix_filtered_F.index = matrix_filtered_F.index.str.upper()
+
+matrix_filtered.T.merge(matrix_filtered_W.T,left_index=True, right_index=True, how='left').T
+
+#Pool1_final_RT_Hpos_full = pd.concat([Pool1_RT_Hpos_df, AAV_data], axis=1).fillna(0)
+#Pool1_final_RT_Hpos_full = pd.merge(Pool1_RT_Hpos_df, AAV_data )
+
+index_names = Pool1_RT_Hpos_df.columns
+index_names
+Pool1_final_RT_Hpos_full #columns are 3403 even tho AAV_data and Pool1 data were 1066, 1698
+
+Pool1_final_RT_Hpos_full_clean = Pool1_final_RT_Hpos_full.T.drop_duplicates()
+Pool1_final_RT_Hpos_full_clean = Pool1_final_RT_Hpos_full_clean.T.drop_duplicates()
+Pool1_final_RT_Hpos_full_clean
 #############################################################################
 #############################################################################
 #############################################################################
@@ -173,6 +254,13 @@ AAV_data = Pool1_RT_Hneg_df_WP.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BF
 AAV_data
 Pool1_final_RT_Hneg_full = pd.concat([Pool1_RT_Hneg_df, AAV_data], axis=1)
 
+Pool1_final_RT_Hneg_full_clean = Pool1_final_RT_Hneg_full.T.drop_duplicates()
+Pool1_final_RT_Hneg_full_clean = Pool1_final_RT_Hneg_full_clean.T.drop_duplicates()
+Pool1_final_RT_Hneg_full_clean
+
+
+
+
 ##################
 #Pool2, RT H+
 Pool2_RT_Hpos = grouped_sc['oDT_5'][0].transpose()
@@ -187,6 +275,10 @@ AAV_data
 Pool2_final_RT_Hpos_full = pd.concat([Pool2_RT_Hpos_df, AAV_data], axis=1)
 Pool2_final_RT_Hpos_full
 
+Pool2_final_RT_Hpos_full_clean = Pool2_final_RT_Hpos_full.T.drop_duplicates()
+Pool2_final_RT_Hpos_full_clean = Pool2_final_RT_Hpos_full_clean.T.drop_duplicates()
+Pool2_final_RT_Hpos_full_clean
+
 
 #Pool2, RT H-
 Pool2_RT_Hneg = grouped_sc['oDT_6'][0].transpose()
@@ -200,6 +292,21 @@ AAV_data
 Pool2_final_RT_Hneg_full = pd.concat([Pool2_RT_Hneg_df, AAV_data], axis=1)
 Pool2_final_RT_Hneg_full
 
+Pool2_final_RT_Hneg_full_clean = Pool2_final_RT_Hneg_full.T.drop_duplicates()
+Pool2_final_RT_Hneg_full_clean = Pool2_final_RT_Hneg_full_clean.T.drop_duplicates()
+Pool2_final_RT_Hneg_full_clean
+
+
+##########################################################
+#used drop duplicates prior since found plenty of duplicates:
+duplicated_columns_list = []
+list_of_all_columns = list(Pool1_final_RT_Hpos_full.columns)
+for column in list_of_all_columns:
+    if list_of_all_columns.count(column) > 1 and not column in duplicated_columns_list:
+        duplicated_columns_list.append(column)
+duplicated_columns_list
+Pool1_final_RT_Hpos_full['TGTACCCTGGGTGCAA']  #duplicates
+##########################################################
 
 #Generate anndata matrices
 def df_to_anndata(df):
@@ -226,101 +333,134 @@ def df_to_anndata(df):
     #adata_TX.write(filename="/media/data/AtteR/scifi-analysis/Python-scifi-analysis/plots_no_groups/All.h5ad", compression=None, compression_opts=None, force_dense=None, as_dense=())
     return(adata_TX)
 
-Pool1_final_RT_Hpos_full
-Pool1_final_RT_Hneg_full
-Pool2_final_RT_Hpos_full
-Pool2_final_RT_Hneg_full
+Pool1_final_RT_Hpos_full_clean
+Pool1_final_RT_Hneg_full_clean
+Pool2_final_RT_Hpos_full_clean
+Pool2_final_RT_Hneg_full_clean
 
-Pool1_RT_Hpos_adata = df_to_anndata(Pool1_final_RT_Hpos_full)
+
+for column in duplicated_columns_list:
+    list_of_all_columns[list_of_all_columns.index(column)] = column + '_1'
+    list_of_all_columns[list_of_all_columns.index(column)] = column + '_2'
+
+Pool1_RT_Hpos_adata = df_to_anndata(Pool1_final_RT_Hpos_full_clean)
 Pool1_RT_Hpos_adata
-Pool1_RT_Hneg_adata = df_to_anndata(Pool1_final_RT_Hneg_full)
+Pool1_RT_Hneg_adata = df_to_anndata(Pool1_final_RT_Hneg_full_clean)
 Pool1_RT_Hneg_adata
-Pool2_RT_Hpos_adata = df_to_anndata(Pool2_final_RT_Hpos_full)
+Pool2_RT_Hpos_adata = df_to_anndata(Pool2_final_RT_Hpos_full_clean)
 Pool2_RT_Hpos_adata
-Pool2_RT_Hneg_adata = df_to_anndata(Pool2_final_RT_Hneg_full)
+Pool2_RT_Hneg_adata = df_to_anndata(Pool2_final_RT_Hneg_full_clean)
 Pool2_RT_Hneg_adata
 
 ###################################################################
 ###################################################################
+def preprocess(adata):
+    #value counts returns the count of unique values
+    print(adata.obs['CellBarcode'].value_counts())
 
-#Create a merged object
+    p = "/media/data/AtteR/scifi-analysis/scifi6/scanpy_analysis/plots/violinplot_P1Hp.pdf"
+
+    adata.obs['CellBarcode']
+    adata.var['mt'] = adata.var_names.str.startswith('mt-')  # annotate the group of mitochondrial genes as 'mt'
+    sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
+    sc.pl.violin(adata, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],multi_panel=True)
+
+    sc.pl.scatter(P1Hp, "total_counts", "n_genes_by_counts")
+
+    #knee plot
+    #@title Threshold cells according to knee plot { run: "auto", vertical-output: true }
+    #expected_num_cells =  50#@param {type:"integer"}
+    knee = np.sort((np.array(adata.X.sum(axis=1))).flatten())[::-1]
+    fig, ax = plt.subplots(figsize=(10, 7))
+    ax.loglog(knee, range(len(knee)), linewidth=5, color="g")
+    #ax.axvline(x=knee[expected_num_cells], linewidth=3, color="k")
+    #ax.axhline(y=expected_num_cells, linewidth=3, color="k")
+    ax.set_xlabel("UMI Counts")
+    ax.set_ylabel("Set of Barcodes")
+    ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+
+    plt.grid(True, which="both")
+    plt.show()
+
+    adata.X
+    ##########
+    gene_counts = np.sum(adata.X, axis=1)
+    gene_counts.shape
+
+    all_genes = adata.obs['total_counts']
+    all_genes.shape
+    print("Minimum number of transcripts per cell:", np.min(all_genes), 
+        "\n Median number of transcripts per cell:", np.median(all_genes),
+        "\n Maximum number of transcripts per cell:", np.max(all_genes))
+    plt.hist(all_genes, bins=100)
+    plt.savefig('SciFiAll_Histogram_2200.pdf')
+    plt.show()
+    return(adata)
+
 
 P1Hp = Pool1_RT_Hpos_adata.copy()
 P1Hn = Pool1_RT_Hneg_adata.copy()
 P2Hp = Pool2_RT_Hpos_adata.copy()
 P2Hn = Pool2_RT_Hneg_adata.copy()
-P1Hn
 
-#All_data = P1Hp.concatenate(P1Hn, P2Hp, P2Hn)
-#value counts returns the count of unique values
-print(P2Hn.obs['CellBarcode'].value_counts())
+P1Hp_A = preprocess(P1Hp)
+P1Hn_A = preprocess(P1Hn)
+P2Hp_A = preprocess(P2Hp)
+P2Hn_A = preprocess(P2Hn)
 
-p = "/media/data/AtteR/scifi-analysis/scifi6/scanpy_analysis/plots/violinplot_P1Hp.pdf"
-
-P1Hp.obs['CellBarcode']
-P1Hp.var['mt'] = P1Hp.var_names.str.startswith('mt-')  # annotate the group of mitochondrial genes as 'mt'
-sc.pp.calculate_qc_metrics(P1Hp, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
-sc.pl.violin(P1Hp, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],multi_panel=True)
-
-sc.pl.scatter(P1Hp, "total_counts", "n_genes_by_counts")
-
-#knee plot
-#@title Threshold cells according to knee plot { run: "auto", vertical-output: true }
-#expected_num_cells =  50#@param {type:"integer"}
-knee = np.sort((np.array(P1Hn.X.sum(axis=1))).flatten())[::-1]
-fig, ax = plt.subplots(figsize=(10, 7))
-ax.loglog(knee, range(len(knee)), linewidth=5, color="g")
-#ax.axvline(x=knee[expected_num_cells], linewidth=3, color="k")
-#ax.axhline(y=expected_num_cells, linewidth=3, color="k")
-ax.set_xlabel("UMI Counts")
-ax.set_ylabel("Set of Barcodes")
-ax1.set_xticks([20, 300, 500])
-ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-
-plt.grid(True, which="both")
-plt.show()
-
-P1Hp.X
-##########
-gene_counts = np.sum(P2Hn.X, axis=1)
-gene_counts.shape
-
-all_genes = P2Hp.obs['total_counts']
-all_genes.shape
-print("Minimum number of transcripts per cell:", np.min(all_genes), 
-      "\n Median number of transcripts per cell:", np.median(all_genes),
-      "\n Maximum number of transcripts per cell:", np.max(all_genes))
-plt.hist(all_genes, bins=100)
-plt.savefig('SciFiAll_Histogram_2200.pdf')
-plt.show()
-
-
-# delete cells witl less then 5000 transcripts from visualization
-# gene_counts_filt = np.delete(gene_counts, np.where(gene_counts < 5000))
-# print(len(gene_counts_filt))
-
-#TURHA, poista vaa
-print("Minimum number of transcripts per cell:", np.min(gene_counts), 
-      "\n Median number of transcripts per cell:", np.median(gene_counts),
-      "\n Maximum number of transcripts per cell:", np.max(gene_counts))
-plt.hist(gene_counts, bins=100)
-plt.savefig('SciFiAll_Histogram_2200.pdf')
-plt.show()
 #################
 
-# Removes cells with less than 1070 umi counts
-adata = P2Hn[np.asarray(P2Hp.X.sum(axis=1)).reshape(-1) > 640]   #1000, 1000, 650
+# Removes cells with less than X cells
+
+adata = P1Hn_A[np.asarray(P1Hn_A.X.sum(axis=1)).reshape(-1) > 600]   #60,  640, 640
+
+print("Cells prior to filtering %d"%P1Hn_A.n_obs)
+
+print("Remaining cells %d"%adata.n_obs)
 
 # Removes genes with 0 umi counts
 adata = adata[:, np.asarray(adata.X.sum(axis=0)).reshape(-1) > 0]
 adata
-print(adata.var['Gene'].value_counts())
 
 sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
 sc.pl.violin(adata, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],multi_panel=True)
+# mitochondrial genes
+adata.var['mt'] = adata.var_names.str.startswith('MT-') 
+# ribosomal genes
+adata.var['ribo'] = adata.var_names.str.startswith(("RPS","RPL"))
+# hemoglobin genes.
+adata.var['hb'] = adata.var_names.str.contains(("^HB[^(P)]"))
 
-sc.pl.violin(adata, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],multi_panel=True)
+sc.pl.highest_expr_genes(adata, n_top=20)
+# filter for percent mito
 
+adata = adata[adata.obs['pct_counts_mt'] < 20, :]
+
+# filter for percent ribo > 0.05
+adata = adata[adata.obs['pct_counts_ribo'] > 5, :]
+
+#sc.pl.violin(adata, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],multi_panel=True)
+# Create a mask to filter out cells with more than 6500 genes, less than 200 genes or less than 0.2 mitochondrial umi counts
+mask = np.logical_or((adata.obs.n_genes < 1000).values, (adata.obs.n_genes > 0).values, (adata.obs.percent_mito < 0.2).values)
+#Normalization
+adata.layers["counts"] = adata.X.copy() # preserve counts
+sc.pp.normalize_total(adata, target_sum=1e4) # scale each cell to a common library size
+sc.pp.log1p(adata) # log(expression + 1)
+adata.raw = adata # freeze the state in `.raw`
+
+sc.pp.highly_variable_genes(
+    adata,
+    n_top_genes=4000,
+    # subset=True, # to automatically subset to the 4000 genes
+    layer="counts",
+    flavor="seurat_v3"
+)
+# import subprocess
+
+# def install(name):
+#     subprocess.call(['pip3', 'install', name])
+# install("scikit-misc")
+adata = adata[:, adata.var.highly_variable].copy()
 
 
 #count number of umis per barcode
