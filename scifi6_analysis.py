@@ -146,89 +146,36 @@ Pool1_RT_Hpos_df_WP = pd.concat([matrix_filtered_W_df_p1_1_W, matrix_filtered_W_
 AAV_data = Pool1_RT_Hpos_df_WP.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
 AAV_data
 
-genes = AAV_data.index
-genes
-
-Pool1_RT_Hpos_df.loc[:,"AAV_ASYN"]
 #left_index: If True, use the index (row labels) from the left DataFrame or Series as its join key(s)
 #we merge based on gene names meaning that need to transpose the dfs 
-all_df = Pool1_RT_Hpos_df.T.merge(AAV_data.T,left_index=True, right_index=True, how='left').fillna(0).T
-all_df = pd.merge(Pool1_RT_Hpos_df.T, AAV_data.T, left_index=True, right_index=True, how='left').fillna(0)
-all_df
-ASYN_sum = all_df.loc[:,"AAV_ASYN_x"] + all_df.loc[:,"AAV_ASYN_y"] 
-CTE_sum = all_df.loc[:,"AAV_CTE_x"] + all_df.loc[:,"AAV_CTE_y"]
-H2BGFP_sum = all_df.loc[:,"AAV_H2BGFP_x"] + all_df.loc[:,"AAV_H2BGFP_y"]
-BFP_sum = all_df.loc[:,"AAV_BFP_x"] + all_df.loc[:,"AAV_BFP_x"]
-'''
-ASYN_sum = all_df.T.loc[:,"AAV_ASYN_x"] + all_df.T.loc[:,"AAV_ASYN_y"] 
-CTE_sum = all_df.T.loc[:,"AAV_CTE_x"] + all_df.T.loc[:,"AAV_CTE_y"]
-H2BGFP_sum = all_df.T.loc[:,"AAV_H2BGFP_x"] + all_df.T.loc[:,"AAV_H2BGFP_y"]
-BFP_sum = all_df.T.loc[:,"AAV_BFP_x"] + all_df.T.loc[:,"AAV_BFP_x"]
-'''
-all_df["AAV_ASYN"] = ASYN_sum
-all_df["AAV_CTE"]= CTE_sum
-all_df["AAV_H2BGFP"] = H2BGFP_sum
-all_df["AAV_BFP"]= BFP_sum
-all_df
-del all_df["AAV_ASYN_x"]
-del all_df["AAV_ASYN_y"]
-del all_df["AAV_CTE_x"]
-del all_df["AAV_CTE_y"]
-del all_df["AAV_H2BGFP_x"]
-del all_df["AAV_H2BGFP_y"]
-del all_df["AAV_BFP_x"]
-del all_df["AAV_ASYN_x"]
-del all_df["AAV_BFP_y"]
-
-all_df = all_df.T
-
-
-df1 = Pool1_RT_Hpos_df.T
-df2 = AAV_data.T
-all_df = pd.merge(df1, df2, on=genes).T
-all_test = pd.merge(df1, df2, left_index=True, right_index=True)
-all_test = pd.merge(df1, df2, on=['AAV_CTE','AAV_ASYN', 'AAV_H2BGFP', 'AAV_BFP'])
-all_test = df1.merge(df2, left_index=True, right_index=True)
-all_test
-all_df
-
-all_df.iloc[:,1]
-all_df.loc[:,"AAV_CTE_x"]  
+Pool1_final_RT_Hpos_full = pd.merge(Pool1_RT_Hpos_df.T, AAV_data.T, left_index=True, right_index=True, how='left').fillna(0)
+Pool1_final_RT_Hpos_full
 #AAV_SYN_x and AAV_SYN_y are generated since there is a clash of columns which were not involved in 
-# the merge operation initially!
-all_df.loc[:,"AAV_CTE_y"]
+# the merge operation initially! Need to sum these columns, thus generating a new column which I name as 
+# the original and then remove the x and y suffix containing ones
 
-all_df = pd.merge(Pool1_RT_Hpos_df,AAV_data, on=BCs, how='left').T.fillna(0)
-all_df
+ASYN_sum = Pool1_final_RT_Hpos_full.loc[:,"AAV_ASYN_x"] + Pool1_final_RT_Hpos_full.loc[:,"AAV_ASYN_y"] 
+CTE_sum = Pool1_final_RT_Hpos_full.loc[:,"AAV_CTE_x"] + Pool1_final_RT_Hpos_full.loc[:,"AAV_CTE_y"]
+H2BGFP_sum = Pool1_final_RT_Hpos_full.loc[:,"AAV_H2BGFP_x"] + Pool1_final_RT_Hpos_full.loc[:,"AAV_H2BGFP_y"]
+BFP_sum = Pool1_final_RT_Hpos_full.loc[:,"AAV_BFP_x"] + Pool1_final_RT_Hpos_full.loc[:,"AAV_BFP_x"]
 
-'''
-duplicated_columns_list = []
-list_of_all_columns = list(Pool1_RT_Hpos_df.columns)
-for column in list_of_all_columns:
-    if list_of_all_columns.count(column) > 1 and column in BCs:
-        duplicated_columns_list.append(column)
-len(duplicated_columns_list)
-Pool1_final_RT_Hpos_full['TGTACCCTGGGTGCAA']  #duplicates
-'''
-# merge and sum
-matrix_filtered_F_v2 = Pool1_RT_Hpos_df.T.merge(AAV_data.T,left_index=True, right_index=True, how='left').T
+Pool1_final_RT_Hpos_full["AAV_ASYN"] = ASYN_sum
+Pool1_final_RT_Hpos_full["AAV_CTE"]= CTE_sum
+Pool1_final_RT_Hpos_full["AAV_H2BGFP"] = H2BGFP_sum
+Pool1_final_RT_Hpos_full["AAV_BFP"]= BFP_sum
+Pool1_final_RT_Hpos_full
+del Pool1_final_RT_Hpos_full["AAV_ASYN_x"]
+del Pool1_final_RT_Hpos_full["AAV_ASYN_y"]
+del Pool1_final_RT_Hpos_full["AAV_CTE_x"]
+del Pool1_final_RT_Hpos_full["AAV_CTE_y"]
+del Pool1_final_RT_Hpos_full["AAV_H2BGFP_x"]
+del Pool1_final_RT_Hpos_full["AAV_H2BGFP_y"]
+del Pool1_final_RT_Hpos_full["AAV_BFP_x"]
+del Pool1_final_RT_Hpos_full["AAV_BFP_y"]
 
-
-matrix_filtered_F = matrix_filtered_F.set_index('gene_ids').fillna(0)
-matrix_filtered_F.index = matrix_filtered_F.index.str.upper()
-
-matrix_filtered.T.merge(matrix_filtered_W.T,left_index=True, right_index=True, how='left').T
-
-#Pool1_final_RT_Hpos_full = pd.concat([Pool1_RT_Hpos_df, AAV_data], axis=1).fillna(0)
-#Pool1_final_RT_Hpos_full = pd.merge(Pool1_RT_Hpos_df, AAV_data )
-
-index_names = Pool1_RT_Hpos_df.columns
-index_names
-Pool1_final_RT_Hpos_full #columns are 3403 even tho AAV_data and Pool1 data were 1066, 1698
-
-Pool1_final_RT_Hpos_full_clean = Pool1_final_RT_Hpos_full.T.drop_duplicates()
-Pool1_final_RT_Hpos_full_clean = Pool1_final_RT_Hpos_full_clean.T.drop_duplicates()
-Pool1_final_RT_Hpos_full_clean
+Pool1_final_RT_Hpos_full = Pool1_final_RT_Hpos_full.T
+Pool1_final_RT_Hpos_full
+Pool1_final_RT_Hpos_full = Pool1_final_RT_Hpos_full.drop_duplicates()
 #############################################################################
 #############################################################################
 #############################################################################
@@ -254,10 +201,34 @@ AAV_data = Pool1_RT_Hneg_df_WP.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BF
 AAV_data
 Pool1_final_RT_Hneg_full = pd.concat([Pool1_RT_Hneg_df, AAV_data], axis=1)
 
-Pool1_final_RT_Hneg_full_clean = Pool1_final_RT_Hneg_full.T.drop_duplicates()
-Pool1_final_RT_Hneg_full_clean = Pool1_final_RT_Hneg_full_clean.T.drop_duplicates()
-Pool1_final_RT_Hneg_full_clean
+Pool1_final_RT_Hneg_full = pd.merge(Pool1_RT_Hneg_df.T, AAV_data.T, left_index=True, right_index=True, how='left').fillna(0)
+Pool1_final_RT_Hneg_full
+#AAV_SYN_x and AAV_SYN_y are generated since there is a clash of columns which were not involved in 
+# the merge operation initially! Need to sum these columns, thus generating a new column which I name as 
+# the original and then remove the x and y suffix containing ones
 
+ASYN_sum = Pool1_final_RT_Hneg_full.loc[:,"AAV_ASYN_x"] + Pool1_final_RT_Hneg_full.loc[:,"AAV_ASYN_y"] 
+CTE_sum = Pool1_final_RT_Hneg_full.loc[:,"AAV_CTE_x"] + Pool1_final_RT_Hneg_full.loc[:,"AAV_CTE_y"]
+H2BGFP_sum = Pool1_final_RT_Hneg_full.loc[:,"AAV_H2BGFP_x"] + Pool1_final_RT_Hneg_full.loc[:,"AAV_H2BGFP_y"]
+BFP_sum = Pool1_final_RT_Hneg_full.loc[:,"AAV_BFP_x"] + Pool1_final_RT_Hneg_full.loc[:,"AAV_BFP_x"]
+
+Pool1_final_RT_Hneg_full["AAV_ASYN"] = ASYN_sum
+Pool1_final_RT_Hneg_full["AAV_CTE"]= CTE_sum
+Pool1_final_RT_Hneg_full["AAV_H2BGFP"] = H2BGFP_sum
+Pool1_final_RT_Hneg_full["AAV_BFP"]= BFP_sum
+Pool1_final_RT_Hneg_full
+del Pool1_final_RT_Hneg_full["AAV_ASYN_x"]
+del Pool1_final_RT_Hneg_full["AAV_ASYN_y"]
+del Pool1_final_RT_Hneg_full["AAV_CTE_x"]
+del Pool1_final_RT_Hneg_full["AAV_CTE_y"]
+del Pool1_final_RT_Hneg_full["AAV_H2BGFP_x"]
+del Pool1_final_RT_Hneg_full["AAV_H2BGFP_y"]
+del Pool1_final_RT_Hneg_full["AAV_BFP_x"]
+del Pool1_final_RT_Hneg_full["AAV_BFP_y"]
+
+Pool1_final_RT_Hneg_full = Pool1_final_RT_Hneg_full.T
+Pool1_final_RT_Hneg_full
+Pool1_final_RT_Hneg_full = Pool1_final_RT_Hneg_full.drop_duplicates()
 
 
 
@@ -272,12 +243,36 @@ Pool2_RT_Hpos_df  = Pool2_RT_Hpos.to_df()
 #get the aav vector data
 AAV_data = Pool2_RT_Hpos_W_df.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
 AAV_data
-Pool2_final_RT_Hpos_full = pd.concat([Pool2_RT_Hpos_df, AAV_data], axis=1)
-Pool2_final_RT_Hpos_full
 
-Pool2_final_RT_Hpos_full_clean = Pool2_final_RT_Hpos_full.T.drop_duplicates()
-Pool2_final_RT_Hpos_full_clean = Pool2_final_RT_Hpos_full_clean.T.drop_duplicates()
-Pool2_final_RT_Hpos_full_clean
+Pool2_RT_Hpos_full = pd.merge(Pool2_RT_Hpos_df.T, AAV_data.T, left_index=True, right_index=True, how='left').fillna(0)
+Pool2_RT_Hpos_full
+#AAV_SYN_x and AAV_SYN_y are generated since there is a clash of columns which were not involved in 
+# the merge operation initially! Need to sum these columns, thus generating a new column which I name as 
+# the original and then remove the x and y suffix containing ones
+
+ASYN_sum = Pool2_RT_Hpos_full.loc[:,"AAV_ASYN_x"] + Pool2_RT_Hpos_full.loc[:,"AAV_ASYN_y"] 
+CTE_sum = Pool2_RT_Hpos_full.loc[:,"AAV_CTE_x"] + Pool2_RT_Hpos_full.loc[:,"AAV_CTE_y"]
+H2BGFP_sum = Pool2_RT_Hpos_full.loc[:,"AAV_H2BGFP_x"] + Pool2_RT_Hpos_full.loc[:,"AAV_H2BGFP_y"]
+BFP_sum = Pool2_RT_Hpos_full.loc[:,"AAV_BFP_x"] + Pool2_RT_Hpos_full.loc[:,"AAV_BFP_x"]
+
+Pool2_RT_Hpos_full["AAV_ASYN"] = ASYN_sum
+Pool2_RT_Hpos_full["AAV_CTE"]= CTE_sum
+Pool2_RT_Hpos_full["AAV_H2BGFP"] = H2BGFP_sum
+Pool2_RT_Hpos_full["AAV_BFP"]= BFP_sum
+Pool2_RT_Hpos_full
+del Pool2_RT_Hpos_full["AAV_ASYN_x"]
+del Pool2_RT_Hpos_full["AAV_ASYN_y"]
+del Pool2_RT_Hpos_full["AAV_CTE_x"]
+del Pool2_RT_Hpos_full["AAV_CTE_y"]
+del Pool2_RT_Hpos_full["AAV_H2BGFP_x"]
+del Pool2_RT_Hpos_full["AAV_H2BGFP_y"]
+del Pool2_RT_Hpos_full["AAV_BFP_x"]
+del Pool2_RT_Hpos_full["AAV_BFP_y"]
+
+Pool2_RT_Hpos_full = Pool2_RT_Hpos_full.T
+Pool2_RT_Hpos_full
+Pool2_RT_Hpos_full = Pool2_RT_Hpos_full.drop_duplicates()
+
 
 
 #Pool2, RT H-
@@ -289,14 +284,39 @@ Pool2_RT_Hneg_df  = Pool2_RT_Hneg.to_df()
 
 AAV_data = Pool2_RT_Hneg_W_df.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
 AAV_data
-Pool2_final_RT_Hneg_full = pd.concat([Pool2_RT_Hneg_df, AAV_data], axis=1)
+
+Pool2_final_RT_Hneg_full = pd.merge(Pool2_RT_Hneg_df.T, AAV_data.T, left_index=True, right_index=True, how='left').fillna(0)
+Pool2_final_RT_Hneg_full
+#AAV_SYN_x and AAV_SYN_y are generated since there is a clash of columns which were not involved in 
+# the merge operation initially! Need to sum these columns, thus generating a new column which I name as 
+# the original and then remove the x and y suffix containing ones
+
+ASYN_sum = Pool2_final_RT_Hneg_full.loc[:,"AAV_ASYN_x"] + Pool2_final_RT_Hneg_full.loc[:,"AAV_ASYN_y"] 
+CTE_sum = Pool2_final_RT_Hneg_full.loc[:,"AAV_CTE_x"] + Pool2_final_RT_Hneg_full.loc[:,"AAV_CTE_y"]
+H2BGFP_sum = Pool2_final_RT_Hneg_full.loc[:,"AAV_H2BGFP_x"] + Pool2_final_RT_Hneg_full.loc[:,"AAV_H2BGFP_y"]
+BFP_sum = Pool2_final_RT_Hneg_full.loc[:,"AAV_BFP_x"] + Pool2_final_RT_Hneg_full.loc[:,"AAV_BFP_x"]
+
+Pool2_final_RT_Hneg_full["AAV_ASYN"] = ASYN_sum
+Pool2_final_RT_Hneg_full["AAV_CTE"]= CTE_sum
+Pool2_final_RT_Hneg_full["AAV_H2BGFP"] = H2BGFP_sum
+Pool2_final_RT_Hneg_full["AAV_BFP"]= BFP_sum
+Pool2_final_RT_Hneg_full
+del Pool2_final_RT_Hneg_full["AAV_ASYN_x"]
+del Pool2_final_RT_Hneg_full["AAV_ASYN_y"]
+del Pool2_final_RT_Hneg_full["AAV_CTE_x"]
+del Pool2_final_RT_Hneg_full["AAV_CTE_y"]
+del Pool2_final_RT_Hneg_full["AAV_H2BGFP_x"]
+del Pool2_final_RT_Hneg_full["AAV_H2BGFP_y"]
+del Pool2_final_RT_Hneg_full["AAV_BFP_x"]
+del Pool2_final_RT_Hneg_full["AAV_BFP_y"]
+
+Pool2_final_RT_Hneg_full = Pool2_final_RT_Hneg_full.T
 Pool2_final_RT_Hneg_full
 
-Pool2_final_RT_Hneg_full_clean = Pool2_final_RT_Hneg_full.T.drop_duplicates()
-Pool2_final_RT_Hneg_full_clean = Pool2_final_RT_Hneg_full_clean.T.drop_duplicates()
-Pool2_final_RT_Hneg_full_clean
+Pool2_final_RT_Hneg_full = Pool2_final_RT_Hneg_full.drop_duplicates()
 
 
+'''
 ##########################################################
 #used drop duplicates prior since found plenty of duplicates:
 duplicated_columns_list = []
@@ -307,7 +327,7 @@ for column in list_of_all_columns:
 duplicated_columns_list
 Pool1_final_RT_Hpos_full['TGTACCCTGGGTGCAA']  #duplicates
 ##########################################################
-
+'''
 #Generate anndata matrices
 def df_to_anndata(df):
     annMatrix = df.T.iloc[:-1,:]
@@ -333,23 +353,20 @@ def df_to_anndata(df):
     #adata_TX.write(filename="/media/data/AtteR/scifi-analysis/Python-scifi-analysis/plots_no_groups/All.h5ad", compression=None, compression_opts=None, force_dense=None, as_dense=())
     return(adata_TX)
 
-Pool1_final_RT_Hpos_full_clean
-Pool1_final_RT_Hneg_full_clean
-Pool2_final_RT_Hpos_full_clean
-Pool2_final_RT_Hneg_full_clean
+Pool1_final_RT_Hpos_full
+Pool1_final_RT_Hneg_full
+Pool2_RT_Hpos_full
+Pool2_final_RT_Hneg_full
 
 
-for column in duplicated_columns_list:
-    list_of_all_columns[list_of_all_columns.index(column)] = column + '_1'
-    list_of_all_columns[list_of_all_columns.index(column)] = column + '_2'
 
-Pool1_RT_Hpos_adata = df_to_anndata(Pool1_final_RT_Hpos_full_clean)
+Pool1_RT_Hpos_adata = df_to_anndata(Pool1_final_RT_Hpos_full)
 Pool1_RT_Hpos_adata
-Pool1_RT_Hneg_adata = df_to_anndata(Pool1_final_RT_Hneg_full_clean)
+Pool1_RT_Hneg_adata = df_to_anndata(Pool1_final_RT_Hneg_full)
 Pool1_RT_Hneg_adata
-Pool2_RT_Hpos_adata = df_to_anndata(Pool2_final_RT_Hpos_full_clean)
+Pool2_RT_Hpos_adata = df_to_anndata(Pool2_RT_Hpos_full)
 Pool2_RT_Hpos_adata
-Pool2_RT_Hneg_adata = df_to_anndata(Pool2_final_RT_Hneg_full_clean)
+Pool2_RT_Hneg_adata = df_to_anndata(Pool2_final_RT_Hneg_full)
 Pool2_RT_Hneg_adata
 
 ###################################################################
