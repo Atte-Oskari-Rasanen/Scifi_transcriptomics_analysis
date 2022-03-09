@@ -114,6 +114,12 @@ for group in P_RT_groups:
             grouped_sc[group_name]=import_sc(d)
 
 
+#we have the dicts consisting of RT - df pairs.
+
+#create a function which takes in the dict as a whole, extract the groups based on the matches given, 
+#merge into a common df of WP and oDT, get the AAV values, merge the full oDT df with the AAV subset WP one,
+#sum the columns (AAV_x + AAV_y)
+
 #Pool1, RT H+
 matrix_filtered_p1_1 = grouped_sc['F8'][0].transpose() #0 is odT, 1 is WP seq
 matrix_filtered_W_p1_1 = grouped_sc['F8'][1].transpose()
@@ -140,7 +146,42 @@ matrix_filtered_df_p1_2  = matrix_filtered_p1_2.to_df()
 Pool1_RT_Hpos_df = pd.concat([matrix_filtered_df_p1_1, matrix_filtered_df_p1_2], axis=1)
 Pool1_RT_Hpos_df_WP = pd.concat([matrix_filtered_W_df_p1_1_W, matrix_filtered_W_df_p1_2], axis=1)
 
+'''
+def full_df(oDT_df, WP_df):
+    #get the aav vector data   --- do we need cte and bfp tho
+    AAV_data = WP_df.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
+    AAV_data
 
+    #left_index: If True, use the index (row labels) from the left DataFrame or Series as its join key(s)
+    #we merge based on gene names meaning that need to transpose the dfs 
+    df_full = pd.merge(oDT_df.T, AAV_data.T, left_index=True, right_index=True, how='left').fillna(0)
+    #AAV_SYN_x and AAV_SYN_y are generated since there is a clash of columns which were not involved in 
+    # the merge operation initially! Need to sum these columns, thus generating a new column which I name as 
+    # the original and then remove the x and y suffix containing ones
+
+    ASYN_sum = df_full.loc[:,"AAV_ASYN_x"] + df_full.loc[:,"AAV_ASYN_y"] 
+    CTE_sum = df_full.loc[:,"AAV_CTE_x"] + df_full.loc[:,"AAV_CTE_y"]
+    H2BGFP_sum = df_full.loc[:,"AAV_H2BGFP_x"] + df_full.loc[:,"AAV_H2BGFP_y"]
+    BFP_sum = df_full.loc[:,"AAV_BFP_x"] + df_full.loc[:,"AAV_BFP_x"]
+
+    df_full["AAV_ASYN"] = ASYN_sum
+    df_full["AAV_CTE"]= CTE_sum
+    df_full["AAV_H2BGFP"] = H2BGFP_sum
+    df_full["AAV_BFP"]= BFP_sum
+    df_full
+    del df_full["AAV_ASYN_x"]
+    del df_full["AAV_ASYN_y"]
+    del df_full["AAV_CTE_x"]
+    del df_full["AAV_CTE_y"]
+    del df_full["AAV_H2BGFP_x"]
+    del df_full["AAV_H2BGFP_y"]
+    del df_full["AAV_BFP_x"]
+    del df_full["AAV_BFP_y"]
+
+    df_full = df_full.T
+    df_full = df_full.drop_duplicates()
+    return(df_full)
+'''
 
 #get the aav vector data   --- do we need cte and bfp tho
 AAV_data = Pool1_RT_Hpos_df_WP.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
