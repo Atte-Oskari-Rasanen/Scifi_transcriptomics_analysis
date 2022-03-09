@@ -116,37 +116,7 @@ for group in P_RT_groups:
 
 #we have the dicts consisting of RT - df pairs.
 
-#create a function which takes in the dict as a whole, extract the groups based on the matches given, 
-#merge into a common df of WP and oDT, get the AAV values, merge the full oDT df with the AAV subset WP one,
-#sum the columns (AAV_x + AAV_y)
-
-#Pool1, RT H+
-matrix_filtered_p1_1 = grouped_sc['F8'][0].transpose() #0 is odT, 1 is WP seq
-matrix_filtered_W_p1_1 = grouped_sc['F8'][1].transpose()
-
-matrix_filtered_W_df_p1_1_W  = matrix_filtered_W_p1_1.to_df()
-matrix_filtered_W_df_p1_1_W
-matrix_filtered_df_p1_1  = matrix_filtered_p1_1.to_df()
-
-
-
-#index_names = matrix_filtered_W_df_p1_1_W[ (matrix_filtered_W_df_p1_1_W.iloc[0,:]== 'AAV_CTE') | (matrix_filtered_W_df_p1_1_W.iloc[0,:]== 'AAV_ASYN') | (matrix_filtered_W_df_p1_1_W.iloc[0,:] == 'AAV_BFP') | (matrix_filtered_W_df_p1_1_W.iloc[0,:] == 'AAV_H2BGFP')].index
-
-#index_names = matrix_filtered_W_p1_1[ (matrix_filtered_W_df_p1_1['gene_symbols']== 'AAV_CTE') | (matrix_filtered_W_df_p1_1['gene_ids'] == 'AAV_ASYN') | (matrix_filtered_W_df_p1_1['gene_ids'] == 'AAV_BFP') | (matrix_filtered_W_df_p1_1['gene_ids'] == 'AAV_H2BGFP')].index
-#print(index_names)
-#matrix_filtered_W = matrix_filtered_W_df_p1_1_W.T.loc[index_names]
-matrix_filtered_W_df_p1_1_W
-
-matrix_filtered_p1_2 = grouped_sc['G8'][0].transpose()
-matrix_filtered_W_p1_2  = grouped_sc['G8'][1].transpose()
-matrix_filtered_W_df_p1_2  = matrix_filtered_W_p1_2.to_df()
-matrix_filtered_df_p1_2  = matrix_filtered_p1_2.to_df()
-
-#Combine the dataframes 
-Pool1_RT_Hpos_df = pd.concat([matrix_filtered_df_p1_1, matrix_filtered_df_p1_2], axis=1)
-Pool1_RT_Hpos_df_WP = pd.concat([matrix_filtered_W_df_p1_1_W, matrix_filtered_W_df_p1_2], axis=1)
-
-'''
+#function that takes in the dataframes of oDT and WP and merges them based on our needs
 def full_df(oDT_df, WP_df):
     #get the aav vector data   --- do we need cte and bfp tho
     AAV_data = WP_df.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
@@ -181,42 +151,36 @@ def full_df(oDT_df, WP_df):
     df_full = df_full.T
     df_full = df_full.drop_duplicates()
     return(df_full)
-'''
 
-#get the aav vector data   --- do we need cte and bfp tho
-AAV_data = Pool1_RT_Hpos_df_WP.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
-AAV_data
 
-#left_index: If True, use the index (row labels) from the left DataFrame or Series as its join key(s)
-#we merge based on gene names meaning that need to transpose the dfs 
-Pool1_final_RT_Hpos_full = pd.merge(Pool1_RT_Hpos_df.T, AAV_data.T, left_index=True, right_index=True, how='left').fillna(0)
-Pool1_final_RT_Hpos_full
-#AAV_SYN_x and AAV_SYN_y are generated since there is a clash of columns which were not involved in 
-# the merge operation initially! Need to sum these columns, thus generating a new column which I name as 
-# the original and then remove the x and y suffix containing ones
+#Pool1, RT H+
+matrix_filtered_p1_1 = grouped_sc['F8'][0].transpose() #0 is odT, 1 is WP seq
+matrix_filtered_W_p1_1 = grouped_sc['F8'][1].transpose()
 
-ASYN_sum = Pool1_final_RT_Hpos_full.loc[:,"AAV_ASYN_x"] + Pool1_final_RT_Hpos_full.loc[:,"AAV_ASYN_y"] 
-CTE_sum = Pool1_final_RT_Hpos_full.loc[:,"AAV_CTE_x"] + Pool1_final_RT_Hpos_full.loc[:,"AAV_CTE_y"]
-H2BGFP_sum = Pool1_final_RT_Hpos_full.loc[:,"AAV_H2BGFP_x"] + Pool1_final_RT_Hpos_full.loc[:,"AAV_H2BGFP_y"]
-BFP_sum = Pool1_final_RT_Hpos_full.loc[:,"AAV_BFP_x"] + Pool1_final_RT_Hpos_full.loc[:,"AAV_BFP_x"]
+matrix_filtered_W_df_p1_1_W  = matrix_filtered_W_p1_1.to_df()
+matrix_filtered_W_df_p1_1_W
+matrix_filtered_df_p1_1  = matrix_filtered_p1_1.to_df()
 
-Pool1_final_RT_Hpos_full["AAV_ASYN"] = ASYN_sum
-Pool1_final_RT_Hpos_full["AAV_CTE"]= CTE_sum
-Pool1_final_RT_Hpos_full["AAV_H2BGFP"] = H2BGFP_sum
-Pool1_final_RT_Hpos_full["AAV_BFP"]= BFP_sum
-Pool1_final_RT_Hpos_full
-del Pool1_final_RT_Hpos_full["AAV_ASYN_x"]
-del Pool1_final_RT_Hpos_full["AAV_ASYN_y"]
-del Pool1_final_RT_Hpos_full["AAV_CTE_x"]
-del Pool1_final_RT_Hpos_full["AAV_CTE_y"]
-del Pool1_final_RT_Hpos_full["AAV_H2BGFP_x"]
-del Pool1_final_RT_Hpos_full["AAV_H2BGFP_y"]
-del Pool1_final_RT_Hpos_full["AAV_BFP_x"]
-del Pool1_final_RT_Hpos_full["AAV_BFP_y"]
 
-Pool1_final_RT_Hpos_full = Pool1_final_RT_Hpos_full.T
-Pool1_final_RT_Hpos_full
-Pool1_final_RT_Hpos_full = Pool1_final_RT_Hpos_full.drop_duplicates()
+
+#index_names = matrix_filtered_W_df_p1_1_W[ (matrix_filtered_W_df_p1_1_W.iloc[0,:]== 'AAV_CTE') | (matrix_filtered_W_df_p1_1_W.iloc[0,:]== 'AAV_ASYN') | (matrix_filtered_W_df_p1_1_W.iloc[0,:] == 'AAV_BFP') | (matrix_filtered_W_df_p1_1_W.iloc[0,:] == 'AAV_H2BGFP')].index
+
+#index_names = matrix_filtered_W_p1_1[ (matrix_filtered_W_df_p1_1['gene_symbols']== 'AAV_CTE') | (matrix_filtered_W_df_p1_1['gene_ids'] == 'AAV_ASYN') | (matrix_filtered_W_df_p1_1['gene_ids'] == 'AAV_BFP') | (matrix_filtered_W_df_p1_1['gene_ids'] == 'AAV_H2BGFP')].index
+#print(index_names)
+#matrix_filtered_W = matrix_filtered_W_df_p1_1_W.T.loc[index_names]
+matrix_filtered_W_df_p1_1_W
+
+matrix_filtered_p1_2 = grouped_sc['G8'][0].transpose()
+matrix_filtered_W_p1_2  = grouped_sc['G8'][1].transpose()
+matrix_filtered_W_df_p1_2  = matrix_filtered_W_p1_2.to_df()
+matrix_filtered_df_p1_2  = matrix_filtered_p1_2.to_df()
+
+#Combine the dataframes 
+Pool1_RT_Hpos_df = pd.concat([matrix_filtered_df_p1_1, matrix_filtered_df_p1_2], axis=1)
+Pool1_RT_Hpos_df_WP = pd.concat([matrix_filtered_W_df_p1_1_W, matrix_filtered_W_df_p1_2], axis=1)
+
+Pool1_final_RT_Hpos_full = full_df(Pool1_RT_Hpos_df,Pool1_RT_Hpos_df_WP)
+
 #############################################################################
 #############################################################################
 #############################################################################
@@ -237,39 +201,7 @@ matrix_filtered_df_p1_2  = matrix_filtered_p1_2.to_df()
 Pool1_RT_Hneg_df = pd.concat([matrix_filtered_df_p1_1, matrix_filtered_df_p1_2], axis=1)
 Pool1_RT_Hneg_df_WP = pd.concat([matrix_filtered_W_df_p1_1, matrix_filtered_W_df_p1_2], axis=1)
 
-#get the aav vector data
-AAV_data = Pool1_RT_Hneg_df_WP.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
-AAV_data
-Pool1_final_RT_Hneg_full = pd.concat([Pool1_RT_Hneg_df, AAV_data], axis=1)
-
-Pool1_final_RT_Hneg_full = pd.merge(Pool1_RT_Hneg_df.T, AAV_data.T, left_index=True, right_index=True, how='left').fillna(0)
-Pool1_final_RT_Hneg_full
-#AAV_SYN_x and AAV_SYN_y are generated since there is a clash of columns which were not involved in 
-# the merge operation initially! Need to sum these columns, thus generating a new column which I name as 
-# the original and then remove the x and y suffix containing ones
-
-ASYN_sum = Pool1_final_RT_Hneg_full.loc[:,"AAV_ASYN_x"] + Pool1_final_RT_Hneg_full.loc[:,"AAV_ASYN_y"] 
-CTE_sum = Pool1_final_RT_Hneg_full.loc[:,"AAV_CTE_x"] + Pool1_final_RT_Hneg_full.loc[:,"AAV_CTE_y"]
-H2BGFP_sum = Pool1_final_RT_Hneg_full.loc[:,"AAV_H2BGFP_x"] + Pool1_final_RT_Hneg_full.loc[:,"AAV_H2BGFP_y"]
-BFP_sum = Pool1_final_RT_Hneg_full.loc[:,"AAV_BFP_x"] + Pool1_final_RT_Hneg_full.loc[:,"AAV_BFP_x"]
-
-Pool1_final_RT_Hneg_full["AAV_ASYN"] = ASYN_sum
-Pool1_final_RT_Hneg_full["AAV_CTE"]= CTE_sum
-Pool1_final_RT_Hneg_full["AAV_H2BGFP"] = H2BGFP_sum
-Pool1_final_RT_Hneg_full["AAV_BFP"]= BFP_sum
-Pool1_final_RT_Hneg_full
-del Pool1_final_RT_Hneg_full["AAV_ASYN_x"]
-del Pool1_final_RT_Hneg_full["AAV_ASYN_y"]
-del Pool1_final_RT_Hneg_full["AAV_CTE_x"]
-del Pool1_final_RT_Hneg_full["AAV_CTE_y"]
-del Pool1_final_RT_Hneg_full["AAV_H2BGFP_x"]
-del Pool1_final_RT_Hneg_full["AAV_H2BGFP_y"]
-del Pool1_final_RT_Hneg_full["AAV_BFP_x"]
-del Pool1_final_RT_Hneg_full["AAV_BFP_y"]
-
-Pool1_final_RT_Hneg_full = Pool1_final_RT_Hneg_full.T
-Pool1_final_RT_Hneg_full
-Pool1_final_RT_Hneg_full = Pool1_final_RT_Hneg_full.drop_duplicates()
+Pool1_final_RT_Hneg_full = full_df(Pool1_RT_Hneg_df,Pool1_RT_Hneg_df_WP)
 
 
 
@@ -281,38 +213,7 @@ Pool2_RT_Hpos_W = grouped_sc['oDT_5'][1].transpose()
 Pool2_RT_Hpos_W_df = Pool2_RT_Hpos_W.to_df()
 Pool2_RT_Hpos_df  = Pool2_RT_Hpos.to_df()
 
-#get the aav vector data
-AAV_data = Pool2_RT_Hpos_W_df.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
-AAV_data
-
-Pool2_RT_Hpos_full = pd.merge(Pool2_RT_Hpos_df.T, AAV_data.T, left_index=True, right_index=True, how='left').fillna(0)
-Pool2_RT_Hpos_full
-#AAV_SYN_x and AAV_SYN_y are generated since there is a clash of columns which were not involved in 
-# the merge operation initially! Need to sum these columns, thus generating a new column which I name as 
-# the original and then remove the x and y suffix containing ones
-
-ASYN_sum = Pool2_RT_Hpos_full.loc[:,"AAV_ASYN_x"] + Pool2_RT_Hpos_full.loc[:,"AAV_ASYN_y"] 
-CTE_sum = Pool2_RT_Hpos_full.loc[:,"AAV_CTE_x"] + Pool2_RT_Hpos_full.loc[:,"AAV_CTE_y"]
-H2BGFP_sum = Pool2_RT_Hpos_full.loc[:,"AAV_H2BGFP_x"] + Pool2_RT_Hpos_full.loc[:,"AAV_H2BGFP_y"]
-BFP_sum = Pool2_RT_Hpos_full.loc[:,"AAV_BFP_x"] + Pool2_RT_Hpos_full.loc[:,"AAV_BFP_x"]
-
-Pool2_RT_Hpos_full["AAV_ASYN"] = ASYN_sum
-Pool2_RT_Hpos_full["AAV_CTE"]= CTE_sum
-Pool2_RT_Hpos_full["AAV_H2BGFP"] = H2BGFP_sum
-Pool2_RT_Hpos_full["AAV_BFP"]= BFP_sum
-Pool2_RT_Hpos_full
-del Pool2_RT_Hpos_full["AAV_ASYN_x"]
-del Pool2_RT_Hpos_full["AAV_ASYN_y"]
-del Pool2_RT_Hpos_full["AAV_CTE_x"]
-del Pool2_RT_Hpos_full["AAV_CTE_y"]
-del Pool2_RT_Hpos_full["AAV_H2BGFP_x"]
-del Pool2_RT_Hpos_full["AAV_H2BGFP_y"]
-del Pool2_RT_Hpos_full["AAV_BFP_x"]
-del Pool2_RT_Hpos_full["AAV_BFP_y"]
-
-Pool2_RT_Hpos_full = Pool2_RT_Hpos_full.T
-Pool2_RT_Hpos_full
-Pool2_RT_Hpos_full = Pool2_RT_Hpos_full.drop_duplicates()
+Pool2_RT_Hpos_full = full_df(Pool2_RT_Hpos_df,Pool2_RT_Hpos_W_df)
 
 
 
@@ -323,38 +224,8 @@ Pool2_RT_Hneg_W = grouped_sc['oDT_6'][1].transpose()
 Pool2_RT_Hneg_W_df = Pool2_RT_Hneg_W.to_df()
 Pool2_RT_Hneg_df  = Pool2_RT_Hneg.to_df()
 
-AAV_data = Pool2_RT_Hneg_W_df.loc[["AAV_CTE", "AAV_ASYN", "AAV_H2BGFP", "AAV_BFP"]]
-AAV_data
+Pool2_final_RT_Hneg_full = full_df(Pool2_RT_Hneg_df,Pool2_RT_Hneg_W_df)
 
-Pool2_final_RT_Hneg_full = pd.merge(Pool2_RT_Hneg_df.T, AAV_data.T, left_index=True, right_index=True, how='left').fillna(0)
-Pool2_final_RT_Hneg_full
-#AAV_SYN_x and AAV_SYN_y are generated since there is a clash of columns which were not involved in 
-# the merge operation initially! Need to sum these columns, thus generating a new column which I name as 
-# the original and then remove the x and y suffix containing ones
-
-ASYN_sum = Pool2_final_RT_Hneg_full.loc[:,"AAV_ASYN_x"] + Pool2_final_RT_Hneg_full.loc[:,"AAV_ASYN_y"] 
-CTE_sum = Pool2_final_RT_Hneg_full.loc[:,"AAV_CTE_x"] + Pool2_final_RT_Hneg_full.loc[:,"AAV_CTE_y"]
-H2BGFP_sum = Pool2_final_RT_Hneg_full.loc[:,"AAV_H2BGFP_x"] + Pool2_final_RT_Hneg_full.loc[:,"AAV_H2BGFP_y"]
-BFP_sum = Pool2_final_RT_Hneg_full.loc[:,"AAV_BFP_x"] + Pool2_final_RT_Hneg_full.loc[:,"AAV_BFP_x"]
-
-Pool2_final_RT_Hneg_full["AAV_ASYN"] = ASYN_sum
-Pool2_final_RT_Hneg_full["AAV_CTE"]= CTE_sum
-Pool2_final_RT_Hneg_full["AAV_H2BGFP"] = H2BGFP_sum
-Pool2_final_RT_Hneg_full["AAV_BFP"]= BFP_sum
-Pool2_final_RT_Hneg_full
-del Pool2_final_RT_Hneg_full["AAV_ASYN_x"]
-del Pool2_final_RT_Hneg_full["AAV_ASYN_y"]
-del Pool2_final_RT_Hneg_full["AAV_CTE_x"]
-del Pool2_final_RT_Hneg_full["AAV_CTE_y"]
-del Pool2_final_RT_Hneg_full["AAV_H2BGFP_x"]
-del Pool2_final_RT_Hneg_full["AAV_H2BGFP_y"]
-del Pool2_final_RT_Hneg_full["AAV_BFP_x"]
-del Pool2_final_RT_Hneg_full["AAV_BFP_y"]
-
-Pool2_final_RT_Hneg_full = Pool2_final_RT_Hneg_full.T
-Pool2_final_RT_Hneg_full
-
-Pool2_final_RT_Hneg_full = Pool2_final_RT_Hneg_full.drop_duplicates()
 
 
 '''
