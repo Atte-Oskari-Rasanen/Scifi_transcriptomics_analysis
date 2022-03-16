@@ -1,3 +1,4 @@
+from email.mime import base
 from turtle import color
 import numpy as np
 import pandas as pd
@@ -17,150 +18,16 @@ import seaborn as sns
 import scipy
 import scipy.io as scio
 import re
+import multiprocessing as mp
 
-
-
-basePath = 'SoloNova10x_correctAAV/'
-basePath= "/media/data/AtteR/scifi-analysis/scifi6/2nd_try/output_enriched/"
-
-#count the number of seqs in the original file, label based on this
-
-#from starcode merge the seq to its respective seq. i.e. col1 content is added 
-#to all sequences based on the positions in col2
-from Bio import SeqIO
+from multiprocessing import Process, Pool, Queue, Manager
 import gzip
-
-'''
-for f in os.listdir(basePath):
-    if ".tsv" in f and "AAV" in f and not "Log" in f:
-        print(f)
-        BC_clusters = pd.read_csv(f, sep='\t')
-        orig_file = f.replace("oDT", "WP")
-'''
-# starcode_outp = basePath + "/SciFi_Pool1-2_EnrichedBCs_All_AAV-tagBFP_starcode.tsv"
-# BBC_path = basePath + "/SciFi_Pool1-2_EnrichedBCs_All_AAV-tagBFP_R21.fastq.gz"
-
-# starcode_outp = basePath + "/SciFi_Pool1-2_EnrichedBCs_All_AAV-aSyn_starcode.tsv"
-# BBC_path = basePath + "/SciFi_Pool1-2_EnrichedBCs_All_AAV-aSyn_R21.fastq.gz" 
-
-
-starcode_outp = basePath + "/SciFi_Pool1-2_EnrichedBCs_All_AAV-aSyn_trimmed-WP_A9_16_starcode.tsv"
-BBC_path = basePath + "/SciFi_Pool1-2_EnrichedBCs_All_AAV-aSyn_trimmed-WP_A9_16_R21.fastq.gz" 
-#Number the seqs from fastq file, make them as dict keys with empty values. Then go over the starcode file, saving cluster as key and 
-#the locations of seqs belonging to the cluster into the value. go over each each line in fastq
-#file and compare the results to the values in the dict. If a match is found, add a count to
-#the value part of the dict
-
-BC_clusters = pd.read_csv(starcode_outp, sep='\t', header=None, index_col=0, dtype={0: str, 1: 'Int64'})
-len(BC_clusters.index)
-BC_clusters.iloc[3,1]
-clusters = list(BC_clusters.index)
-clusters
-
-BC_clusters_dict = {}
-for x in range(len(BC_clusters.index)):
-    BC_clusters.iloc[0,:1]
-    BC_clusters_dict[clusters[x]]=BC_clusters.iloc[x,1]
-#BC_clusters_dict['CCGGGAAGACATAATTCAGGAAGC']
-#BC_clusters_dict.keys()
-#BC_clusters_dict
-#len(BC_clusters_dict.keys())
-
-############################################################
-############################################################
-############################################################
-'''
-BC_clusters_dict = {'BBC1':"1,2,3,4", 'BBC2': "1,3,5", 'BBC3': "2,3,4,5", 'BBC4':"1,2", 'BBC5':"1,3"}
-BC_clusters_dict
-test_seqs = random.sample(range(1, 6), 5)
-test_seqs
-#test_seqs.append(975423)
-uniq_bcs_cell = {}uniq_bcs_cell = {}
-for n in test_seqs:
-    uniq_bcs_cell[n] = 0  #number of seqs as key, as value we will save the count of unique BCs
-uniq_bcs_cell
-for seq_no in uniq_bcs_cell.keys(): #go over each seq in read 21 file
-    uniq_bc_count=sum(any(str(seq_no) in s for s in subList) for subList in BC_clusters_dict.values())
-    print(uniq_bc_count)
-    uniq_bcs_cell[seq_no] = uniq_bc_count
-uniq_bcs_cell
-for seq_no in uniq_bcs_cell.keys(): #go over each seq in read 21 file
-    unique_bs = 0
-    round_count = 0
-    print(seq_no)
-    for cluster in BC_clusters_dict.keys(): #go over each cluster. if only 1 match found this mean that this seq no found only in one cluster BC
-        cluster_seq_ids = BC_clusters_dict[cluster].split(",")  #split each cluster'd id seqs into separate elements
-        #cluster_seq_ids 
-        round_count +=1
-        if str(seq_no) in cluster_seq_ids:  #you are counting this as a single occurence so the match is always 1!!!!
-            #if seq_no is found in the cluster_seq_ids, then add a count and update the location in the dict of uniq_bcs_cell
-            unique_bs+=1
-            uniq_bcs_cell[seq_no] = unique_bs
-            print("match found:" + str(unique_bs) +", which is:" + str(seq_no))
-    # print("Round count: " + str(round_count))
-print("Done")
-uniq_bcs_cell
-'''
-
-############################################################
 import random
 from functools import reduce
-import multiprocessing as mp
-print("Number of processors: ", mp.cpu_count())
+import csv 
+import tempfile
 
-# Step 1: Init multiprocessing.Pool()
-#pool = mp.Pool(mp.cpu_count())
 
-def calculate_uniq_bcs_cell(BBC_path):
-    with open(BBC_path, 'rb') as fastq:
-        gzip_fastq = gzip.GzipFile(fileobj=fastq)
-        fastq = gzip_fastq.read().splitlines() 
-        print("number of sequences: " + str(len(fastq)/4))
-        uniq_bcs_cell = {}
-        for n in range(int(len(fastq)/4)):
-            uniq_bcs_cell[n] = 0  #number of seqs as key, as value we will save the count of unique BCs
-
-        for seq_no in uniq_bcs_cell.keys():
-            print(seq_no)
-            uniq_bcs_cell[seq_no] = unique_bcs_per_seq(BC_clusters_dict, str(seq_no))
-            print(uniq_bcs_cell[seq_no])
-    return(uniq_bcs_cell)
-# Step 2: `pool.apply` the `howmany_within_range()`
-#results = [pool.apply(uniq_bcs_cell, args=(seq_no, 4, 8)) for seq_no in uniq_bcs_cell]
-# Step 3: Don't forget to close
-#pool.close()    
-
-###########
-def unique_bcs_per_seq1(BC_clusters, seqs, q): #take in the contents of starcode file as a dict (BC_clusters) and the seq number
-    for seq_no in seqs: #go over each seq in read 21 file
-        uniqe_bcs_cell = {}
-        counts=0
-        for key, value in BC_clusters.items():
-            cluster_seq_ids = value.split(",")
-            if str(seq_no) in cluster_seq_ids:
-                counts+=1
-                uniqe_bcs_cell[seq_no]=counts
-            q.put(uniqe_bcs_cell)   #q object to save the result
-
-        print("Processed Seq " + str(seq_no) + ". Unique BCs found: " + str(counts))
-    return(uniqe_bcs_cell)
-with open(BBC_path, 'rb') as fastq:
-    gzip_fastq = gzip.GzipFile(fileobj=fastq)
-    fastq = gzip_fastq.read().splitlines() 
-    type(fastq)
-    len(fastq)
-    print("number of sequences: " + str(len(fastq)/4))
-    uniq_bcs_cell = {}
-    for n in range(int(len(fastq)/4)):
-        uniq_bcs_cell[n] = 0  #number of seqs as key, as value we will save the count of unique BCs
-seqs = list(uniq_bcs_cell.keys())
-type(seqs[0])
-from multiprocessing import Pool, Process
-nprocs = mp.cpu_count()
-print(f"Number of CPU cores: {nprocs}")
-nprocs=nprocs-5
-
-###################
 '''
 Pool and map() arent suited to situations that need to maintain state over time or, especially, situations where there are 
 two or more different operations that need to run and interact with each other in some way. For these kinds of problems, one
@@ -175,130 +42,175 @@ results with timeouts and callbacks and has a parallel map implementation”.
 Using Pool we can assign as many parallel processes as we like, but only the `processes` number of threads will be 
 active at any given moment.
 '''
-###################
-#QUEUING method
-# qout = mp.Queue()
-# # Setup a list of processes that we want to run
-# #processes = [mp.Process(target=unique_bcs_per_seq1, args=(BC_clusters_dict, seq,qout)) for seq in range(len(seqs))]
-# processes = [mp.Process(target=unique_bcs_per_seq1, args=(BC_clusters_dict, seqs,qout))]
 
-# processes.start()
-# processes.join()
-
-# result = qout.get()
-# print(result)
-
-######################################
-
-p_size = nprocs - 25
-from multiprocessing import Process, Queue, Manager
-#############
+basePath = 'SoloNova10x_correctAAV/'
+basePath= "/media/data/AtteR/scifi-analysis/scifi6/2nd_try/output_enriched/"
 
 
-def unique_bcs_per_seq(BC_clusters, seq_no, filepath, q): #take in the contents of starcode file as a dict (BC_clusters) and the seq number
-    uniqe_bcs_cell = {}
-    fname = os.path.basename(filepath)
-    f_id = fname.split(".")[0]
-    save_path = os.path.dirname(filepath)
+r21_files = sorted(glob.glob(basePath+'*R21.fastq.gz'))
 
-    counts=0
-    for seq in seq_no:  #when we split the numbers, we put them into ranges of certain size so seq_no is now in range so need to iterate over it
-        for key, value in BC_clusters.items():
-            cluster_seq_ids = value.split(",")
-            if str(seq) in cluster_seq_ids:
-                counts+=1
-                uniqe_bcs_cell[seq]=counts
-            #q.put(uniqe_bcs_cell)   #q object to save the result
-        print("Processed Seq " + str(seq) + ". Unique BCs found: " + str(counts))
-    final_df = pd.DataFrame([uniqe_bcs_cell])
-    print(save_path)
-    with open(save_path + "/" +  fname +".csv", "w") as out: #write the dataframe into an output file
-        final_df.to_csv(out, sep='\t')
-        # df.to_string(out, index=None)
-        print(fname + ' output info file saved!')
+r21_sc_files = {}
 
-    return(uniqe_bcs_cell)
-#############
+for f in r21_files:
+    print(f)
+    r21_sc_files[f]=f.replace("R21.fastq.gz", "starcode.tsv")
 
 
-def reader(i,q):
-    message = q.get() #retrieves the queue
-    print(message)
-def slice_data(data, nprocs):
-    aver, res = divmod(len(data), nprocs)
-    nums = []
-    for proc in range(nprocs):
-        if proc < res:
-            nums.append(aver + 1)
-        else:
-            nums.append(aver)
-    count = 0
-    slices = []
-    for proc in range(nprocs):
-        slices.append(data[count: count+nums[proc]])
-        count += nums[proc]
-    return slices
+for r21, sc_f in r21_sc_files.items():
+    tmp_loc = tempfile.TemporaryDirectory(dir = "/media/data/AtteR/scifi-analysis/scifi6/2nd_try")
+    #tmp_loc
+    tmp_dir = str(tmp_loc).split("'", 1)[1].split("'")[0]
+    tmp_dir
+    BBC_path = r21
+    starcode_outp=sc_f
 
-#I can either run this script on the file prior to demultiplexing. This means that when I demultiplex the files, I must index
-#the lines... So instead run this script on the demultiplexed samples (so first starcode, then this), then map and then import into
-#anndata
-if __name__ ==  '__main__':
+    #Number the seqs from fastq file, make them as dict keys with empty values. Then go over the starcode file, saving cluster as key and 
+    #the locations of seqs belonging to the cluster into the value. go over each each line in fastq
+    #file and compare the results to the values in the dict. If a match is found, add a count to
+    #the value part of the dict
+
+    BC_clusters = pd.read_csv(starcode_outp, sep='\t', header=None, index_col=0, dtype={0: str, 1: 'Int64'})
+    #len(BC_clusters.index)
+    clusters = list(BC_clusters.index)
+    #clusters
+
+
+    #Get the BC cluster name and seqs 
+    BC_clusters_dict = {}
+    for x in range(len(BC_clusters.index)):
+        BC_clusters.iloc[0,:1]
+        BC_clusters_dict[clusters[x]]=BC_clusters.iloc[x,1]
+    ###########
+
+    #get the 21 seq file, count the number of seqs and save as dict 
+    with open(BBC_path, 'rb') as fastq:
+        gzip_fastq = gzip.GzipFile(fileobj=fastq)
+        fastq = gzip_fastq.read().splitlines() 
+        type(fastq)
+        len(fastq)
+        print("number of sequences: " + str(len(fastq)/4))
+        uniq_bcs_cell = {}
+        for n in range(int(len(fastq)/4)):
+            uniq_bcs_cell[n] = 0  #number of seqs as key, as value we will save the count of unique BCs
+    seqs = list(uniq_bcs_cell.keys())
+
+
+    nprocs = mp.cpu_count()
+    p_size = nprocs - 25
+    #############
+
+
+    #since we are not importing the entire seq range as a whole into the function below (to risk of too high I/O stream), 
+    #we will name the files based on the range instead and save into tmp dir and afterwards merge them all into same 
+    def unique_bcs_per_seq(BC_clusters, seq_no, filepath, q): #take in the contents of starcode file as a dict (BC_clusters) and the seq number
+        uniqe_bcs_cell = {}
+        fname = os.path.basename(filepath)
+        f_id = fname.split(".")[0]
+        save_path = os.path.dirname(filepath)
+        m = str(seq_no).split('(', 1)[1].split(')')[0]
+        print(m)
+        a = m.split(",")[0]
+        b = m.split(" ")[1]
+        file_sub_id = "_r_" + a + "-" + b
+
+        for seq in seq_no:  #when we split the numbers, we put them into ranges of certain size so seq_no is now in range so need to iterate over it
+            counts=0
+
+            for key, value in BC_clusters.items():
+                cluster_seq_ids = value.split(",")
+                if str(seq) in cluster_seq_ids:
+                    counts+=1
+                    uniqe_bcs_cell[seq]=counts
+                #q.put(uniqe_bcs_cell)   #q object to save the result
+            #print("Processed Seq " + str(seq) + ". Unique BCs found: " + str(counts))
+        final_df = pd.DataFrame(list(uniqe_bcs_cell.items()),columns = ['Cell','N(Unique BCs/cell)']) 
+        #final_df=final_df.T
+        #print(final_df.head())
+        with open(tmp_dir + "/" +  fname + file_sub_id +".csv", "w") as out: #write the dataframe into an output file
+            #for key in uniqe_bcs_cell.keys():
+            #    out.write("%s,%s\n"%(key,uniqe_bcs_cell[key]))
+            final_df.to_csv(out)
+            # # df.to_string(out, index=None)
+        print("Saved as " + tmp_dir + "/" + fname + file_sub_id + ".csv")
+        return(final_df)
+    #############
+
+    def reader(i,q):
+        message = q.get() #retrieves the queue whereas the writer function puts its output into the queue
+        print(message)
+    def slice_data(data, nprocs):
+        aver, res = divmod(len(data), nprocs)
+        nums = []
+        for proc in range(nprocs):
+            if proc < res:
+                nums.append(aver + 1)
+            else:
+                nums.append(aver)
+        count = 0
+        slices = []
+        for proc in range(nprocs):
+            slices.append(data[count: count+nums[proc]])
+            count += nums[proc]
+        return slices
+
+    #I can either run this script on the file prior to demultiplexing. This means that when I demultiplex the files, I must index
+    #the lines... So instead run this script on the demultiplexed samples (so first starcode, then this), then map and then import into anndata
+
+    #I must iterate over the files and get the R21 read and then the corresponding starcode tsv
+
+    #multiprocess the files
     p = Pool(p_size)
     m = Manager()
 
     q = m.Queue()
-    # with mp.Manager() as manager:
-    #     q = manager.Queue()
-    #     d = manager.dict()
-    #     with manager.Pool(p_size) as p:
-    #         #pool.map(f, repeat(d, 10))
-    #         seq_lists = slice_data(range(len(seqs)), nprocs)
-    #         #multi_result = [pool.apply_async(power_n_list, (inp, 2)) for inp in inp_lists]
-    #         multi_result = [p.apply_async(unique_bcs_per_seq, (BC_clusters_dict, seq,q,)) for seq in seq_lists]
-    #         result = [x for p in multi_result for x in p.get()]
-###############################################################################################################
-###############################################################################################################
     seq_lists = slice_data(range(len(seqs)), nprocs)
+
     #multi_result = [pool.apply_async(power_n_list, (inp, 2)) for inp in inp_lists] uniq_bcs_cell
     multi_result = [p.apply_async(unique_bcs_per_seq, (BC_clusters_dict, seq,BBC_path,q,)) for seq in seq_lists]
-#workers = [pool.apply_async(toParallel, args=(ht,token,)) for ht in hashtag['hashtag']]
-    #multi_result = [p.apply_async(unique_bcs_per_seq, (BC_clusters_dict, seq,q,)) for seq in seq_lists]
-    #result = [x for p in multi_result for x in p.get()]
     final_result = [result.get() for result in multi_result]
-    final_result
-    result
-    type(result)
-    print(result['8970'])
-
-    df = pd.DataFrame.from_dict(data)
-    # #manager enables us to manage the queue and access the different workers (unique_bcs_per_seq functions). It also closes pools when they are done.
-    # m = Manager()
-
-    # q = m.Queue()
-    # # Create a group of parallel writers and start them
-    # for seq_no in range(len(seqs)):
-    #     Process(target=unique_bcs_per_seq, args=(BC_clusters_dict, seq_no,q,)).start()
-    #     #results = pool.map(myLevenshteinFunction, stringList)
-    # # Create multiprocessing pool
-    # p = Pool(p_size)
-
-    # # Create a group of parallel readers and start them
-    # # Number of readers is matching the number of writers (unique_bcs_per_seq)
-    # # However, the number of simultaneously running
-    # # readers is constrained to the pool size
-    # readers = []
-    # for i in range(seqs):
-    #     readers.append(p.apply_async(reader, (seqs,q,)))
-    #     readers.append(p.apply_async(unique_bcs_per_seq, (inp, 2)) for inp in inp_lists])
-
-    #     p.close()
-    #     p.join()
+    #final_result
 
 
-    # [r.get() for r in readers]
-    #for i in range(10):
-    #    message = q.get()
-    #    print(message)
+
+    #get the files from the tmp dir
+    count_files = [i for i in glob.glob(tmp_dir +"/*.csv")]
+    count_files
+    def common_name(sa, sb):
+        """ returns the longest common substring from the beginning of sa and sb """
+        def _iter():
+            for a, b in zip(sa, sb):
+                if a == b:
+                    yield a
+                else:
+                    return
+
+        return ''.join(_iter())
+    shared_path = common_name(count_files[0], count_files[1])
+
+    shared_name = '_'.join(shared_path.split("/")[-1].split("_")[:-3])
+    shared_name
+    #combine all files in the list
+    combined_csv = pd.concat([pd.read_csv(f) for f in count_files ])
+    #export to csv
+    combined_csv.to_csv(basePath + "/" + shared_name + "_Uniq_BCs_per_cell.csv", index=False)
+    df_counts_full = pd.read_csv(basePath + "/" + shared_name + "_Uniq_BCs_per_cell.csv")
+    df_counts_full = df_counts_full.drop('Unnamed: 0', inplace=True, axis=1)
+    df_counts_full =df_counts_full.sort_values(by = "Cell", ascending=True)
+    df_counts_full.to_csv(basePath + "/" + shared_name + "_Uniq_BCs_per_cell.csv", index=False)
+
+    tmp_loc.cleanup()
+
+
+
+
+
+
+
+
+
+
+
+
     '''
     Queue is a blocking, thread-safe queue that you can use to store the return values 
     from the child processes. So you have to pass the queue to each process. Something less 
@@ -309,6 +221,10 @@ if __name__ ==  '__main__':
     multi_result = [pool.apply_async(unique_bcs_per_seq, (inp, 2)) for inp in inp_lists]
 
     result = [x for p in multi_result for x in p.get()]
+
+
+
+    tmp_loc.cleanup()
 
 #child_r, parent_w = os.pipe()
 #OSError: [Errno 24] Too many open files
@@ -496,11 +412,6 @@ for task in tasks:
 
 pool.close()
 pool.join()
-
-
-
-
-
 
 
 
