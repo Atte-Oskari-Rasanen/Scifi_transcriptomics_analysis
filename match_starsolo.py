@@ -61,13 +61,14 @@ r21_sc_files
 for r21, sc_f in r21_sc_files.items():
     BBC_path = r21
     starcode_outp=sc_f
+
     #print(BBC_path)
     #print(starcode_outp)
     if os.path.exists(BBC_path) == False:
         continue
     if os.path.exists(starcode_outp) == False:
         continue
-    print(BBC_path)
+    print(starcode_outp)
     tmp_loc = tempfile.TemporaryDirectory(dir = "/media/data/AtteR/scifi-analysis/scifi6/2nd_try")
     #tmp_loc
     tmp_dir = str(tmp_loc).split("'", 1)[1].split("'")[0]
@@ -109,7 +110,19 @@ for r21, sc_f in r21_sc_files.items():
     p_size = nprocs - 25
     #############
 
-
+    import sys
+    def progressbar(it, prefix="", size=100, file=sys.stdout):
+        count = len(it)
+        def show(j):
+            x = int(size*j/count)
+            file.write("%s[%s%s] %i/%i\r" % (prefix, "#"*x, "."*(size-x), j, count))
+            file.flush()        
+        show(0)
+        for i, item in enumerate(it):
+            yield item
+            show(i+1)
+        file.write("\n")
+        file.flush()
     #since we are not importing the entire seq range as a whole into the function below (to risk of too high I/O stream), 
     #we will name the files based on the range instead and save into tmp dir and afterwards merge them all into same 
     def unique_bcs_per_seq(BC_clusters, seq_no, filepath, q): #take in the contents of starcode file as a dict (BC_clusters) and the seq number
@@ -122,17 +135,17 @@ for r21, sc_f in r21_sc_files.items():
         a = m.split(",")[0]
         b = m.split(" ")[1]
         file_sub_id = "_r_" + a + "-" + b
+        for i in progressbar(seq_no, "Computing: ", 40):
+            for seq in seq_no:  #when we split the numbers, we put them into ranges of certain size so seq_no is now in range so need to iterate over it
+                counts=0
 
-        for seq in seq_no:  #when we split the numbers, we put them into ranges of certain size so seq_no is now in range so need to iterate over it
-            counts=0
-
-            for key, value in BC_clusters.items():
-                cluster_seq_ids = value.split(",")
-                if str(seq) in cluster_seq_ids:
-                    counts+=1
-                    uniqe_bcs_cell[seq]=counts
-                #q.put(uniqe_bcs_cell)   #q object to save the result
-            #print("Processed Seq " + str(seq) + ". Unique BCs found: " + str(counts))
+                for key, value in BC_clusters.items():
+                    cluster_seq_ids = value.split(",")
+                    if str(seq) in cluster_seq_ids:
+                        counts+=1
+                        uniqe_bcs_cell[seq]=counts
+                    #q.put(uniqe_bcs_cell)   #q object to save the result
+                #print("Processed Seq " + str(seq) + ". Unique BCs found: " + str(counts))
         final_df = pd.DataFrame(list(uniqe_bcs_cell.items()),columns = ['Cell','N(Unique BCs/cell)']) 
         #final_df=final_df.T
         #print(final_df.head())
@@ -202,8 +215,9 @@ for r21, sc_f in r21_sc_files.items():
     #export to csv
     combined_csv.to_csv(basePath + "/" + shared_name + "_Uniq_BCs_per_cell.csv", index=False)
     df_counts_full = pd.read_csv(basePath + "/" + shared_name + "_Uniq_BCs_per_cell.csv")
-    df_counts_full = df_counts_full.drop('Unnamed: 0', inplace=True, axis=1)
     df_counts_full =df_counts_full.sort_values(by = "Cell", ascending=True)
+    del df_counts_full["Unnamed: 0"]
+    df_counts_full
     df_counts_full.to_csv(basePath + "/" + shared_name + "_Uniq_BCs_per_cell.csv", index=False)
 
     tmp_loc.cleanup()
