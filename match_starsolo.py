@@ -135,17 +135,16 @@ for r21, sc_f in r21_sc_files.items():
         a = m.split(",")[0]
         b = m.split(" ")[1]
         file_sub_id = "_r_" + a + "-" + b
-        for i in progressbar(seq_no, "Computing: ", 40):
-            for seq in seq_no:  #when we split the numbers, we put them into ranges of certain size so seq_no is now in range so need to iterate over it
-                counts=0
-
-                for key, value in BC_clusters.items():
-                    cluster_seq_ids = value.split(",")
-                    if str(seq) in cluster_seq_ids:
-                        counts+=1
-                        uniqe_bcs_cell[seq]=counts
-                    #q.put(uniqe_bcs_cell)   #q object to save the result
-                #print("Processed Seq " + str(seq) + ". Unique BCs found: " + str(counts))
+        #for i in progressbar(seq_no, "Computing: ", 40):
+        for seq in progressbar(seq_no, "Computing: ", 40):  #when we split the numbers, we put them into ranges of certain size so seq_no is now in range so need to iterate over it
+            counts=0
+            for key, value in BC_clusters.items():
+                cluster_seq_ids = value.split(",")
+                if str(seq) in cluster_seq_ids:
+                    counts+=1
+                    uniqe_bcs_cell[seq]=counts
+                #q.put(uniqe_bcs_cell)   #q object to save the result
+            #print("Processed Seq " + str(seq) + ". Unique BCs found: " + str(counts))
         final_df = pd.DataFrame(list(uniqe_bcs_cell.items()),columns = ['Cell','N(Unique BCs/cell)']) 
         #final_df=final_df.T
         #print(final_df.head())
@@ -187,7 +186,7 @@ for r21, sc_f in r21_sc_files.items():
 
     q = m.Queue()
     seq_lists = slice_data(range(len(seqs)), nprocs)
-
+    
     #multi_result = [pool.apply_async(power_n_list, (inp, 2)) for inp in inp_lists] uniq_bcs_cell
     multi_result = [p.apply_async(unique_bcs_per_seq, (BC_clusters_dict, seq,BBC_path,q,)) for seq in seq_lists]
     final_result = [result.get() for result in multi_result]
