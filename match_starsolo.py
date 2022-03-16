@@ -54,15 +54,25 @@ r21_sc_files = {}
 for f in r21_files:
     print(f)
     r21_sc_files[f]=f.replace("R21.fastq.gz", "starcode.tsv")
+r21_sc_files
 
-
+#tmp_loc.cleanup()
+r21_sc_files
 for r21, sc_f in r21_sc_files.items():
+    BBC_path = r21
+    starcode_outp=sc_f
+    #print(BBC_path)
+    #print(starcode_outp)
+    if os.path.exists(BBC_path) == False:
+        continue
+    if os.path.exists(starcode_outp) == False:
+        continue
+    print(BBC_path)
     tmp_loc = tempfile.TemporaryDirectory(dir = "/media/data/AtteR/scifi-analysis/scifi6/2nd_try")
     #tmp_loc
     tmp_dir = str(tmp_loc).split("'", 1)[1].split("'")[0]
     tmp_dir
-    BBC_path = r21
-    starcode_outp=sc_f
+
 
     #Number the seqs from fastq file, make them as dict keys with empty values. Then go over the starcode file, saving cluster as key and 
     #the locations of seqs belonging to the cluster into the value. go over each each line in fastq
@@ -174,7 +184,6 @@ for r21, sc_f in r21_sc_files.items():
 
     #get the files from the tmp dir
     count_files = [i for i in glob.glob(tmp_dir +"/*.csv")]
-    count_files
     def common_name(sa, sb):
         """ returns the longest common substring from the beginning of sa and sb """
         def _iter():
@@ -188,7 +197,6 @@ for r21, sc_f in r21_sc_files.items():
     shared_path = common_name(count_files[0], count_files[1])
 
     shared_name = '_'.join(shared_path.split("/")[-1].split("_")[:-3])
-    shared_name
     #combine all files in the list
     combined_csv = pd.concat([pd.read_csv(f) for f in count_files ])
     #export to csv
@@ -206,25 +214,6 @@ for r21, sc_f in r21_sc_files.items():
 
 
 
-
-
-
-
-
-    '''
-    Queue is a blocking, thread-safe queue that you can use to store the return values 
-    from the child processes. So you have to pass the queue to each process. Something less 
-    obvious here is that you have to get() from the queue before you join the Processes or else the
-    queue fills up and blocks everything.
-    '''
-    inp_lists = slice_data(seqs, nprocs)
-    multi_result = [pool.apply_async(unique_bcs_per_seq, (inp, 2)) for inp in inp_lists]
-
-    result = [x for p in multi_result for x in p.get()]
-
-
-
-    tmp_loc.cleanup()
 
 #child_r, parent_w = os.pipe()
 #OSError: [Errno 24] Too many open files
