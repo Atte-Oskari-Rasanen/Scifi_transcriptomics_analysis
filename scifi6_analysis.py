@@ -1,5 +1,6 @@
 
 
+from heapq import merge
 from turtle import color
 import numpy as np
 import pandas as pd
@@ -240,6 +241,90 @@ duplicated_columns_list
 Pool1_final_RT_Hpos_full['TGTACCCTGGGTGCAA']  #duplicates
 ##########################################################
 '''
+#add sampleName so scifi5, 6 etc.
+def aavs_count(DF_All_T):
+    cells = DF_All_T.shape[0]
+    cells
+    groups_list = []
+
+    for i in range(cells):
+        print(i)
+        # printing the third element of the column
+        print (DF_All_T['AAV_ASYN'][i])
+        groups_list.append(DF_All_T['AAV_ASYN'][i])
+        #if i==10:
+        #    break
+    return(groups_list)
+
+def group_aav(matrix_filtered_F_g):
+    topRow = pd.DataFrame(columns=matrix_filtered_F_g.columns, index=['0_Sample']).fillna(0)
+    topRow 
+    #topRow.loc['_Sample'] = sample_Name
+    matrix_filtered_out = pd.concat([topRow, matrix_filtered_F_g])
+    #Merge into a compete dataframe
+    completeTable = completeTable.merge(matrix_filtered_out,left_index=True, right_index=True, how='outer').fillna(0)
+
+    DF_All = completeTable
+    DF_All
+    DF_All.T.index
+
+    ########################################
+    ########################################
+    #categorise cells based on the number of a syn copies in them to see marker gene expression
+    #DF_All = DF_All.drop('0_Sample', axis=0) #remove sample row at least for now as it interferes with generation of anndata object
+
+    DF_All.index = map(str.upper, DF_All.index)
+    DF_All = DF_All.drop('0_SAMPLE', axis=0)
+
+    DF_All_T=DF_All.T
+
+    #earlier DF_All was DF_All_T
+    cells = DF_All_T.shape[0]
+    cells
+    groups_list = []
+
+    #Manual approach
+    #go over each row of the column AAV_ASYN, 
+
+    for i in range(cells):
+        print(i)
+        # printing the third element of the column
+        print (DF_All_T['AAV_ASYN'][i])
+        groups_list.append(DF_All_T['AAV_ASYN'][i])
+        #if i==10:
+        #    break
+
+    groups_list = aavs_count(DF_All_T)
+    len(groups_list)
+    cells
+    DF_All_T['asyn_copies'] = groups_list
+    DF_All_T
+
+    #organise so that groups having same numbers are together
+    DF_All_T_reorg = DF_All_T.sort_values(by = 'asyn_copies')
+    #go over the row values, compare the value to the prev one, when the value changes, slice the df at this point!
+
+    dfs_grouped = {}
+    i=0
+    io = 0 #starting index for slicing, the ending one will be defined within the for loop
+    for i in range(cells-1):
+        cell1 = DF_All_T_reorg["asyn_copies"][i]
+        cell2 = DF_All_T_reorg["asyn_copies"][i+1]
+        
+        if cell1!=cell2:
+            print(cell1)
+            print(cell2)
+            asyn_cop = str(int(cell1)) 
+            df_name = asyn_cop
+            print(df_name)
+            dfs_grouped[df_name]=DF_All_T_reorg[io:i]
+            io=i  #make 
+
+        #groups_list.append(DF_All_T['AAV_ASYN'][i])
+
+    for key in dfs_grouped.keys():
+        print(key)
+    return(dfs_grouped.T)
 #Generate anndata matrices
 def df_to_anndata(df):
     annMatrix = df.T.iloc[:-1,:]
@@ -265,7 +350,156 @@ def df_to_anndata(df):
     #adata_TX.write(filename="/media/data/AtteR/scifi-analysis/Python-scifi-analysis/plots_no_groups/All.h5ad", compression=None, compression_opts=None, force_dense=None, as_dense=())
     return(adata_TX)
 
+
+cells = Pool1_final_RT_Hpos_full.shape[0]
+cells
+groups_list = []
+
+
+aav_counts = {}  #get the AAV names as keys and as values the total counts for each cell
+aav_count_cell = list(Pool1_final_RT_Hpos_full.loc['AAV_ASYN'])
+aav_count_cell
+
+
+#sum()
+
+########
+#This area into function which takes in a AAV name
+DF_All = Pool1_final_RT_Hpos_full
+DF_All
+DF_All.T.index
+
+########################################
+########################################
+###########################################
+
+#categorise cells based on the number of a syn copies in them to see marker gene expression
+#DF_All = DF_All.drop('0_Sample', axis=0) #remove sample row at least for now as it interferes with generation of anndata object
+
+DF_All.index = map(str.upper, DF_All.index)
+
+DF_All_T=DF_All.T
+DF_All_T
+
+#earlier DF_All was DF_All_T
+cells = DF_All_T.shape[0]
+cells
+groups_list = []
+
+'''
+#Manual approach
+#go over each row of the column AAV_ASYN, 
+
+groups_list = list(DF_All_T['AAV_ASYN'])
+len(groups_list)
+#put cells into their own groups based on the copy numbers of asyn
+cells
+DF_All_T['asyn_copies'] = groups_list
+DF_All_T
+
+#organise so that groups having same numbers are together
+DF_All_T_reorg = DF_All_T.sort_values(by = 'asyn_copies')
+'''
+DF_All_T_reorg = DF_All_T.sort_values(by = 'AAV_ASYN')
+DF_All_T_reorg
+#go over the row values, compare the value to the prev one, when the value changes, slice the df at this point!
+''''''
+df = DF_All_T_reorg.reset_index(drop=False)
+dfs_grouped = {}
+
+'''
+i=0
+DF_All = DF_All_T_reorg.copy()
+
+DF_All = DF_All_T_reorg[0:1604]
+keys_merge = list(DF_All.index.values)
+keys_merge
+
+cell1 = 0
+cell1 = 3
+topRow = pd.DataFrame(columns=DF_All.index, index=['Asyn_copies']).fillna(cell1)
+topRow
+DF_aav_group = pd.concat([topRow.T, DF_All])
+DF_aav_group
+DF_aav_group = pd.merge(DF_All, topRow.T, on=keys_merge)
+DF_aav_group = topRow.T.merge(DF_All,left_index=True, right_index=True, how='outer').fillna(cell1)
+DF_aav_group
+'''
+io = 0 #starting index for slicing, the ending one will be defined within the for loop
+for i in range(cells-1):
+    DF_All = DF_All_T_reorg.copy()
+    cell1 = DF_All["AAV_ASYN"][i]
+    cell2 = DF_All["AAV_ASYN"][i+1]
+    print(i)
+    if cell1!=cell2:
+        print(cell1)
+        print(cell2)
+        DF_aav_group =  DF_All[io:i]  #when you reach another copy number take the DF as its own sub DF
+        topRow = pd.DataFrame(columns=DF_aav_group.index, index=['Asyn_copies']).fillna(cell1)
+        topRow 
+        DF_aav_group = topRow.T.merge(DF_All,left_index=True, right_index=True, how='outer').fillna(cell1)
+        #DF_aav_group
+
+        #DF_aav_group = pd.concat([topRow, DF_aav_group])
+
+        asyn_cop = str(int(cell1)) 
+        df_name = asyn_cop
+        print(df_name)
+        dfs_grouped[asyn_cop]=DF_aav_group
+        io=i  #make 
+
+    #groups_list.append(DF_All_T['AAV_ASYN'][i])
+
+for key in dfs_grouped.keys(): #key corresponds to the group (Asyn copies) and the value as the DF
+    print(key)
+
+#get the length of the dict, loop it through based on that, getting all the dfs from each key-value pairs, once you have them all, concatenate them!
+loops = len(dfs_grouped)
+loops
+
+DFs = []
+for k in dfs_grouped.keys():
+    #group_no = list(dfs_grouped)[i]
+    DFs.append(dfs_grouped[k])
+DFs
+merged_df = pd.concat(DFs, axis=0)
+merged_df= merged_df.T
+merged_df
+
+
+###########################################
+###########################################
+###########################################
+
+
+
+merged_df = reduce(lambda l, r: pd.merge(l, r, on='date', how='inner'), DFs)
+
+type(dfs_grouped)
+pd0 = dfs_grouped["0"]
+pd0
+pd1 = dfs_grouped["1"]
+pd1
+pd2 = dfs_grouped["2"]
+pd3 = dfs_grouped["3"]
+pd4 = dfs_grouped["4"]
+pd5 = dfs_grouped["5"]
+a = len(dfs_grouped["0"]) + len(dfs_grouped["1"]) + len(dfs_grouped["2"]) + len(dfs_grouped["3"]) + len(dfs_grouped["4"]) + len(dfs_grouped["5"])
+a
+
+final_df = pd.merge([pd0,pd1,pd2,pd3,pd4,pd5], axis=0)
+final_df_T = final_df.T  #so genes are indeces, cells are cols
+final_df_T.index
+final_df_T
+
+fd = final_df.copy()
+fd = fd.T
+
+
+
+
 Pool1_final_RT_Hpos_full
+Pool1_final_RT_Hpos_full_grouped = group_aav(Pool1_final_RT_Hpos_full)
 Pool1_final_RT_Hneg_full
 Pool2_RT_Hpos_full
 Pool2_final_RT_Hneg_full
