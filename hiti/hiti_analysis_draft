@@ -1,0 +1,268 @@
+from nbdev.showdoc import *
+import os
+import warnings
+import matplotlib.pyplot as plt
+from subprocess import call
+import subprocess
+import glob
+import pandas as pd
+import tempfile
+from skbio.alignment import local_pairwise_align_ssw
+from skbio import DNA
+
+import os
+os.getcwd()
+os.chdir("/media/data/AtteR/projects/hiti")
+from alignment_scripts import *
+import Bio.Align.Applications; dir(Bio.Align.Applications)
+from Bio import SeqIO
+from Bio.Align.Applications import MuscleCommandline#Read in unfiltered data
+from Bio import AlignIO
+from Bio import pairwise2
+from Bio import SeqIO
+from Bio.pairwise2 import *
+from alignment_scripts import *
+
+def trimRead_hiti(animal_nr,base_path,transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd):
+    animal_nr = str(animal_nr)
+    "Filters and trims the reads"
+    search_path = base_path+animal_nr+'*'+transgene+'*'+assay_end+'*/'
+    
+    animal_p5_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
+    animal_p7_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
+    test_file_p5_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
+    test_file_p7_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
+    test_file_p5_filter = tempfile.NamedTemporaryFile(suffix = '.fastq').name
+    
+    if read_fwd:
+        animal_p5 = glob.glob(search_path+'*R1*')
+        animal_p7 = glob.glob(search_path+'*R2*')
+        #display('Forward run Animal: '+animal_nr)
+    else:
+        animal_p5 = glob.glob(search_path+'*R2*')
+        animal_p7 = glob.glob(search_path+'*R1*')
+        #display('Reverse run Animal: '+animal_nr)
+    
+
+    cat_p5= "cat "+" ".join(animal_p5)+" > "+animal_p5_cat
+    call([cat_p5], shell=True)
+    cat_p7= "cat "+" ".join(animal_p7)+" > "+animal_p7_cat
+    call([cat_p7], shell=True)
+
+    stats_out = export_path+animal_nr+'_'+transgene+'_'+assay_end+'_stats-filter.txt'
+    
+    kmer = '20'
+    hdist = '3'
+    param=" k="+kmer+" hdist="+hdist+" rcomp=f skipr2=t threads=32 overwrite=true"
+    
+    call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+animal_p7_cat+" in2="+animal_p5_cat+" outm1="+test_file_p7_out+" outm2="+test_file_p5_out+" literal="+filterlitteral+" stats="+stats_out + param
+    call([call_sequence], shell=True)
+    
+    call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+test_file_p5_out+" out="+test_file_p5_filter+ " literal=AAAAAAAAA,CCCCCCCCC,GGGGGGGGG,TTTTTTTTT k=9 mm=f overwrite=true minlength=40"
+    call([call_sequence], shell=True)
+    
+    test_file_p5_out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
+    starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter+" -t 32 -o "+test_file_p5_out_starcode
+    call([starcode_call], shell=True)
+    
+    df=pd.read_csv(test_file_p5_out_starcode, sep='\t', header=None)
+    df = df.rename(columns={0: 'sequence', 1:'count'})
+    total_counts = int(df[['count']].sum())
+    df = df[df['count'].astype(int)>total_counts/10000]
+    total_counts = int(df[['count']].sum())
+    df['percent'] = (df['count'] / total_counts)
+    df = df.rename(columns={'percent':animal_nr+'_percent','count':animal_nr+'_count',})
+    
+    return df
+def align_to_ref(query_sequence, target_sequence):
+    alignment, score, start_end_positions = local_pairwise_align_ssw(
+        DNA(target_sequence),
+        DNA(query_sequence),
+        gap_open_penalty = 3,
+        gap_extend_penalty = 1
+    )
+    out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
+    
+    return out_align
+
+"""
+understand how the pairwise alignment was done and put into df
+use different ones and compare results
+visualise
+maybe apply same with trimming methods
+translate to AAs
+"""
+transgene = 'mCherry'
+assay_end = '3p'
+read_fwd = True
+animal_list = [7, 8, 9, 10, 11, 12] 
+filterlitteral = 'CTCCCTCCACACGTGCATCTCACGCTTGACCCAGCGCTCCAGGTTGGCGATGGT'
+lliteral = ' literal=GGCGGCATGGACGAG'
+rliteral = ' literal=CATATGACCACCGG'
+#base_path = '/home/lcadmin/mnm-lts/SequencingFiles/arc_hiti_asyn/HITI1-8977973/FASTQ_Generation_2020-03-09_08_30_27Z-13364364/'
+#export_path = '/home/lcadmin/mnm-lts/HITI-analysis/'
+base_path = '/media/data/AtteR/projects/hiti/FASTQ_Generation_2020-03-09_08_30_27Z-13364364/'
+export_path = '/media/data/AtteR/projects/hiti/output/'
+target_sequence = "CGGCGGCATGGACGAGCTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGACCATATGACCACCGGCGGCCTCCACGCCTACCCTGCCCCGCGGGGTGGGCCGGCCGCCAAACCCAATGTGATCCTGCAGATTGGTAAGTGCCGAGCTGAGATGCTGGAACACGTACGGAGGACCCACCGGCATCTGTTGACCGAAGTGTCCAAGCAGGTGGAGCGAGAGCTGAAAGGGTTGCACAGGTCGGTGGGCAAGCTGGAGAACAACTTGGACGGCTACGTGCCCACCGGCGACTCACAGCGCTGGAAGAAGTCCATCAAGGCCTGTCTTTGCCGCTGCCAGGAGACCATCGCCAACCTGGAGCGCTGGGTCAAGCGTGAGATGCACGTGTGGAGGGAGGTCTTCTACCGTCTGGAGAGG"
+
+complete_df = pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
+complete_df
+complete_df = pd.DataFrame({'sequence': [target_sequence]})
+
+#trim the reads and make a df of each animal containing the cluster groups, number of seqs they contain and % of the total seqs in
+#the cluster and merge everything together based on the seq (if found same clusters, otherwise NA)
+for animal in animal_list:
+    df_this = trimRead_hiti(animal,base_path,transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd)
+    complete_df = pd.merge(complete_df, df_this, on="sequence", how='outer')
+complete_df
+
+complete_df = complete_df.fillna(value=0)
+perc_cols = [col for col in complete_df.columns if 'percent' in col]
+perc_cols #['7_percent', '8_percent', '9_percent', '10_percent', '11_percent', '12_percent']
+
+#sum the percentages of each seq cluster (animals 7-12)
+complete_df['percent_sum'] = complete_df[perc_cols].sum(axis=1)
+complete_df
+complete_df.sort_values(by=['percent_sum'], ascending=False, inplace=True)
+
+#generate a column with seq alignment wher eyou take the seq cluster from sequence column and map it to the target
+complete_df.loc[:,'sequence_align'] = complete_df.loc[:,'sequence'].apply(lambda x: align_to_ref(x, target_sequence))
+export_csv = export_path+transgene+'_'+assay_end+'.csv'
+complete_df.to_csv(export_csv, index=False)
+
+complete_df.loc[:,'sequence_align']
+
+from Bio.Seq import Seq 
+
+complete_df.iloc[:,0]
+s = Seq(complete_df.iloc[1,0])
+s
+
+def align_to_ref(query_sequence, target_sequence):
+    alignment, score, start_end_positions = local_pairwise_align_ssw(
+        DNA(target_sequence),
+        DNA(query_sequence),
+        gap_open_penalty = 3,
+        gap_extend_penalty = 1
+    )
+    out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
+    
+    return out_align
+
+
+#takes in the clustered seqs, makes them into seqrecord objects
+
+#transforms the aligned seqs into seqrecord objects
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+
+#pairwise2.align.globalxx(seq1, seq2)
+
+#extract the aligned seq part, ignoring the scores etc. 
+#to process and save the files downstream, must convert the result into seq record
+#first take specific alignment from the alignment object via indexing, then format it into a string, split based on line changes
+#and take the 3rd element, i.e the NTs matching the template one, i.e. the alignment. Transform this into seq object, save
+#objects into a list and then iteratively save into fasta file. visualise them
+#try different alignment methods
+
+############################
+############################
+
+for i in range(len(complete_df.index)):
+    alignments = pairwise2.align.localxx(target_sequence, complete_df.iloc[i,0])
+    Seq(format_alignment(*alignments[0]))
+    alignments[0]
+    print(format_alignment(*alignments[0]))
+    a=format_alignment(*alignments[0])
+    b=a.split("\n")[2]
+    b
+seq1 = SeqRecord(
+    Seq(b),
+    id="1",
+    name="mcherry_p3_template",
+)
+
+result="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_aligned_log.fasta"
+
+with open(result, "w") as handle:
+    count = SeqIO.write(seq1, handle, "fasta")
+
+############################
+############################
+############################
+
+from Bio import Align
+aligner = Align.PairwiseAligner()
+
+seq1 = SeqRecord(
+    Seq(target_sequence),
+    id="1",
+    name="mcherry_p3_template",
+)
+seq2 = SeqRecord(
+    Seq(complete_df.iloc[1,0]),
+    id="2",
+    name="mcherry_p3_template",
+)
+####################
+alignment, score, start_end_positions = local_pairwise_align_ssw(
+    DNA(target_sequence),
+    DNA(complete_df.iloc[1,0]),
+    gap_open_penalty = 3,
+    gap_extend_penalty = 1
+)
+all = local_pairwise_align_ssw(
+    DNA(target_sequence),
+    DNA(complete_df.iloc[1,0]),
+    gap_open_penalty = 3,
+    gap_extend_penalty = 1
+)
+out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
+out_align #gives the seq areas that did align between the seqs when they have been positioned respective to the ref template?
+###########
+
+seq1.id
+seq1.name
+#alignments[0]
+#alignments = aligner.align(target_sequence, complete_df.iloc[1,0])
+SeqRecord(Seq(alignments[0]), id="1", name="a")
+alignments[9]
+#SeqRecord(Seq(alignments[0]), id=seq1[0].id, name=seq1[0].name)
+
+
+a = format_alignment(*alignments[0])
+type(a)
+type(alignments[0])
+alignments[0].aligned
+print(str(alignments[0]))
+record = SeqRecord(
+    Seq(a),
+    id="1",
+    name="mcherry_p3",
+)
+record
+
+for alignment in alignments: 
+    print(format_alignment(*alignment)) 
+print(format_alignment(*alignments[0]))
+alignments_f = format_alignment(*alignments[0])
+
+
+result="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_aligned_log.txt"
+with open(result, "w") as handle:
+    count = Bio.AlignIO.write(alignments, handle, format)
+
+with open("example.faa", "w") as handle:
+    count = SeqIO.write(alignments, handle, "fasta")
+
+a=str(alignments[0])
+b=a.split(",")
+b
+alignment, score, start, end = alignments[0].split(",")
+alignment, score, start, end = str(alignments[0]).split(",")
+alignments[0]
+
+p = view_alignment(alignments, plot_width=900)
+pn.pane.Bokeh(p)
+
+#figure out a way to put the alignments into a format in which you CAN visualise them!
