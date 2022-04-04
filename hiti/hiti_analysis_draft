@@ -167,25 +167,20 @@ from Bio.SeqRecord import SeqRecord
 
 ############################
 ############################
-
+seq_record_list=[]
 for i in range(len(complete_df.index)):
     alignments = pairwise2.align.localxx(target_sequence, complete_df.iloc[i,0])
-    Seq(format_alignment(*alignments[0]))
-    alignments[0]
-    print(format_alignment(*alignments[0]))
-    a=format_alignment(*alignments[0])
-    b=a.split("\n")[2]
-    b
-seq1 = SeqRecord(
-    Seq(b),
-    id="1",
-    name="mcherry_p3_template",
-)
+    for a in range(len(alignments)):
+        alignm=format_alignment(*alignments[a])
+        seq_align = SeqRecord(Seq(alignm.split("\n")[2]), id=str(a), name="mcherry_p3_alignment")
+        seq_record_list.append(seq_align)
+    result="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_aligned_log.fasta"
 
-result="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_aligned_log.fasta"
-
-with open(result, "w") as handle:
-    count = SeqIO.write(seq1, handle, "fasta")
+    with open(result, "w") as handle:
+        for seq in seq_record_list:
+            count = SeqIO.write(seq, handle, "fasta")
+seq_record_list
+seq_align
 
 ############################
 ############################
