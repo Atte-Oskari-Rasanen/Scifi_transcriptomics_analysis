@@ -1,4 +1,7 @@
+from curses import window
 from fnmatch import translate
+import ntpath
+from re import L
 from wsgiref import headers
 from nbdev.showdoc import *
 import os
@@ -316,6 +319,7 @@ with open(result, "w") as handle:
 
 #this saves them via seq record formatting. However, when importing this content back for translation,
 #there are new line characters in some of the longer seqs so need to create another approach too
+#---or open them via seqio and it will retain the correct formatting
 id_f=1
 result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all.fasta"
 with open(result, "w") as handle:
@@ -325,13 +329,19 @@ with open(result, "w") as handle:
 
     for group in seq_and_perc.keys():
         for seq_i in range(len(seq_and_perc[group])):
-            header=">"+ str(id_f)+" ClusterSeq_%: " + str(round((seq_and_perc[group].iloc[seq_i,1]*100),4))
+            header=">"+ str(id_f)+" CluSeq_%: " + str(round((seq_and_perc[group].iloc[seq_i,1]*100),4))
             handle.write(header + "\n" + seq_and_perc[group].iloc[seq_i,0] + "\n")
             id_f+=1
 
 aligned_seqs = []
 #seq_and_perc["8_percent"].iloc[,1]
 #extract the df, then align, then save into a file
+
+###############
+#MUSCLE
+###############
+
+
 
 ###############
 #TRANSLATION
@@ -346,16 +356,215 @@ nt_seq=SeqIO.parse(result, "fasta")
 s="CGGCGGCATGGACGAGCTGTACAAGGTCGGTGCTGCGGCTCCGAGATGGAGCTGGTCGAGATGAGCACCGCCGG"
 ac=str(Seq(s).translate())
 ac
+def find_overlap(amplicon, mcherry_full):
+    longest_seq = None
+    n=0
+    for i in range(1, min(len(amplicon), len(mcherry_full))):
+        # Store the current iteration's intersection
+        current_seq = intersects(amplicon, mcherry_full, i)
+        
+        # If this was one character too long, return.
+        # Else, a longer intersection was found. Store it.
+        if current_seq == None:
+            print("No overlap found!")
+            n+=1
+            return 0
+        else:
+            longest_seq = current_seq
+    # If we get here, the strings were the same.
+    # For consistency, return longest_seq and its length.
+    print("no overlap found between " + str(n) + " amplicons!")
+    return longest_seq
+
 
 #Translate and save as dictionary containing header as the key and the translated AA seq as value
+find_overlap(amplicon,mcherry_full)
 
+
+#go over the two seqs in a frame of lets 5
+
+amplicon = "TGTTCAAATAAG"
 amplicon=seq_and_perc["8_percent"].iloc[1,0]
+from itertools import islice
+
+def window(seq, n):
+    "Returns a sliding window (of width n) over data from the iterable"
+    "   s -> (s0,s1,...s[n-1]), (s1,s2,...,sn), ...                   "
+    it = iter(seq)
+    result = tuple(islice(it, n))
+    if len(result) == n:
+        yield result
+    for elem in it:
+        result = result[1:] + (elem,)
+        yield result
+window_prev=0
+mcherry_chunks = list(window(mcherry_full,10))
+
+
+from difflib import SequenceMatcher
+
+def similar(a, b):
+    return SequenceMatcher(None, a, b).ratio()
+#iterate over based on blocks of certain size, also considers cases where the seq length is not divisible by the step
+def blocks(mcherry_full, step):
+    size = len(mcherry_full)
+
+    for pos in range(0, size - step, step): 
+        #print(pos, step)
+        #print(pos)
+        #print(window)
+        yield mcherry_full[pos:pos+step] 
+
+    else: 
+        if size % step != 0: 
+            # print("not an even divide, the last block:")
+            # print(pos)
+            # print(pos+size%step)
+            yield mcherry_full[pos:pos+size%step+step]
+
+#we cant use the blocks of mcherry as a comparison point of overlap since what if the overlap stretches into two different blocks? lets say block 1 is 10% similar with amplicon's block 
+#and block 2 90% similar. but 10% similar ones may be found upstream the mcherry too but these occur by chance... Maybe we can take all the similar ones, store their indeces
+#and if the blocks that are similar are found next to each other, then they can be counter as the same overlap?
+
+
+#make an iterative counter. First start iterating over mcherry in blocks of 4 and compare to the amplicon. if a match is found, then start the parallel iteration
+# so go over by each NT of mcherry (from the initial match site) and the amplicon, if a match is found, then start counting the following matches. if 3 in a row are different stop the count 
+#and try find the next match.
+mcherry_sub=mcherry_full[30:]
+mcherry_full
+
+for nt_block in range(0, len(mcherry_sub-4), 4):
+    block_next=nt_block+4
+    mcherry_sub[nt_block:block_next]
+    print(nt_block)
+
+for ampl, mcher_seq in zip(amplicon2,mcherry)
+
+l = list(blocks(mcherry_full,20))
+seqs=int(len(l)*0.4)
+l[seqs:]
+l.index("GGTAGCACCTTGTCATGCTT")
+overlap_fractions=dict()
+fractNo_seq=[] #list that stores the similarity ratio as first element and the actual seq as the second
+for subseq in l[seqs:]:
+    for ampl_seq in amplicon2:
+        a=similar(subseq,amplicon2)
+        
+
+similar(amplicon2,"TCCCGAAGTTCACCCTCGCG")
+#Now I need a function where I can find similarities. but what if the overlapping seqs fall into two separate list items? I could go over all of them and try see 
+#if there are matches. if more that one seq match, I could merge them. After this I will need to trim this seq so that extra NTs that do not match on the sides are 
+#excluded but if some found within the match, these will be kept.
+
+#iterate over the list and find similarities between the list and the amplicon seq. If found, then save this element. Continue and if you found another one, then save it too
+#then merge them and cut off the corners by seeing where it there is more than 2 NTs different, check both sides of the overlap this way
+GTGGCCGCCGTACCTGCTCGACATGTTC
+amplicon1="AGTTCAAATAAG"
+           TCAAGTACGCGAAGTTC
+amplicon2="TCAAGTAGGCGAAGTTCGTACCTGCTCGACACGTTC" 
+                            GTACCTGCTCGACATGTTC
+              C|GTACCTGCTCGACATGTTC
+               |GTACCTGCT-CGACATGTTC
+               |GTA---G--GCGA-A-GTTC
+     TCAAGTAGGC|GAAGTTCTTGATTGATCGTATACCTC
+
+#no need for blocks but rather find all the matching NTs between mcherry and the amplicon. then take the index of the first matching NT and the index of the last and extract 
+#this area as the preliminary overlapping area. Then check the similarity of this overlap to the full mcherry. if they are 90% similar, then we may assume that this is the 
+#overlapping area. After this we count the codons from start till the end of this overlap and see if it is in frame or not. if not, then inform about this and get stats on 
+#how many of the seqs are out of frame and how much are not...
+
+#usually gaps are intoduced by alignment softwares but we do not want gaps? We just want to align the sequences where they are most similar. 
+
+#iterate over the mcherry in bulks and compare to amplicon. if you find seqs that are similar, take these positions
+
+mcherry_full
+mcherry_full[:60]
+
+#we align using local pairwise alignment. this will introduce gaps which we will then remove by transforming the object into seq_record one and thus we 
+#get the aligned seq without gaps. then we take the similarity score.
+
+
+alignment, score, start_end_positions = local_pairwise_align_ssw(DNA(mcherry_full[-20:]),DNA(amplicon2),gap_open_penalty=1,gap_extend_penalty=1)
+
+
+
+alignment[1].values
+
+overlap=SeqRecord(Seq(alignment[1]), id=str(1), description="alignment")
+
+alignments = pairwise2.align.localxx(Seq(mcherry_full[-15:]), Seq(amplicon2))
+alignments
+from pairwise import blosum62
+alignments = pairwise2.align.localds(Seq(mcherry_full), Seq(amplicon2), blosum62, -10, -1)
+alignments
+'for alignment in alignments: 
+    print(alignment) 
+'
+alignment
+
+
+#########################
+#Find the last NT of mcherry and amplicon, i.e. the 3' end and start moving up the 5'. from this region, find the approximate overlapping region via hamming distance.
+def hamming(seq1,seq2):
+    return len([(n1,n2) for n1, n2 in zip (seq1, seq2) if n1 != n2])
+res = hamming(mcherry_full[-20:], amplicon2)
+mcherry_full[-20:]
+amplicon2
+res
+
+'''
+The overlap part is useless as mcherry will map to amplicons mcherry with 100% accuracy! Instead we want to align them, then look at the reference and calculate
+in codon pairs till the primer site binding site and see if the rest of the seq is in frame or not. if not, then when translating the protein, we will add +1 or +2 etc 
+and then translate into the AAs to SEE if the produced Arc after the scar is a functional protein. mcherry will be fine nevertheless!
+CGGCGGCA
+CGGCGGCA
+
+TGGACGAGCTGTACAAGGt
+TGGACGAGCTGTACAAGGTC
+
+'''
+#a = (2891-2210) / 3
+a = (2919-2210) % 3
+a #out of frame by 1
+
+
+for block in l:
+    print(block)
+    similarity(block, amplicon)
+
+print(mcherry_full[2+5:2+end%step])
+
+
+mcherry_chunks = list(blocks(0,len(mcherry_full), 5))
+
+def similarity(a, b):
+    return SequenceMatcher(None, a, b).ratio()
+
+# with the seq window of certain size, we check if a match is found between the mcherry_full and the amplicon. we can provide an alteration of lets say 10%.
+
+
+for i in len(list(mcherry_chunks)):
+    seq_window=''.join(list(mcherry_chunks)[i])
+    similarity
+
+
+for window in range(1, len(mcherry_full), 1):
+    print(window)
+    window_seq=mcherry_full[window_prev:window]
+    print(window_seq)
+    print("============")
+    window_prev=window
+
+
+for i in range(1, min(len(amplicon), len(mcherry_full))):
+    # Store the current iteration's intersection
+    current_seq = intersects(amplicon, mcherry_full, i)
+    current_seq
 
 #this may be wrong (bottom, 5'-3')
 mcherry_full="TACCACTCGTTCCCGCTCCTCCTATTGTACCGGTAGTAGTTCCTCAAGTACGCGAAGTTCCACGTGTACCTCCCGAGGCACTTGCCGGTGCTCAAGCTCTAGCTCCCGCTCCCGCTCCCGGCGGGGATGCTCCCGTGGGTCTGGCGGTTCGACTTCCACTGGTTCCCACCGGGGGACGGGAAGCGGACCCTGTAGGACAGGGGAGTCAAGTACATGCCGAGGTTCCGGATGCACTTCGTGGGGCGGCTGTAGGGGCTGATGAACTTCGACAGGAAGGGGCTCCCGAAGTTCACCCTCGCGCACTACTTGAAGCTCCTGCCGCCGCACCACTGGCACTGGGTCCTGAGGAGGGACGTCCTGCCGCTCAAGTAGATGTTCCACTTCGACGCGCCGTGGTTGAAGGGGAGGCTGCCGGGGCATTACGTCTTCTTCTGGTACCCGACCCTCCGGAGGAGGCTCGCCTACATGGGGCTCCTGCCGCGGGACTTCCCGCTCTAGTTCGTCTCCGACTTCGACTTCCTGCCGCCGGTGATGCTGCGACTCCAGTTCTGGTGGATGTTCCGGTTCTTCGGGCACGTCGACGGGCCGCGGATGTTGCAGTTGTAGTTCAACCTGTAGTGGAGGGTGTTGCTCCTGATGTGGTAGCACCTTGTCATGCTTGCGCGGCTCCCGGCGGTGAGGTGGCCGCCGTACCTGCTCGACATGTTC"
 
 mcherry_full="ATGGTGAGCAAGGGCGAGGAGGATAACATGGCCATCATCAAGGAGTTCATGCGCTTCAAGGTGCACATGGAGGGCTCCGTGAACGGCCACGAGTTCGAGATCGAGGGCGAGGGCGAGGGCCGCCCCTACGAGGGCACCCAGACCGCCAAGCTGAAGGTGACCAAGGGTGGCCCCCTGCCCTTCGCCTGGGACATCCTGTCCCCTCAGTTCATGTACGGCTCCAAGGCCTACGTGAAGCACCCCGCCGACATCCCCGACTACTTGAAGCTGTCCTTCCCCGAGGGCTTCAAGTGGGAGCGCGTGATGAACTTCGAGGACGGCGGCGTGGTGACCGTGACCCAGGACTCCTCCCTGCAGGACGGCGAGTTCATCTACAAGGTGAAGCTGCGCGGCACCAACTTCCCCTCCGACGGCCCCGTAATGCAGAAGAAGACCATGGGCTGGGAGGCCTCCTCCGAGCGGATGTACCCCGAGGACGGCGCCCTGAAGGGCGAGATCAAGCAGAGGCTGAAGCTGAAGGACGGCGGCCACTACGACGCTGAGGTCAAGACCACCTACAAGGCCAAGAAGCCCGTGCAGCTGCCCGGCGCCTACAACGTCAACATCAAGTTGGACATCACCTCCCACAACGAGGACTACACCATCGTGGAACAGTACGAACGCGCCGAGGGCCGCCACTCCACCGGCGGCATGGACGAGCTGTACAAG"
-
 common=set(mcherry_full).intersection(amplicon)
 
 #make a function that takes in each amplicon along with the full mcherry template, finds the intersection, finds the 
@@ -419,7 +628,11 @@ def find_frame(overlap_bases):
 def translate_nt_aa(amplicon, mcherry_full):
     overlap=find_overlap(amplicon, mcherry_full)
     frameN=find_frame(overlap)
-    seq=Seq(amplicon[frameN:]).translate()
+    seq=None
+    try:
+        seq=Seq(amplicon[frameN:]).translate()
+    except Bio.Data.CodonTable.TranslationError:
+        print("Invalid codon found in: " + amplicon) 
     return(seq)
 
 aa_and_perc={}
@@ -427,13 +640,18 @@ aa_and_perc={}
 #no intersection found for most of the sequences....how to deal with these cases? this would imply that the cluster seq
 #exists but downstream
 #issues with aligning with muscle downstream
+
+result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all.fasta"
+
+#translate NT sequences to the AAs based on the right codon order. Thus, we need the full mcherry sequence from which we find the overlap between the amplicon and mcherry.
+#from this, we calculate the position from full mcherry's start codon till the start of the amplicon where the overlap has occured. If this is divisible by 3, the read is 
+#in frame. If not, then add the appropriate number of bases untill it is. Then ,translate the amplicon seq into AAs  
 with open(result) as nt_seq:
     header=[]
     for i, line in enumerate(nt_seq):
         if line.startswith(">"):
             header.append(line.strip())
         else:
-            print(header)
             amplicon=line.strip()
             aa_and_perc[header[0]]=str(translate_nt_aa(amplicon, mcherry_full))
             # overlap=find_overlap(line, mcherry_full)
@@ -443,7 +661,7 @@ with open(result) as nt_seq:
             header=[]
             #print(str(Seq(next(nt_seq)).translate()))
     print("done")
-aa_and_perc
+aa_and_perc  #save as fasta which you will then align with muscle
 
 #RRHGRAVQGRCCGSAEP--QHRRPDGAGPYDHRRPPRLPCPAGWAGRQTQCDPADW*VPS*DAGTRTEDPPASVDRSVQAGGARAERVAQVGGQAGEQLGRLRAHRRLTALEEVHQGLSLPLPGDHRQPGALGQA*DARVEGGLLPSGE
 #5'-3'
@@ -464,37 +682,61 @@ muscle_alignment="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_cl
 muscle_alignment
 
 from Bio import SeqIO
+from difflib import SequenceMatcher
 
-muscle_seqs = SeqIO.parse(open(muscle_alignment),'fasta')
-muscle_seqs
+def similarity(a, b):
+    return SequenceMatcher(None, a, b).ratio()
 
-mcherry_full
+
+
+outp="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA.fasta"
+with open(outp, "w") as handle:
+    for id in aa_and_perc.keys():
+        handle.write(id + "\n" + aa_and_perc[id] + "\n")
 
 #find the highest match
-
-
 #parse the muscle file, put into dict. once we have specific seq, calculate the similarity score, add to the id key for later
 
 #another option is to make a function that takes in all the seqs and finds the highest match, then trims all the seqs based on this.
 #function takes in the dict of muscle alignment file
-muscle_dict = {}
-for seq_record in SeqIO.parse(muscle_alignment, "fasta"):
-     print(seq_record.id)
-     print(repr(seq_record.seq))
 
-     print(len(seq_record))
+#no need to change the translation start, just report in the id whether the read is in frame or not
 
+muscle_alignment_AA="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_clusters_all_aligned_AA.fasta"
+muscle_alignment = "/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_clusters_all_aligned.fasta"
+#Takes in the muscle aligned file, parses through it, calculates the match to the reference seq and saves the file
+def muscle_align_postproc(muscle_f,target_sequence):
+    f_name=os.path.basename(muscle_f)
+    muscle_dict = {}
+    for seq_record in SeqIO.parse(muscle_alignment, "fasta"):
+        seq=(str(seq_record.seq))
+        match_score=similarity(seq,target_sequence)
+        id_head=">"+str(seq_record.description) + ", Match_%: " + str(round(match_score*100,4))
+        muscle_dict[id_head]=seq
+    outp=os.path.dirname(muscle_f) + "/" + f_name.split(".")[0] + "_2.fasta"
+    print(outp)
+    with open(outp, "w") as handle:
+        for id in muscle_dict.keys():
+            handle.write(id + "\n" + muscle_dict[id] + "\n")
 
-with open(output_file) as out_file:
-    for fasta in fasta_sequences:
-        name, sequence = fasta.id, str(fasta.seq)
-        new_sequence = some_function(sequence)
-        write_fasta(out_file)
+target_sequence_AA=Seq(target_sequence).translate()
+target_sequence_AA
+
+muscle_align_postproc(muscle_alignment_AA,target_sequence_AA)
+muscle_align_postproc(muscle_alignment,target_sequence)
+
+muscle_alignment="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_clusters_all_aligned_2.fasta"
+os.path.basename(muscle_alignment).split(".")[0]
+m=muscle_alignment.split(".")[-2].split("/")[-1]
+m
+
 with open(muscle_alignment, "r") as align_file:
     for line in align_file:
         if not line.startswith(">"):
             print(line)
             print("#############")
+
+
 
 
 AAs=nt_seq.translate(table=standard_table)
