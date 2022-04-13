@@ -28,11 +28,55 @@ from Bio import SeqIO
 from Bio.pairwise2 import *
 from alignment_scripts import *
 
+#into the id save the row number, perc.seqs and perc.match to the ref
+
+#we wont be able to find 100% match as the scar region seems to vary 
+
+#now we have found the longest seq and trimmed based on that and calculated match % to the reference
+#next put this into function and compare results. If more than one match of max length, then report how many seqs have this
+#we should then take each one of these seqs, make them as seqrecords and save as a fasta file which then can be visualised
+#-----try this with the msa file!
+
+#we take the consensus seqs and we trim the seqs as in the upstream. We do NT MSA but we will find out that at 5' end we will get perfect matches at times (this applies with old data?)
+#but not true with new data. on 5' we will see that 90%ish is a perfect alignment etc. 
+#we may get single base reading errors in some areas of the seq but they are irrelevant. we care about the scar. We line all them up and find the perfect matches or close to it
+
+
+#at 3' end we link the mcherry to the arc which is why we need to make sure that this area is translated into AAs properly
+#Start with 3' end ------- do MSA ------ ok lets say the first one doesnt have a perfect match but rather lets say 93%, then 30% etc and on row 12 we then have a perfect match - matches the 6 bps to the 6bps in scar
+#we can make a cutoff the way that we show the rows that have lets say 90% match. or we can count the number of rows
+
+#we must make sure that the seq is A)in frame and B)SCAR exists, then the seq is fine
+#MSA will align the full consensus seq. we trim based on the perfect match, but this is relevant when visualising the seqs
+
+#we go from 3' end (where we dont have errors) till the 5'end (where we do have erros) in terms of the seq rows - we want to represent the sides in a balanced way
+#so either we represent the same number of rows or we represent into the same number of frequency as the accurate alignment here (used when visualising)
+#We get the row N from the 3' end 
+
+#look at the 3' end seq only and plot it till the perfect match ------- so this is the frequency of correct edits (seq cluster percentage-number of seqs in this cluster?) respective to the specific PAM edit
+#we take all the clusters (with respective info regarding the percentage)
+
+#we count the Nrow we needed to get to the perfect match at 5' end and this is the same number of consensus seqs from 5' end that we would also align via MSA
+
+
+#when translating, you need to know the start codon
+
+
+#with aa we do the msa, then we can tell which of the seqs are in reading frame and thus generate a protein ---- this will tell us how many of the red cells can we trust
+#to be the fusion between mcherry and arc
+
+#then we translate to AAs as we want to check that things are in reading frame which is done by first figuring out the start codon
+
+
+#5' will be accurate and thus not very descriptive in terms of whether our tech worked or not
+
 def trimRead_hiti(animal_nr,base_path,transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd):
     animal_nr = str(animal_nr)
     "Filters and trims the reads"
     search_path = base_path+animal_nr+'*'+transgene+'*'+assay_end+'*/'
-    
+
+    #you take the reads from both groups, striatal and hippocampal and normalise them.
+
     animal_p5_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
     animal_p7_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
     test_file_p5_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
@@ -60,9 +104,11 @@ def trimRead_hiti(animal_nr,base_path,transgene,assay_end,filterlitteral,llitera
     hdist = '3'
     param=" k="+kmer+" hdist="+hdist+" rcomp=f skipr2=t threads=32 overwrite=true"
     
+    #to check if the read is a n amplicon
     call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+animal_p7_cat+" in2="+animal_p5_cat+" outm1="+test_file_p7_out+" outm2="+test_file_p5_out+" literal="+filterlitteral+" stats="+stats_out + param
     call([call_sequence], shell=True)
     
+    #actual trimming
     call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+test_file_p5_out+" out="+test_file_p5_filter+ " literal=AAAAAAAAA,CCCCCCCCC,GGGGGGGGG,TTTTTTTTT k=9 mm=f overwrite=true minlength=40"
     call([call_sequence], shell=True)
     
@@ -78,35 +124,42 @@ def trimRead_hiti(animal_nr,base_path,transgene,assay_end,filterlitteral,llitera
     df['percent'] = (df['count'] / total_counts)
     df = df.rename(columns={'percent':animal_nr+'_percent','count':animal_nr+'_count',})
     
-    return df
+    return df  
+    #the function returns a df of certain animal, e.g. 8. and we merge the dfs into a complete one later. 
+    #now we have h and s groups though which we want to keep as separate (before normalising the counts, then merge?). Normalisation should happen before inputting the seqs
+    #into the starcode or after we have input them, after which we find the reads belonging to the certain clusters. 
+#we need to normalise so that one group will not skew the results but rather so that both have same effect to the downstream analysis. thus, BEFORE starsolo normalise them?
+
+#currently when we pool the 3p samples, we pool them (s and h groups) together as raw counts. they dont match by percentage. the raw counts can make things skewed. 
+#first we must normalise the samples prior to pooling them. 
+
+#lets say we have 1m reads (s group) and the other has 100 000 (h group). easiest is to divide all read counts by the total reads of the sample. 
+#each will contribute equally.
+#---- so we take the first sample's first group 7s, take its reads. then we take the second group 7h and its reads. we cluster the reads based on starsolo and get the seq clusters.
+#or NO! Out of the 1m reads of 7s a certain number goes into lets say cluster 1 of starsolo seq etc. so cluster 1 has 400 000 reads, cluster 2 100 000 etc. we divide all of these 
+#results with the total number and we get percentages instead of RAW counts. THEN we pool them and the toal will be 2? So we take the matching reads from column 7s and 7h and merge them, the rest as extra.
 
 
+#we will get 7h and 7s reads so lets say 1 000 000 and 100 000. we then normalise them against themselves. then when we sum them we get 1+1=2.
+#
 
-#Alignment method 1
-def align_to_ref(query_sequence, target_sequence):
-    alignment, score, start_end_positions = local_pairwise_align_ssw(
-        DNA(target_sequence),
-        DNA(query_sequence),
-        gap_open_penalty = 3,
-        gap_extend_penalty = 1
-    )
-    out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
-    
-    return out_align
 
 """
 understand how the pairwise alignment was done and put into df
 use different ones and compare results
 visualise
 maybe apply same with trimming methods
+visualise
+find the frame
 translate to AAs
+visualise
 """
 transgene = 'mCherry'
 assay_end = '3p'
 read_fwd = True
 animal_list = [7, 8, 9, 10, 11, 12] 
-filterlitteral = 'CTCCCTCCACACGTGCATCTCACGCTTGACCCAGCGCTCCAGGTTGGCGATGGT'
-lliteral = ' literal=GGCGGCATGGACGAG'
+filterlitteral = 'CTCCCTCCACACGTGCATCTCACGCTTGACCCAGCGCTCCAGGTTGGCGATGGT' #region prior to r2 primer
+lliteral = ' literal=GGCGGCATGGACGAG' #to check that its on target with mcherry
 rliteral = ' literal=CATATGACCACCGG'
 #base_path = '/home/lcadmin/mnm-lts/SequencingFiles/arc_hiti_asyn/HITI1-8977973/FASTQ_Generation_2020-03-09_08_30_27Z-13364364/'
 #export_path = '/home/lcadmin/mnm-lts/HITI-analysis/'
@@ -114,29 +167,282 @@ base_path = '/media/data/AtteR/projects/hiti/FASTQ_Generation_2020-03-09_08_30_2
 export_path = '/media/data/AtteR/projects/hiti/output/'
 target_sequence = "CGGCGGCATGGACGAGCTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGACCATATGACCACCGGCGGCCTCCACGCCTACCCTGCCCCGCGGGGTGGGCCGGCCGCCAAACCCAATGTGATCCTGCAGATTGGTAAGTGCCGAGCTGAGATGCTGGAACACGTACGGAGGACCCACCGGCATCTGTTGACCGAAGTGTCCAAGCAGGTGGAGCGAGAGCTGAAAGGGTTGCACAGGTCGGTGGGCAAGCTGGAGAACAACTTGGACGGCTACGTGCCCACCGGCGACTCACAGCGCTGGAAGAAGTCCATCAAGGCCTGTCTTTGCCGCTGCCAGGAGACCATCGCCAACCTGGAGCGCTGGGTCAAGCGTGAGATGCACGTGTGGAGGGAGGTCTTCTACCGTCTGGAGAGG"
 
-complete_df = pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
-complete_df
+animal_nr = str(9)
+"Filters and trims the reads"
+search_path = base_path+animal_nr+'*'+transgene+'*'+assay_end+'*/'
+search_path
+
+hip=animal_nr + "_" + transgene + "*h_"
+str=animal_nr + transgene + "*s_"
+    
+
+from functools import reduce
+
+
+#you could trim and starcode all individual lane files of certain animal first. after this you sum these based on matches
+
+#animal group contains all lanes of the certain data
+for animal_group in data_dict.keys():
+    df_this = trimRead_hiti(data_dict[animal_group],transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd)
+
+
+def trimRead_hiti(data_dict, transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd):
+    complete_df = pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
+    complete_df
+    for animal in data_dict.keys():
+        animal_group_name=animal.split("_")[0] + "_" + animal.split("_")[2]
+
+        dfs_lane=[]
+        for search_path in data_dict[animal]:
+            animal_p5_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
+            animal_p7_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
+            test_file_p5_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
+            test_file_p7_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
+            test_file_p5_filter = tempfile.NamedTemporaryFile(suffix = '.fastq').name
+
+            if read_fwd:
+                animal_p5 = glob.glob(search_path+'/*R1*')
+                animal_p7 = glob.glob(search_path+'/*R2*')
+                #display('Forward run Animal: '+animal_nr)
+            else:
+                animal_p5 = glob.glob(search_path+'/*R2*')
+                animal_p7 = glob.glob(search_path+'/*R1*')
+                #display('Reverse run Animal: '+animal_nr)
+            animal_p7
+
+            cat_p5= "cat "+" ".join(animal_p5)+" > "+animal_p5_cat
+            print(cat_p5)
+            #os.system(cat_p5)
+            call([cat_p5], shell=True) #call caused the terminal to freeze so switched to os
+            cat_p7= "cat "+" ".join(animal_p7)+" > "+animal_p7_cat
+            call([cat_p7], shell=True)
+            #os.system(cat_p7)
+
+            stats_out = export_path+group+'_'+transgene+'_'+assay_end+'_stats-filter.txt'
+
+            kmer = '20'
+            hdist = '3'
+            param=" k="+kmer+" hdist="+hdist+" rcomp=f skipr2=t threads=32 overwrite=true"
+
+            #to check if the read is an amplicon
+            call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+animal_p7_cat+" in2="+animal_p5_cat+" outm1="+test_file_p7_out+" outm2="+test_file_p5_out+" literal="+filterlitteral+" stats="+stats_out + param
+            call([call_sequence], shell=True)
+
+            #actual trimming
+            call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+test_file_p5_out+" out="+test_file_p5_filter+ " literal=AAAAAAAAA,CCCCCCCCC,GGGGGGGGG,TTTTTTTTT k=9 mm=f overwrite=true minlength=40"
+            call([call_sequence], shell=True)
+
+            test_file_p5_out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
+            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter+" -t 32 -o "+test_file_p5_out_starcode
+            call([starcode_call], shell=True)
+
+            df=pd.read_csv(test_file_p5_out_starcode, sep='\t', header=None)
+            df = df.rename(columns={0: 'sequence', 1:'count'})
+            dfs_lane.append(df)
+            print(animal_group_name + " done!")
+        #we iterate over all the individual dfs and merge them by taking the seq column of all dfs and placing them under the new dfs seq and do the same with counts
+        df_all_lanes=reduce(lambda  left,right: pd.merge(left,right,on='sequence', how='outer'), dfs_lane)
+        #reduce is useful when you need to apply a function to an iterable and reduce it to a single cumulative value.
+        df_all_lanes["count"]=df_all_lanes.sum(axis=1)
+        df_all_lanes.drop(df_all_lanes.iloc[:, 1:((len(df_all_lanes.columns)-1))], inplace = True, axis = 1)
+
+        #Once you have combined all the lane dfs, then you take the percentage
+        total_counts = int(df_all_lanes[['count']].sum())
+        #df2 = df[df['count'].astype(int)>total_counts/10000]
+        #df2
+        total_counts = int(df_all_lanes[['count']].sum())
+        df_all_lanes['percent'] = (df_all_lanes['count'] / total_counts)
+        df_all_lanes = df_all_lanes.rename(columns={'percent':animal_group_name+'_percent','count':animal_group_name+'_count',})
+        complete_df = pd.merge(complete_df, df_all_lanes, on="sequence", how='outer')
+        print("A full df containing the sum from all lanes of " + animal_group_name + " is done!")
+
+    return complete_df
+
+
+#Pool the reads based on striatum and hippocampus but prior to pooling them, normalise against oneself as otherwise one will contribute 
+#more than the other. 
+
+#hip_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder and "h_" in folder or "s_" in folder]
+group_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder]
+#str_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder and "s_" in folder]
+group_folders
+search_paths_groups = []
+search_paths_s = []
+
+import random
+
+def DNA(length):
+    return ''.join(random.choice('CGTA') for _ in range(length))
+
+
+
+r=dict()
+r_dna=[]
+for i in range(5):
+    r_dna.append(DNA(10))
+r_dna
+r_count=[]
+for i in range(5):
+    r_count.append(random.randint(100,10000))
+r_count
+
+r={"seq": r_dna, "counts": r_count}
+test_df1=pd.DataFrame(r, columns=["seq", "counts"])
+test_df1
+
+r=dict()
+r_count=[]
+for i in range(5):
+    r_count.append(random.randint(100,10000))
+r_count
+r={"seq": r_dna, "counts": r_count}
+test_df2=pd.DataFrame(r, columns=["seq", "counts"])
+test_df2
+
+r=dict()
+r_count=[]
+for i in range(5):
+    r_count.append(random.randint(100,10000))
+r_count
+r={"seq": r_dna, "counts": r_count}
+test_df3=pd.DataFrame(r, columns=["seq", "counts"])
+test_df3
+
+all_dfs = [test_df1, test_df2, test_df3]
+
+
+df_all_lanes=reduce(lambda  left,right: pd.merge(left,right,on='seq', how='outer'), all_dfs)
+df_all_lanes
+seqs=list(df_all_lanes.iloc[:,0])
+seqs
+df_all_lanes["count"]=df_all_lanes.sum(axis=1)
+col_i = len(df_all_lanes.columns)
+col_i
+df_all_lanes.drop(df_all_lanes.iloc[:, 1:((len(df_all_lanes.columns)-1))], inplace = True, axis = 1)
+df_all_lanes
+
+df_all_lanes.columns[[1,2]]
+
+df_all_lanes.drop(df_all_lanes.columns[[0, 4, 2]], axis = 1, inplace = True)
+df_all_lanes
+df_f
+test_df12=pd.merge(test_df2,test_df1, on="seq", how="outer")
+
+df_f=test_df12.sum(axis=1)
+test_df12
+df_f
+
+
+def animal_names(group_folders):
+    animals=[]
+    for s in group_folders:
+        animals.append("_".join(s.split("_")[:3]))
+    #animals=list(set(animals))
+    return(list(set(animals)))
+
+
+animals = animal_names(group_folders)
+animals
+
+#key: animal number and whether it comes from striatum or hippocampus, value: the paths to all lane subdirs
+
+data_dict = dict()
+for animal_group in animals:
+    lanes=[]
+    for g_f in group_folders:
+        if animal_group in g_f:
+            g_p=base_path+g_f
+            lanes.append(g_p)
+            data_dict[animal_group]=lanes
+
+data_dict
+
+for animal in data_dict.keys():
+    print(animal)
+    animal_group_name=animal.split("_")[0] + "_" + animal.split("_")[2]
+    group=search_path.split("/")[-1].split("_")[2]
+    dfs_lane=[]
+    for search_path in data_dict[animal]:
+        print(search_path)
+        group=search_path.split("/")[-1].split("_")[2]
+        print(group)
+
+#take subdirs as same group (dic key) if they come from the same animal and group but different lanes
+#2_mCherry_4h_5p_L
+
+
+# for h_f in hip_folders:
+#     s_p=base_path+h_f
+#     search_paths_h.append(s_p)
+
+# for s_f in str_folders:
+#     s_p=base_path+s_f
+#     search_paths_s.append(s_p)
+# search_paths_s
 
 #this line caused the perfect match to occur since we had the target seq included!
 #complete_df = pd.DataFrame({'sequence': [target_sequence]})
 
-#trim the reads and make a df of each animal containing the cluster groups, number of seqs they contain and % of the total seqs in
-#the cluster and merge everything together based on the seq (if found same clusters, otherwise NA)
-for animal in animal_list:
-    df_this = trimRead_hiti(animal,base_path,transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd)
-    complete_df = pd.merge(complete_df, df_this, on="sequence", how='outer')
-complete_df.columns
+# go over each individual animal subfolder i.e. s and h, process them and generate a starcode file, then a df
+# so unlike with last function which gave individual df8, df9 etc., now we get df8s, df8h etc. where they have been normalised against the total number 
 
+#after which we merge the ones that have matching numbers
+complete_df = pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
+complete_df
+
+complete_df_a = pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
+complete_df
+
+#you could trim and starcode all individual lane files of certain animal first. after this you sum these based on matches
+full_df = trimRead_hiti(data_dict,transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd)
+#the function returns you a complete dataframe containing animals_x_brain_area (h,s). since each animal_x_brain_area contains data from 4 different subdirs, these have been
+# summed into the same ones, i.e. column 12_6h contains the sequences from lanes 1-4 all summed up  
+#now take the percentage values of each animal (so brain area s and h), merge into same column so that the percentages will be a sum of the two.
+
+#each animal contains data either from striatum or hippocampus after all.
+a = [f for f in full_df.columns if "s_percent" in f]
+a
+full_df.iloc[:,1:6]
+
+#animal group contains all lanes of the certain data
+for animal_group in data_dict.keys():
+    df_this = trimRead_hiti(data_dict[animal_group],transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd)
+    complete_df = pd.merge(complete_df, df_this, on="sequence", how='outer')
+
+
+dfs=[]
+for search_path in search_paths_groups:
+    #search_path="/media/data/AtteR/projects/hiti/FASTQ_Generation_2020-03-09_08_30_27Z-13364364/3_mCherry_5s_5p_L002-ds.c121438bd7904b25ae7626056d459222"
+    df_this = trimRead_hiti(search_path,transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd)
+    #dfs.append(df_this)
+    complete_df = pd.merge(complete_df, df_this, on="sequence", how='outer')
+
+len(dfs)
+df2=pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
+df2 = pd.merge(df2, dfs[5], how='outer')
+df2
+
+dfs[6].head()
+
+for i in range(len(dfs)):
+    df2 = pd.merge(df2, dfs[i], on="sequence", how='outer')
+df2
+complete_df.columns
+complete_df
 complete_df = complete_df.fillna(value=0)
 perc_cols = [col for col in complete_df.columns if 'percent' in col]
 perc_cols #['7_percent', '8_percent', '9_percent', '10_percent', '11_percent', '12_percent']
 
-#sum the percentages of each seq cluster (animals 7-12)
-complete_df['percent_sum'] = complete_df[perc_cols].sum(axis=1)
+#sum the percentages of each seq cluster (animals 7-12)      --------------- I did not use this downstream. Percent sum the numbers and thus use these instead of animal spec ones
+full_df['percent']
+full_df = full_df.fillna(value=0)
+perc_cols = [col for col in full_df.columns if 'percent' in col]
+perc_cols
+full_df['percent_sum'] = full_df[perc_cols].sum(axis=1)
+full_df.sort_values(by=['percent_sum'], ascending=False, inplace=True)
+full_df
 
-complete_df.sort_values(by=['percent_sum'], ascending=False, inplace=True)
-
-#generate a column with seq alignment where you take the seq cluster from sequence column and map it to the target
+#generate a column with seq alignment where you take the seq cluster from sequence column and map it to the target --- part of Thomas' script
 complete_df.loc[:,'sequence_align'] = complete_df.loc[:,'sequence'].apply(lambda x: align_to_ref(x, target_sequence))
 export_csv = export_path+transgene+'_'+assay_end+'.csv'
 complete_df.to_csv(export_csv, index=False)
@@ -149,54 +455,10 @@ complete_df.iloc[:,0]
 s = Seq(complete_df.iloc[1,0])
 s
 
-def align_to_ref(query_sequence, target_sequence):
-    alignment, score, start_end_positions = local_pairwise_align_ssw(
-        DNA(target_sequence),
-        DNA(query_sequence),
-        gap_open_penalty = 3,
-        gap_extend_penalty = 1
-    )
-    out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
-    
-    return out_align
-#returns a dict with percentage value of the certain cluster seq and the aligned seq as the value
-def align_global(complete_df,target_sequence):
-    seq_and_perc = {}
-
-    #make another dict into which you save the percentage value of the seq into key and the aligned seq as the value
-    align_and_perc = {}
-
-    for cols in complete_df.columns:
-        #print(cols)
-        if "percent" in cols and not "sum" in cols:
-            print(cols)
-            seq_and_perc[cols]=complete_df.loc[:,["sequence", cols]]
-
-    #you take the group, from the df you take the sequence cluster column and align each sequence 
-    for group in seq_and_perc.keys():
-        #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
-
-        for i in range(len(seq_and_perc[group].index)):
-            #query=seq_and_perc[group][i,0]
-            alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group].iloc[i,0],  2, -1, -.5, -.1)
-            #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
-
-            alignm=format_alignment(*alignments[0])
-            #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
-            seq_align = alignm.split("\n")[2]
-            #nt_count=count_nts(seq_align)
-            #seq_and_perc[group]["match"]
-            align_and_perc[seq_and_perc[group].iloc[i,1]]=alignm.split("\n")[2]
-            #aligned_seqs.append(seq_align)
-    return(align_and_perc)
-
-
-
 #transforms the aligned seqs into seqrecord objects
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-#pairwise2.align.globalxx(seq1, seq2)
 
 #extract the aligned seq part, ignoring the scores etc. 
 #to process and save the files downstream, must convert the result into seq record
@@ -207,24 +469,23 @@ from Bio.SeqRecord import SeqRecord
 
 
 #we need to know what percentage of the clusters mapped with high accuracy, ideally 100%, to the reference genome. Thus
-#we must save the percentages from the starcluster data as these are used as identifiers!!!!
+#we must save the percentages from the starcluster data
 ############################
 ############################
-#iterate over each seq_record_list sequence, transform into dic[id]=str(seq), count number of "-" and the one that has the least
-#save its id for the future just in case?
 seq_and_perc = {}
 
+
+#take the percentage group (8_percent etc) as the key and sequence as value
 for cols in complete_df.columns:
     #print(cols)
     if "percent" in cols and not "sum" in cols:
         print(cols)
         seq_and_perc[cols]=complete_df.loc[:,["sequence", cols]]
 seq_and_perc["8_percent"].iloc[:,0]
-
-
 ############################
 ############################
-#if we align using muscle we will need to transfer our seq files into fasta first
+seq_and_perc
+#if we align using muscle we will need to convert our seq files into fasta first
 from Bio.Align.Applications import MuscleCommandline
 
 result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster.fasta"
@@ -237,16 +498,10 @@ with open(result, "w") as handle:
         seq_obj = SeqRecord(Seq(seq), id=str(id_f), description="mcherry_p3_seq_clusters")
         count = SeqIO.write(seq_obj, handle, "fasta")
         id_f+=1
-
-input = "/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters.fasta"
-output = "/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_clusters_aligned.fasta"
 ############################
 ############################
-
-
 
 complete_df
-
 #make a file for especially muscle alignment which you can then visualise. This file contains the 
 #percentages of seq clusters
 
@@ -258,7 +513,6 @@ def save_fasta(filename, seq_and_perc):
     with open(result, "w") as handle:
         seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description="mcherry_p3_seq_ref")
         count = SeqIO.write(seq_obj, handle, "fasta")
-
         for group in seq_and_perc.keys():
             for seq_i in range(len(seq_and_perc[group])):
                 descr="CluSeq_%: " + str(round((seq_and_perc[group].iloc[seq_i,1]*100),4))
@@ -288,12 +542,141 @@ result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all.fasta"
 save_fasta_seqrec(result, seq_and_perc)
 
 aligned_seqs = []
-#seq_and_perc["8_percent"].iloc[,1]
-#extract the df, then align, then save into a file
+
+
+###############
+#ALIGNMENTS
+def align_global(amplicon,target_sequence):
+    alignments = pairwise2.align.globalms(target_sequence, amplicon,  2, -1, -.5, -.1)
+    #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
+
+    alignm=format_alignment(*alignments[0])
+    #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
+    seq_align = alignm.split("\n")[2]
+    #nt_count=count_nts(seq_align)
+    #seq_and_perc[group]["match"]
+    return(seq_align)
+def align_global2(amplicon,target_sequence):
+    alignments = pairwise2.align.globalxx(target_sequence, amplicon)
+
+    alignm=format_alignment(*alignments[0])
+    #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
+    seq_align = alignm.split("\n")[2]
+    #nt_count=count_nts(seq_align)
+    #seq_and_perc[group]["match"]
+    return(seq_align)
+def align_local(amplicon,target_sequence):
+    alignments = pairwise2.align.localxx(target_sequence, amplicon)
+    #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
+
+    alignm=format_alignment(*alignments[0])
+    #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
+    seq_align = alignm.split("\n")[2]
+    #nt_count=count_nts(seq_align)
+    #seq_and_perc[group]["match"]
+    return(seq_align)
+
+
+def align_local2(query_sequence, target_sequence):
+    alignment, score, start_end_positions = local_pairwise_align_ssw(
+        DNA(target_sequence),
+        DNA(query_sequence),
+        gap_open_penalty = 3,
+        gap_extend_penalty = 1
+    )
+    out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
+    
+    return out_align
+def align_local3(amplicon,target_sequence):
+    alignments = pairwise2.align.localms(target_sequence, amplicon, 2, -1, -.5, -.1)
+    #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
+
+    alignm=format_alignment(*alignments[0])
+    #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
+    seq_align = alignm.split("\n")[2]
+    #nt_count=count_nts(seq_align)
+    #seq_and_perc[group]["match"]
+    return(seq_align)
+
+
+test = align_to_ref_local(seq_and_perc["8_percent"].iloc[1,0], target_sequence)
+tests = pairwise2.align.globalmx(seq_and_perc["8_percent"].iloc[1,0], target_sequence,  2, -1, -.5, -.1)
+tests
+test_a = format_alignment(*tests[0])
+test_a = pairwise2.align.globalms(target_sequence, seq_and_perc["8_percent"].iloc[1,0],  2, -1, -.5, -.1)
+test_a[0]
+
+
+seq_align = test_a.split("\n")[2]
+seq_align
+def align_and_save(filename, seq_and_perc):
+    id_f=1
+    with open(filename, "w") as handle:
+        seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description="mcherry_p3_seq_ref")
+        header=">0"+" mcherry_p3_seq_ref"
+        handle.write(header + "\n" + target_sequence + "\n")
+
+        for group in seq_and_perc.keys():
+            for seq_i in range(len(seq_and_perc[group])):
+                header=">"+ str(id_f)+" CluSeq_%: " + str(round((seq_and_perc[group].iloc[seq_i,1]*100),4))
+                seq_obj_1 = align_local3(seq_and_perc[group].iloc[seq_i,0], target_sequence)
+                handle.write(header + "\n" + seq_obj_1 + "\n")
+                id_f+=1
+def align_and_save2(filename, seq_and_perc):
+    id_f=1
+    with open(filename, "w") as handle:
+        seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description="mcherry_p3_seq_ref")
+        header=">0"+" mcherry_p3_seq_ref"
+        handle.write(header + "\n" + target_sequence + "\n")
+
+        for group in seq_and_perc.keys():
+            for seq_i in range(len(seq_and_perc[group])):
+                header=">"+ str(id_f)+" CluSeq_%: " + str(round((seq_and_perc[group].iloc[seq_i,1]*100),4))
+                seq_obj_1 = align_global(seq_and_perc[group].iloc[seq_i,0], target_sequence)
+                handle.write(header + "\n" + seq_obj_1 + "\n")
+                id_f+=1
+
+
+    print("Saved into " + str(filename))
+
+align_pairwise_loc1="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_1.fasta"
+align_pairwise_loc2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_2sk.fasta"
+align_pairwise_loc3="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_3.fasta"
+
+align_pairwise_glob1="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_glob.fasta"
+align_pairwise_glob2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_glob2.fasta"
+
+
+align_and_save(align_pairwise_loc3, seq_and_perc)
+
+align_and_save2(align_pairwise_glob2, seq_and_perc)
+
+test
+#returns a dict with percentage value of the certain cluster seq and the aligned seq as the value
+
+outp="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all2.fasta"
+
+id_f=1
+with open(outp, "w") as handle:
+    seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description="mcherry_p3_seq_ref")
+    header=">0"+" mcherry_p3_seq_ref"
+    handle.write(header + "\n" + target_sequence + "\n")
+
+    for group in seq_and_perc.keys():
+        for seq_i in range(len(seq_and_perc[group])):
+            header=">"+ str(id_f)+" CluSeq_%: " + str(round((seq_and_perc[group].iloc[seq_i,1]*100),4))
+            seq_obj_1 = seq_and_perc[group].iloc[seq_i,0]
+            handle.write(header + "\n" + seq_obj_1 + "\n")
+            id_f+=1
+
+
 
 ###############
 #MUSCLE alignment
 import subprocess
+input = "/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters.fasta"
+output = "/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_clusters_aligned.fasta"
+
 subprocess.call('muscle -align %s -output %s'%(input,output)) #does not work, need to run from terminal 
 ###############
 
@@ -334,7 +717,6 @@ def find_overlap(amplicon, mcherry_full):
 
 
 #Translate and save as dictionary containing header as the key and the translated AA seq as value
-find_overlap(amplicon,mcherry_full)
 
 
 #go over the two seqs in a frame of lets 5
@@ -380,7 +762,7 @@ def blocks(mcherry_full, step):
 
 '''
 The overlap part is useless as mcherry will map to amplicons mcherry with 100% accuracy! Instead we want to align them, then look at the reference and calculate
-in codon pairs till the primer site binding site and see if the rest of the seq is in frame or not. if not, then when translating the protein, we will add +1 or +2 etc 
+in codon pairs till the primer binding site and see if the rest of the seq is in frame or not. if not, then when translating the protein, we will add +1 or +2 etc 
 and then translate into the AAs to SEE if the produced Arc after the scar is a functional protein. mcherry will be fine nevertheless!
 CGGCGGCA
 CGGCGGCA
@@ -394,6 +776,8 @@ GAG ... GGT
 a = (2919-2210) % 3
 
 prim_ma03_frame=(2906-2210) % 3 #ma03 found in the amplicon
+prim_ma03_frame=(2909-2210) % 3 #based on the short 
+
 prim_ma03_frame
 a #out of frame by 1
 def hash_sequence(string, k):
@@ -581,6 +965,11 @@ def count_nts(seq):
             nts+=1
     return nts
 
+
+
+######
+#TRIM (Do later)
+######
 #you need to find the highest count but you also need to keep the index so save this info into the same dic. Then we define the highest matching seq's len as 
 #the cut off for the rest and thus we cut off the extra from the others as well.
 
@@ -588,7 +977,7 @@ def count_nts(seq):
 #match relative to the reference template, save into list, put into the df
 
 #if several nts with equally good match, get the one which extends longest and trim seqs based on this one
-def 
+ 
 all_nt_counts=[]
 for p in align_and_perc.keys():
     N_nts = count_nts(align_and_perc[p])
@@ -663,47 +1052,6 @@ with open(result, "w") as handle:
 #are you sure we should use msa as with that we cant align strictly to the reference but it is aligned along with the others?
 #
 
-#into the id save the row number, perc.seqs and perc.match to the ref
-
-#we wont be able to find 100% match as the scar region seems to vary 
-
-#now we have found the longest seq and trimmed based on that and calculated match % to the reference
-#next put this into function and compare results. If more than one match of max length, then report how many seqs have this
-#we should then take each one of these seqs, make them as seqrecords and save as a fasta file which then can be visualised
-#-----try this with the msa file!
-
-#we take the consensus seqs and we trim the seqs as in the upstream. We do NT MSA but we will find out that at 5' end we will get perfect matches at times (this applies with old data?)
-#but not true with new data. on 5' we will see that 90%ish is a perfect alignment etc. 
-#we may get single base reading errors in some areas of the seq but they are irrelevant. we care about the scar. We line all them up and find the perfect matches or close to it
-
-
-#at 3' end we link the mcherry to the arc which is why we need to make sure that this area is translated into AAs properly
-#Start with 3' end ------- do MSA ------ ok lets say the first one doesnt have a perfect match but rather lets say 93%, then 30% etc and on row 12 we then have a perfect match - matches the 6 bps to the 6bps in scar
-#we can make a cutoff the way that we show the rows that have lets say 90% match. or we can count the number of rows
-
-#we must make sure that the seq is A)in frame and B)SCAR exists, then the seq is fine
-#MSA will align the full consensus seq. we trim based on the perfect match, but this is relevant when visualising the seqs
-
-#we go from 3' end (where we dont have errors) till the 5'end (where we do have erros) in terms of the seq rows - we want to represent the sides in a balanced way
-#so either we represent the same number of rows or we represent into the same number of frequency as the accurate alignment here (used when visualising)
-#We get the row N from the 3' end 
-
-#look at the 3' end seq only and plot it till the perfect match ------- so this is the frequency of correct edits (seq cluster percentage-number of seqs in this cluster?) respective to the specific PAM edit
-#we take all the clusters (with respective info regarding the percentage)
-
-#we count the Nrow we needed to get to the perfect match at 5' end and this is the same number of consensus seqs from 5' end that we would also align via MSA
-
-
-#when translating, you need to know the start codon
-
-
-#with aa we do the msa, then we can tell which of the seqs are in reading frame and thus generate a protein ---- this will tell us how many of the red cells can we trust
-#to be the fusion between mcherry and arc
-
-#then we translate to AAs as we want to check that things are in reading frame which is done by first figuring out the start codon
-
-
-#5' will be accurate and thus not very descriptive in terms of whether our tech worked or not
 
 
 
