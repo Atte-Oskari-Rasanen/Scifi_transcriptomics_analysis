@@ -69,62 +69,6 @@ from alignment_scripts import *
 
 
 #5' will be accurate and thus not very descriptive in terms of whether our tech worked or not
-
-def trimRead_hiti(animal_nr,base_path,transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd):
-    animal_nr = str(animal_nr)
-    "Filters and trims the reads"
-    search_path = base_path+animal_nr+'*'+transgene+'*'+assay_end+'*/'
-
-    #you take the reads from both groups, striatal and hippocampal and normalise them.
-
-    animal_p5_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
-    animal_p7_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
-    test_file_p5_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
-    test_file_p7_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
-    test_file_p5_filter = tempfile.NamedTemporaryFile(suffix = '.fastq').name
-    
-    if read_fwd:
-        animal_p5 = glob.glob(search_path+'*R1*')
-        animal_p7 = glob.glob(search_path+'*R2*')
-        #display('Forward run Animal: '+animal_nr)
-    else:
-        animal_p5 = glob.glob(search_path+'*R2*')
-        animal_p7 = glob.glob(search_path+'*R1*')
-        #display('Reverse run Animal: '+animal_nr)
-    
-
-    cat_p5= "cat "+" ".join(animal_p5)+" > "+animal_p5_cat
-    call([cat_p5], shell=True)
-    cat_p7= "cat "+" ".join(animal_p7)+" > "+animal_p7_cat
-    call([cat_p7], shell=True)
-
-    stats_out = export_path+animal_nr+'_'+transgene+'_'+assay_end+'_stats-filter.txt'
-    
-    kmer = '20'
-    hdist = '3'
-    param=" k="+kmer+" hdist="+hdist+" rcomp=f skipr2=t threads=32 overwrite=true"
-    
-    #to check if the read is a n amplicon
-    call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+animal_p7_cat+" in2="+animal_p5_cat+" outm1="+test_file_p7_out+" outm2="+test_file_p5_out+" literal="+filterlitteral+" stats="+stats_out + param
-    call([call_sequence], shell=True)
-    
-    #actual trimming
-    call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+test_file_p5_out+" out="+test_file_p5_filter+ " literal=AAAAAAAAA,CCCCCCCCC,GGGGGGGGG,TTTTTTTTT k=9 mm=f overwrite=true minlength=40"
-    call([call_sequence], shell=True)
-    
-    test_file_p5_out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
-    starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter+" -t 32 -o "+test_file_p5_out_starcode
-    call([starcode_call], shell=True)
-    
-    df=pd.read_csv(test_file_p5_out_starcode, sep='\t', header=None)
-    df = df.rename(columns={0: 'sequence', 1:'count'})
-    total_counts = int(df[['count']].sum())
-    df = df[df['count'].astype(int)>total_counts/10000]
-    total_counts = int(df[['count']].sum())
-    df['percent'] = (df['count'] / total_counts)
-    df = df.rename(columns={'percent':animal_nr+'_percent','count':animal_nr+'_count',})
-    
-    return df  
     #the function returns a df of certain animal, e.g. 8. and we merge the dfs into a complete one later. 
     #now we have h and s groups though which we want to keep as separate (before normalising the counts, then merge?). Normalisation should happen before inputting the seqs
     #into the starcode or after we have input them, after which we find the reads belonging to the certain clusters. 
@@ -180,11 +124,6 @@ from functools import reduce
 
 
 #you could trim and starcode all individual lane files of certain animal first. after this you sum these based on matches
-
-#animal group contains all lanes of the certain data
-for animal_group in data_dict.keys():
-    df_this = trimRead_hiti(data_dict[animal_group],transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd)
-
 
 def trimRead_hiti(data_dict, transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd):
     complete_df = pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
@@ -269,77 +208,18 @@ group_folders
 search_paths_groups = []
 search_paths_s = []
 
-import random
-
-def DNA(length):
-    return ''.join(random.choice('CGTA') for _ in range(length))
-
-
-
-r=dict()
-r_dna=[]
-for i in range(5):
-    r_dna.append(DNA(10))
-r_dna
-r_count=[]
-for i in range(5):
-    r_count.append(random.randint(100,10000))
-r_count
-
-r={"seq": r_dna, "counts": r_count}
-test_df1=pd.DataFrame(r, columns=["seq", "counts"])
-test_df1
-
-r=dict()
-r_count=[]
-for i in range(5):
-    r_count.append(random.randint(100,10000))
-r_count
-r={"seq": r_dna, "counts": r_count}
-test_df2=pd.DataFrame(r, columns=["seq", "counts"])
-test_df2
-
-r=dict()
-r_count=[]
-for i in range(5):
-    r_count.append(random.randint(100,10000))
-r_count
-r={"seq": r_dna, "counts": r_count}
-test_df3=pd.DataFrame(r, columns=["seq", "counts"])
-test_df3
-
-all_dfs = [test_df1, test_df2, test_df3]
-
-
-df_all_lanes=reduce(lambda  left,right: pd.merge(left,right,on='seq', how='outer'), all_dfs)
-df_all_lanes
-seqs=list(df_all_lanes.iloc[:,0])
-seqs
-df_all_lanes["count"]=df_all_lanes.sum(axis=1)
-col_i = len(df_all_lanes.columns)
-col_i
-df_all_lanes.drop(df_all_lanes.iloc[:, 1:((len(df_all_lanes.columns)-1))], inplace = True, axis = 1)
-df_all_lanes
-
-df_all_lanes.columns[[1,2]]
-
-df_all_lanes.drop(df_all_lanes.columns[[0, 4, 2]], axis = 1, inplace = True)
-df_all_lanes
-df_f
-test_df12=pd.merge(test_df2,test_df1, on="seq", how="outer")
-
-df_f=test_df12.sum(axis=1)
-test_df12
-df_f
-
 
 def animal_names(group_folders):
     animals=[]
-    for s in group_folders:
-        animals.append("_".join(s.split("_")[:3]))
-    #animals=list(set(animals))
-    return(list(set(animals)))
+    animal_list = [7, 8, 9, 10, 11, 12]
 
+    for s in group_folders:
+        animal_name="_".join(s.split("_")[:3])
+        if int(animal_name.split("_")[0]) in animal_list:
+            print(animal_name)
+            animals.append("_".join(s.split("_")[:3]))
+    #animals=list(set(animals))
+    return(sorted(list(((set(animals))))))
 
 animals = animal_names(group_folders)
 animals
@@ -390,9 +270,7 @@ for animal in data_dict.keys():
 complete_df = pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
 complete_df
 
-complete_df_a = pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
-complete_df
-
+data_dict
 #you could trim and starcode all individual lane files of certain animal first. after this you sum these based on matches
 full_df = trimRead_hiti(data_dict,transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd)
 #the function returns you a complete dataframe containing animals_x_brain_area (h,s). since each animal_x_brain_area contains data from 4 different subdirs, these have been
@@ -400,47 +278,17 @@ full_df = trimRead_hiti(data_dict,transgene,assay_end,filterlitteral,lliteral,rl
 #now take the percentage values of each animal (so brain area s and h), merge into same column so that the percentages will be a sum of the two.
 
 #each animal contains data either from striatum or hippocampus after all.
-a = [f for f in full_df.columns if "s_percent" in f]
+
+a = [f for f in full_df.columns if "h_percent" in f]
 a
-full_df.iloc[:,1:6]
-
 #animal group contains all lanes of the certain data
-for animal_group in data_dict.keys():
-    df_this = trimRead_hiti(data_dict[animal_group],transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd)
-    complete_df = pd.merge(complete_df, df_this, on="sequence", how='outer')
-
-
-dfs=[]
-for search_path in search_paths_groups:
-    #search_path="/media/data/AtteR/projects/hiti/FASTQ_Generation_2020-03-09_08_30_27Z-13364364/3_mCherry_5s_5p_L002-ds.c121438bd7904b25ae7626056d459222"
-    df_this = trimRead_hiti(search_path,transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd)
-    #dfs.append(df_this)
-    complete_df = pd.merge(complete_df, df_this, on="sequence", how='outer')
-
-len(dfs)
-df2=pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
-df2 = pd.merge(df2, dfs[5], how='outer')
-df2
-
-dfs[6].head()
-
-for i in range(len(dfs)):
-    df2 = pd.merge(df2, dfs[i], on="sequence", how='outer')
-df2
-complete_df.columns
-complete_df
-complete_df = complete_df.fillna(value=0)
-perc_cols = [col for col in complete_df.columns if 'percent' in col]
-perc_cols #['7_percent', '8_percent', '9_percent', '10_percent', '11_percent', '12_percent']
-
 #sum the percentages of each seq cluster (animals 7-12)      --------------- I did not use this downstream. Percent sum the numbers and thus use these instead of animal spec ones
-full_df['percent']
 full_df = full_df.fillna(value=0)
 perc_cols = [col for col in full_df.columns if 'percent' in col]
 perc_cols
 full_df['percent_sum'] = full_df[perc_cols].sum(axis=1)
 full_df.sort_values(by=['percent_sum'], ascending=False, inplace=True)
-full_df
+full_df.head()
 
 #generate a column with seq alignment where you take the seq cluster from sequence column and map it to the target --- part of Thomas' script
 complete_df.loc[:,'sequence_align'] = complete_df.loc[:,'sequence'].apply(lambda x: align_to_ref(x, target_sequence))
@@ -474,9 +322,16 @@ from Bio.SeqRecord import SeqRecord
 ############################
 seq_and_perc = {}
 
+full_df.iloc[:, [0,-1]]
+
+
+#We take the seq and percent sum for each column and then align. the full_df contains ALL the clustered seqs from all the animals. we have taken the percentage amount of raw counts
+#for each animal and then we have summed them together, giving as a unit providing information how much of the certain seq cluster is when summed over all the animals.
+#why is this done? after we map the sequences to the reference and find the alignments, we can use this as information regarding how many of the amplicons were of certain kind and
+#how well it maps to the ref. 
 
 #take the percentage group (8_percent etc) as the key and sequence as value
-for cols in complete_df.columns:
+for cols in full_df.columns:
     #print(cols)
     if "percent" in cols and not "sum" in cols:
         print(cols)
@@ -506,6 +361,18 @@ complete_df
 #percentages of seq clusters
 
 #save seq dict as a fasta file
+
+'''
+Hi Tomas I have gone over the data and reprocessed it. a thing that i noticed was that each animal 
+actually only contained data from hippocampus or striatum, not both (if i have read the labels correctly). 
+
+Anyways, I rewrote the function and reprocessed the data and summed percentages across animals. I wrote these sequences into fasta files, 
+giving as IDs the summed percentage values and the line numbers. I then mapped them using different pairwise algorithms as well as msa
+and saved the results. Then I translated them into AAs and did the same. 
+
+
+Also, the data contained animals from 1-12 but your script had only taken the ones from 8-12 before. I was wondering what the reasoning behind this was? 
+'''
 
 result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all.fasta"
 def save_fasta(filename, seq_and_perc):
