@@ -182,13 +182,10 @@ def trimRead_hiti(data_dict, transgene,assay_end,filterlitteral,lliteral,rlitera
         #we iterate over all the individual dfs and merge them by taking the seq column of all dfs and placing them under the new dfs seq and do the same with counts
         df_all_lanes=reduce(lambda  left,right: pd.merge(left,right,on='sequence', how='outer'), dfs_lane)
         #reduce is useful when you need to apply a function to an iterable and reduce it to a single cumulative value.
-        df_all_lanes["count"]=df_all_lanes.sum(axis=1)
+        df_all_lanes["count"]=df_all_lanes.sum(axis=1) #make a column with total count sum of reads and remove the rest. This gives a df that has the seqs and the total counts from all lanes
         df_all_lanes.drop(df_all_lanes.iloc[:, 1:((len(df_all_lanes.columns)-1))], inplace = True, axis = 1)
 
         #Once you have combined all the lane dfs, then you take the percentage
-        total_counts = int(df_all_lanes[['count']].sum())
-        #df2 = df[df['count'].astype(int)>total_counts/10000]
-        #df2
         total_counts = int(df_all_lanes[['count']].sum())
         df_all_lanes['percent'] = (df_all_lanes['count'] / total_counts)
         df_all_lanes = df_all_lanes.rename(columns={'percent':animal_group_name+'_percent','count':animal_group_name+'_count',})
@@ -211,7 +208,7 @@ search_paths_s = []
 
 def animal_names(group_folders):
     animals=[]
-    animal_list = [7, 8, 9, 10, 11, 12]
+    animal_list = [*range(13)]
 
     for s in group_folders:
         animal_name="_".join(s.split("_")[:3])
@@ -290,6 +287,17 @@ full_df['percent_sum'] = full_df[perc_cols].sum(axis=1)
 full_df.sort_values(by=['percent_sum'], ascending=False, inplace=True)
 full_df.head()
 
+full_df.index[0]
+full_df.head()
+#trim seqs that contribute less than 0.01% percentage
+rows_drop=[]
+for i, perc in enumerate(full_df.iloc[:,-1]):
+    if perc<0.001:
+        rows_drop.append(i)
+full_df_trim=full_df.drop(rows_drop, axis=0, inplace=False)
+
+full_df
+rows_drop
 #generate a column with seq alignment where you take the seq cluster from sequence column and map it to the target --- part of Thomas' script
 complete_df.loc[:,'sequence_align'] = complete_df.loc[:,'sequence'].apply(lambda x: align_to_ref(x, target_sequence))
 export_csv = export_path+transgene+'_'+assay_end+'.csv'
@@ -364,30 +372,37 @@ complete_df
 
 '''
 Hi Tomas I have gone over the data and reprocessed it. a thing that i noticed was that each animal 
-actually only contained data from hippocampus or striatum, not both (if i have read the labels correctly). 
+actually only contained data from hippocampus or striatum, not both (given that I have read it right).
+You sure you hadnt already had excluded the brain area that had poor number of reads in the past?
+For example animal 8:
+8_mCherry_4h_3p_L001-ds.23808003b8304ec79a33a3d33e2afa46:
+8_mCherry_4h_3p_L002-ds.9ab8f311ca9044bdb4ba14a98707ceff:
+8_mCherry_4h_3p_L003-ds.f49838d03d6445429f6d7ef3f2b99167:
+8_mCherry_4h_3p_L004-ds.1f5f77a9c4b0416b837d6256cf022335:
 
-Anyways, I rewrote the function and reprocessed the data and summed percentages across animals. I wrote these sequences into fasta files, 
-giving as IDs the summed percentage values and the line numbers. I then mapped them using different pairwise algorithms as well as msa
-and saved the results. Then I translated them into AAs and did the same. 
+Anyways, I rewrote the function and reprocessed the data, summed the lanes of each animal into one df and in the end merged all the animals as one big df. summed percentages across animals for a given sequence cluster.
+I wrote these sequences into fasta files, giving as IDs the summed percentage values and the line numbers. I am running the mapping using different algorithms for pairwise and MS. its taking a while though.
 
-
-Also, the data contained animals from 1-12 but your script had only taken the ones from 8-12 before. I was wondering what the reasoning behind this was? 
+Also, the data contained animals from 1-12 but your script had only taken the ones from 8-12 before. I was wondering what the reasoning behind this was? were the others poor quality?
 '''
 
-result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all.fasta"
-def save_fasta(filename, seq_and_perc):
+full_df.iloc[0,-1]
+def save_fasta(filename, full_df):
     id_f = 1
     with open(result, "w") as handle:
         seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description="mcherry_p3_seq_ref")
         count = SeqIO.write(seq_obj, handle, "fasta")
-        for group in seq_and_perc.keys():
-            for seq_i in range(len(seq_and_perc[group])):
-                descr="CluSeq_%: " + str(round((seq_and_perc[group].iloc[seq_i,1]*100),4))
-                print(descr)
-                seq_obj = SeqRecord(Seq(seq_and_perc[group].iloc[seq_i,0]), id=str(id_f), description=descr)
-                count = SeqIO.write(seq_obj, handle, "fasta")
-                id_f+=1
+        for seq_i in range(len(full_df.iloc[:,-1])):
+            descr="CluSeq_%: " + str((full_df.iloc[seq_i,-1]))
+            print(descr)
+            seq_obj = SeqRecord(Seq(full_df.iloc[seq_i,0]), id=str(id_f), description=descr)
+            count = SeqIO.write(seq_obj, handle, "fasta")
+            id_f+=1
+    print("Saved!")
 
+
+for seq in range(len(full_df.iloc[:,-1])):
+    print(seq)
 #this saves them via seq record formatting. However, when importing this content back for translation,
 #there are new line characters in some of the longer seqs so need to create another approach too
 #---or open them via seqio and it will retain the correct formatting
@@ -406,8 +421,10 @@ def save_fasta_seqrec(filename, seq_and_perc):
                 id_f+=1
 
 result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all.fasta"
-save_fasta_seqrec(result, seq_and_perc)
+result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all_redo.fasta"
 
+save_fasta_seqrec(result, seq_and_perc)
+save_fasta(result, full_df_trim)
 aligned_seqs = []
 
 
@@ -445,19 +462,13 @@ def align_local(amplicon,target_sequence):
 
 
 def align_local2(query_sequence, target_sequence):
-    alignment, score, start_end_positions = local_pairwise_align_ssw(
-        DNA(target_sequence),
-        DNA(query_sequence),
-        gap_open_penalty = 3,
-        gap_extend_penalty = 1
-    )
+    alignment, score, start_end_positions = local_pairwise_align_ssw(DNA(target_sequence),DNA(query_sequence),gap_open_penalty = 3,gap_extend_penalty = 1)
     out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
-    
     return out_align
+
 def align_local3(amplicon,target_sequence):
     alignments = pairwise2.align.localms(target_sequence, amplicon, 2, -1, -.5, -.1)
     #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
-
     alignm=format_alignment(*alignments[0])
     #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
     seq_align = alignm.split("\n")[2]
@@ -466,7 +477,7 @@ def align_local3(amplicon,target_sequence):
     return(seq_align)
 
 
-test = align_to_ref_local(seq_and_perc["8_percent"].iloc[1,0], target_sequence)
+test = align_local2(seq_and_perc["8_percent"].iloc[1,0], target_sequence)
 tests = pairwise2.align.globalmx(seq_and_perc["8_percent"].iloc[1,0], target_sequence,  2, -1, -.5, -.1)
 tests
 test_a = format_alignment(*tests[0])
@@ -476,19 +487,75 @@ test_a[0]
 
 seq_align = test_a.split("\n")[2]
 seq_align
-def align_and_save(filename, seq_and_perc):
+def longest_align(seqs):
+    return max(seqs, key=len)
+
+
+id_f=1
+aligned_data=dict()
+#align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then make them equal length ny adding Nx"-"
+for seq_i in range(len(full_df_trim.iloc[:,-1])):
+        header=">"+ str(id_f)+" CluSeq: " + str((full_df_trim.iloc[seq_i,-1]))
+        seq_obj_1= align_local3(full_df_trim.iloc[seq_i,0], target_sequence)
+        aligned_data[header]=seq_obj_1
+        id_f+=1
+
+longest_seq=longest_align(aligned_data.values())
+aligned_data
+longest_seq
+len(longest_align(aligned_data.values()))
+aligned_data['>582 CluSeq: 0.0']
+N_dashes=len(longest_align(aligned_data.values()))-len(aligned_data['>582 CluSeq: 0.0'])
+N_dashes
+aligned_data['>582 CluSeq: 0.0']=aligned_data['>582 CluSeq: 0.0']+N_dashes*"-"
+for id in aligned_data.keys():
+    if len(aligned_data[id])==len(longest_align(aligned_data.values())):
+        continue
+    else:
+        N_dashes=len(longest_align(aligned_data.values()))-len(aligned_data[id])
+        aligned_data[id]=aligned_data[id]+N_dashes*"-"
+aligned_data['>579 CluSeq: 1.1998809718075966e-06']
+test_a = pairwise2.align.globalms(target_sequence, aligned_data['>579 CluSeq: 1.1998809718075966e-06'],  2, -1, -.5, -.1)
+alignment, score, start_end_positions = local_pairwise_align_ssw(DNA(target_sequence),DNA(aligned_data['>579 CluSeq: 1.1998809718075966e-06']),gap_open_penalty = 3,gap_extend_penalty = 1)
+out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
+
+test_a
+
+import re
+
+pattern = r'[(\d|\s]'
+s="2 C-GCGGCATGGACGAGCTGTACAAGGTCGGTG----GG-"
+# Remove characters 's', 'a' and 'i' from a string
+mod_string = re.sub(r'[(\d|\s]', '', s)
+mod_string
+
+len(aligned_data['>579 CluSeq: 1.1998809718075966e-06'])
+#downstream an issue with visualising the seqs using mview is that all the seqs are not SAME length. thus, needs to fix this
+def align_and_save(filename, full_df):
     id_f=1
+    aligned_data=dict()
+    #align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then make them equal length ny adding Nx"-"
+    for seq_i in range(len(full_df.iloc[:,-1])):
+            header=">"+ str(id_f)+" CluSeq: " + str((full_df.iloc[seq_i,-1]))
+            seq_obj_1= align_local(full_df.iloc[seq_i,0], target_sequence)
+            seq_obj_1 = re.sub(r'[(\d|\s]', '', seq_obj_1) #remove digits from the string caused by the alignment and empty spaces from the start
+            aligned_data[header]=seq_obj_1
+            id_f+=1
+
+    #longest_seq=longest_align(aligned_data.values())
+    for id in aligned_data.keys():
+        if len(aligned_data[id])==len(target_sequence):
+            continue
+        else:
+            N_dashes=len(target_sequence)-len(aligned_data[id]) 
+            aligned_data[id]=aligned_data[id]+N_dashes*"-"
+
     with open(filename, "w") as handle:
-        seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description="mcherry_p3_seq_ref")
         header=">0"+" mcherry_p3_seq_ref"
         handle.write(header + "\n" + target_sequence + "\n")
+        for seq_i in aligned_data.keys():
+            handle.write(seq_i + "\n" + aligned_data[seq_i] + "\n")
 
-        for group in seq_and_perc.keys():
-            for seq_i in range(len(seq_and_perc[group])):
-                header=">"+ str(id_f)+" CluSeq_%: " + str(round((seq_and_perc[group].iloc[seq_i,1]*100),4))
-                seq_obj_1 = align_local3(seq_and_perc[group].iloc[seq_i,0], target_sequence)
-                handle.write(header + "\n" + seq_obj_1 + "\n")
-                id_f+=1
 def align_and_save2(filename, seq_and_perc):
     id_f=1
     with open(filename, "w") as handle:
@@ -498,7 +565,7 @@ def align_and_save2(filename, seq_and_perc):
 
         for group in seq_and_perc.keys():
             for seq_i in range(len(seq_and_perc[group])):
-                header=">"+ str(id_f)+" CluSeq_%: " + str(round((seq_and_perc[group].iloc[seq_i,1]*100),4))
+            header=">"+ str(id_f)+" CluSeq: " + str((full_df.iloc[seq_i,-1]))
                 seq_obj_1 = align_global(seq_and_perc[group].iloc[seq_i,0], target_sequence)
                 handle.write(header + "\n" + seq_obj_1 + "\n")
                 id_f+=1
@@ -506,17 +573,37 @@ def align_and_save2(filename, seq_and_perc):
 
     print("Saved into " + str(filename))
 
+
+DNA(target_sequence)
+target_sequence
+seq_obj_1= align_local2(full_df.iloc[1,0], target_sequence)
+alignment, score, start_end_positions = local_pairwise_align_ssw(target_sequence,full_df.iloc[1,0],gap_open_penalty = 3,gap_extend_penalty = 1)
+seq_obj_1
+full_df.iloc[1,0]
+
 align_pairwise_loc1="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_1.fasta"
-align_pairwise_loc2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_2sk.fasta"
+align_pairwise_loc2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_2sk_redo.fasta"
 align_pairwise_loc3="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_3.fasta"
 
 align_pairwise_glob1="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_glob.fasta"
 align_pairwise_glob2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_glob2.fasta"
 
+musc = "/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_muscle_redo.fasta"
+from Bio import SeqIO
 
-align_and_save(align_pairwise_loc3, seq_and_perc)
+for record in SeqIO.parse(musc, "fasta"):
+    print(record.id)
+    print(len(record.seq))
+    print("==================")
 
-align_and_save2(align_pairwise_glob2, seq_and_perc)
+#maybe add progress bars?
+align_and_save(align_pairwise_loc1, full_df_trim)
+align_and_save(align_pairwise_loc3, full_df_trim)
+
+align_and_save(align_pairwise_glob1, full_df_trim)
+align_and_save(align_pairwise_glob2, full_df_trim)
+
+align_and_save2(align_pairwise_glob1, full_df_trim)
 
 test
 #returns a dict with percentage value of the certain cluster seq and the aligned seq as the value
