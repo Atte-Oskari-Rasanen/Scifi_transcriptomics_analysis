@@ -430,6 +430,11 @@ aligned_seqs = []
 
 ###############
 #ALIGNMENTS
+from Bio.SubsMat import MatrixInfo as matlist
+Bio.Align.substitution_matrices
+
+
+
 def align_global(amplicon,target_sequence):
     alignments = pairwise2.align.globalms(target_sequence, amplicon,  2, -1, -.5, -.1)
     #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
@@ -519,6 +524,23 @@ test_a = pairwise2.align.globalms(target_sequence, aligned_data['>579 CluSeq: 1.
 alignment, score, start_end_positions = local_pairwise_align_ssw(DNA(target_sequence),DNA(aligned_data['>579 CluSeq: 1.1998809718075966e-06']),gap_open_penalty = 3,gap_extend_penalty = 1)
 out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
 
+from skbio.core.ssw import align_striped_smith_waterman
+
+from SW_script import *
+start, end = smith_waterman(target_sequence, aligned_data['>579 CluSeq: 1.1998809718075966e-06'])
+start
+end
+print(aligned_data['>579 CluSeq: 1.1998809718075966e-06'][start:end])
+
+query_sequence = 'ATGGAAGCTATAAGCGCGGGTGAG'
+target_sequence = 'AACTTATATAATAAAAATTATATATTCGTTGGGTTCTTTTGATATAAATC'
+query = StripedSmithWaterman(query_sequence)
+align1 = query(target_sequence)
+align2 = local_pairwise_align_ssw(DNA(query_sequence),
+                                    DNA(target_sequence))
+
+alignment = align_striped_smith_waterman(target_sequence, aligned_data['>579 CluSeq: 1.1998809718075966e-06'])
+
 test_a
 
 import re
@@ -534,10 +556,10 @@ len(aligned_data['>579 CluSeq: 1.1998809718075966e-06'])
 def align_and_save(filename, full_df):
     id_f=1
     aligned_data=dict()
-    #align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then make them equal length ny adding Nx"-"
+    #align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then add padding!
     for seq_i in range(len(full_df.iloc[:,-1])):
             header=">"+ str(id_f)+" CluSeq: " + str((full_df.iloc[seq_i,-1]))
-            seq_obj_1= align_local(full_df.iloc[seq_i,0], target_sequence)
+            seq_obj_1= align_local2(full_df.iloc[seq_i,0], target_sequence)
             seq_obj_1 = re.sub(r'[(\d|\s]', '', seq_obj_1) #remove digits from the string caused by the alignment and empty spaces from the start
             aligned_data[header]=seq_obj_1
             id_f+=1
@@ -546,9 +568,14 @@ def align_and_save(filename, full_df):
     for id in aligned_data.keys():
         if len(aligned_data[id])==len(target_sequence):
             continue
+        if len(aligned_data[id])>len(target_sequence):
+            N_dashes=len(target_sequence)-len(aligned_data[id])
+            aligned_data[id]=aligned_data[id][:N_dashes]
+            print("Seq length larger than ref by " + str(N_dashes) + " ... \n After removal length: " + str(len(aligned_data[id][:N_dashes])))
         else:
-            N_dashes=len(target_sequence)-len(aligned_data[id]) 
-            aligned_data[id]=aligned_data[id]+N_dashes*"-"
+            N_dashes=len(target_sequence)-len(aligned_data[id])
+            aligned_data[id]=aligned_data[id]+ -N_dashes*"-"
+
 
     with open(filename, "w") as handle:
         header=">0"+" mcherry_p3_seq_ref"
@@ -565,21 +592,39 @@ def align_and_save2(filename, seq_and_perc):
 
         for group in seq_and_perc.keys():
             for seq_i in range(len(seq_and_perc[group])):
-            header=">"+ str(id_f)+" CluSeq: " + str((full_df.iloc[seq_i,-1]))
+                header=">"+ str(id_f)+" CluSeq: " + str((full_df.iloc[seq_i,-1]))
                 seq_obj_1 = align_global(seq_and_perc[group].iloc[seq_i,0], target_sequence)
                 handle.write(header + "\n" + seq_obj_1 + "\n")
                 id_f+=1
 
 
     print("Saved into " + str(filename))
-
-
+from skbio.alignment import local_pairwise_align_ssw
+from skbio import DNA
+def align_to_ref(query_sequence, target_sequence):
+    alignment, score, start_end_positions = local_pairwise_align_ssw(
+        DNA(target_sequence),
+        DNA(query_sequence),
+        gap_open_penalty = 3,
+        gap_extend_penalty = 1
+    )
+    out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
+    
+    return out_align
 DNA(target_sequence)
 target_sequence
 seq_obj_1= align_local2(full_df.iloc[1,0], target_sequence)
-alignment, score, start_end_positions = local_pairwise_align_ssw(target_sequence,full_df.iloc[1,0],gap_open_penalty = 3,gap_extend_penalty = 1)
 seq_obj_1
 full_df.iloc[1,0]
+import swalign
+match = 2
+mismatch = -1
+scoring = swalign.NucleotideScoringMatrix(match, mismatch)
+scoring
+sw = swalign.LocalAlignment(scoring)  # you can also choose gap penalties, etc...
+alignment = sw.align(full_df.iloc[1,0], target_sequence)
+alignment
+a = alignment.dump()
 
 align_pairwise_loc1="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_1.fasta"
 align_pairwise_loc2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_2sk_redo.fasta"
@@ -598,7 +643,7 @@ for record in SeqIO.parse(musc, "fasta"):
 
 #maybe add progress bars?
 align_and_save(align_pairwise_loc1, full_df_trim)
-align_and_save(align_pairwise_loc3, full_df_trim)
+align_and_save(align_pairwise_loc2, full_df_trim)
 
 align_and_save(align_pairwise_glob1, full_df_trim)
 align_and_save(align_pairwise_glob2, full_df_trim)
@@ -1003,137 +1048,5 @@ with open(result, "w") as handle:
         id_f+=1
 
 
-#are you sure we should use msa as with that we cant align strictly to the reference but it is aligned along with the others?
-#
-
-
-
-
-
-
-
-df.assign(Percentage = lambda x: float((all_nt_counts/len(target_sequence_trim), 2)))
-df
-#find its index. i.e. percentage value
-match_seq_perc=keys_list[ind]
-
-
-ind = all_nt_counts.index(highest)
-ind
-keys_list=list(align_and_perc.keys())
-len(keys_list)
-match_seq_perc=keys_list[ind]
-
-best_match = align_and_perc[match_seq_perc]  #a perfect match found, a full length seq... should not be possible????
-highest
-
-
-len(best_match)
-len(target_sequence)
-#once we have all the aligned seqs, then we go over each seq and count the one with the highest % match based on the one which has fewest "-". Then we define this seq's len as 
-#the cut off for the rest and thus we cut off the extra from the others as well.
-
-#If more than one seq with high number of matches, then 
-
-
-        #this part done later
-        #need to transform into seqrecord for downstream visualisation
-        seq_align = SeqRecord(Seq(alignm.split("\n")[2]), id=str(a), description="mcherry_p3_alignment")
-        seq_record_list.append(seq_align)
-result="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_aligned_log.fasta"
-
-with open(result, "w") as handle:
-    #place the template seq on top
-    count = SeqIO.write(template_seq, handle, "fasta")
-
-    for seq in seq_record_list:
-        count = SeqIO.write(seq, handle, "fasta")
-
-#def 
-alignments = pairwise2.align.globalms(target_sequence, complete_df.iloc[3,0],  2, -1, -.5, -.1) #localxx earlier
-alignments[1]  #each index gives alignment but varying start positions but the score is the same
-ss = SeqRecord(Seq((format_alignment(*alignments[0]).split(",")[2])), id=str(1), description="mcherry_p3_alignment")
-seq_record_list=[]
-for i in range(len(complete_df.index)):
-    alignments = pairwise2.align.localxx(target_sequence, complete_df.iloc[i,0], one_alignment_only=True) #generates a signle alignment!!
-    for a in range(len(alignments)):  #why iterate over each letter of the single alignment? we get the length of it but it should be 1
-        alignm=format_alignment(*alignments[a])
-        seq_align = SeqRecord(Seq(alignm.split("\n")[2]), id=str(a), description="mcherry_p3_alignment")
-        seq_record_list.append(seq_align)
-    result="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_aligned_log.fasta"
-
-    with open(result, "w") as handle:
-        #place the template seq on top
-        count = SeqIO.write(template_seq, handle, "fasta")
-
-        for seq in seq_record_list:
-            count = SeqIO.write(seq, handle, "fasta")
-
-str(alignments)
-#iterate over each seq_record_list sequence, transform into dic[id]=str(seq), count number of "-" and the one that has the least
-#save its id for the future just in case?
-c = str(seq_record_list[4].seq)
-c
-seq_align
-
-
-
-############################
-
-from Bio import Align
-aligner = Align.PairwiseAligner()
-
-seq1 = SeqRecord(
-    Seq(target_sequence),
-    id="1",
-    name="mcherry_p3_template",
-)
-seq2 = SeqRecord(
-    Seq(complete_df.iloc[1,0]),
-    id="2",
-    name="mcherry_p3_template",
-)
-####################
-alignment, score, start_end_positions = local_pairwise_align_ssw(
-    DNA(target_sequence),
-    DNA(complete_df.iloc[1,0]),
-    gap_open_penalty = 3,
-    gap_extend_penalty = 1
-)
-all = local_pairwise_align_ssw(
-    DNA(target_sequence),
-    DNA(complete_df.iloc[1,0]),
-    gap_open_penalty = 3,
-    gap_extend_penalty = 1
-)
-out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
-out_align #gives the seq areas that did align between the seqs when they have been positioned respective to the ref template?
-###########
-
-seq1.id
-seq1.name
-#alignments[0]
-#alignments = aligner.align(target_sequence, complete_df.iloc[1,0])
-SeqRecord(Seq(alignments[0]), id="1", name="a")
-alignments[9]
-#SeqRecord(Seq(alignments[0]), id=seq1[0].id, name=seq1[0].name)
-
-
-a = format_alignment(*alignments[0])
-type(a)
-type(alignments[0])
-alignments[0].aligned
-print(str(alignments[0]))
-record = SeqRecord(
-    Seq(a),
-    id="1",
-    name="mcherry_p3",
-)
-record
-
-for alignment in alignments: 
-    print(format_alignment(*alignment)) 
-print(format_alignment(*alignments[0]))
-alignments_f = format_alignment(*alignments[0])
 
 
