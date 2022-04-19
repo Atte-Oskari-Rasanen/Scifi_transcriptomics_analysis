@@ -125,12 +125,13 @@ from functools import reduce
 
 #you could trim and starcode all individual lane files of certain animal first. after this you sum these based on matches
 
+#Takes in all the reads based on lane, trims them, combines the lanes, sums the seq counts, calculates the percentage of 
+#reads being the certain sequence (starcode cluster) out of all the reads
 def trimRead_hiti(data_dict, transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd):
     complete_df = pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
     complete_df
     for animal in data_dict.keys():
         animal_group_name=animal.split("_")[0] + "_" + animal.split("_")[2]
-
         dfs_lane=[]
         for search_path in data_dict[animal]:
             animal_p5_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
@@ -279,31 +280,22 @@ full_df = trimRead_hiti(data_dict,transgene,assay_end,filterlitteral,lliteral,rl
 a = [f for f in full_df.columns if "h_percent" in f]
 a
 #animal group contains all lanes of the certain data
-#sum the percentages of each seq cluster (animals 7-12)      --------------- I did not use this downstream. Percent sum the numbers and thus use these instead of animal spec ones
 full_df = full_df.fillna(value=0)
 perc_cols = [col for col in full_df.columns if 'percent' in col]
 perc_cols
-full_df['percent_sum'] = full_df[perc_cols].sum(axis=1)
+#sum the percentages of each seq cluster of each animal together to see how much the certain seq is found 
+full_df['percent_sum'] = full_df[perc_cols].sum(axis=1)  
 full_df.sort_values(by=['percent_sum'], ascending=False, inplace=True)
 full_df.head()
-
-full_df.index[0]
-full_df.head()
-#trim seqs that contribute less than 0.01% percentage
+full_df.columns
+#discard seqs that contribute less than 0.0001% percentage
 rows_drop=[]
+
+#you could have done this when you got raw counts for seq clusters (remove low ones )
 for i, perc in enumerate(full_df.iloc[:,-1]):
-    if perc<0.001:
+    if perc<0.00001:
         rows_drop.append(i)
 full_df_trim=full_df.drop(rows_drop, axis=0, inplace=False)
-
-full_df
-rows_drop
-#generate a column with seq alignment where you take the seq cluster from sequence column and map it to the target --- part of Thomas' script
-complete_df.loc[:,'sequence_align'] = complete_df.loc[:,'sequence'].apply(lambda x: align_to_ref(x, target_sequence))
-export_csv = export_path+transgene+'_'+assay_end+'.csv'
-complete_df.to_csv(export_csv, index=False)
-
-complete_df.loc[:,'sequence_align']
 
 from Bio.Seq import Seq 
 
@@ -335,56 +327,13 @@ full_df.iloc[:, [0,-1]]
 
 #We take the seq and percent sum for each column and then align. the full_df contains ALL the clustered seqs from all the animals. we have taken the percentage amount of raw counts
 #for each animal and then we have summed them together, giving as a unit providing information how much of the certain seq cluster is when summed over all the animals.
-#why is this done? after we map the sequences to the reference and find the alignments, we can use this as information regarding how many of the amplicons were of certain kind and
+#After we map the sequences to the reference and find the alignments, we can use this as information regarding how many of the amplicons were of certain kind and
 #how well it maps to the ref. 
 
-#take the percentage group (8_percent etc) as the key and sequence as value
-for cols in full_df.columns:
-    #print(cols)
-    if "percent" in cols and not "sum" in cols:
-        print(cols)
-        seq_and_perc[cols]=complete_df.loc[:,["sequence", cols]]
-seq_and_perc["8_percent"].iloc[:,0]
-############################
-############################
-seq_and_perc
-#if we align using muscle we will need to convert our seq files into fasta first
-from Bio.Align.Applications import MuscleCommandline
 
 result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster.fasta"
-id_f = 1
-with open(result, "w") as handle:
-#write ref template to the top of the file
-    seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description="mcherry_p3_seq_clusters")
-    count = SeqIO.write(seq_obj, handle, "fasta")
-    for seq in complete_df.iloc[:,0]:
-        seq_obj = SeqRecord(Seq(seq), id=str(id_f), description="mcherry_p3_seq_clusters")
-        count = SeqIO.write(seq_obj, handle, "fasta")
-        id_f+=1
-############################
-############################
 
-complete_df
-#make a file for especially muscle alignment which you can then visualise. This file contains the 
-#percentages of seq clusters
-
-#save seq dict as a fasta file
-
-'''
-Hi Tomas I have gone over the data and reprocessed it. a thing that i noticed was that each animal 
-actually only contained data from hippocampus or striatum, not both (given that I have read it right).
-You sure you hadnt already had excluded the brain area that had poor number of reads in the past?
-For example animal 8:
-8_mCherry_4h_3p_L001-ds.23808003b8304ec79a33a3d33e2afa46:
-8_mCherry_4h_3p_L002-ds.9ab8f311ca9044bdb4ba14a98707ceff:
-8_mCherry_4h_3p_L003-ds.f49838d03d6445429f6d7ef3f2b99167:
-8_mCherry_4h_3p_L004-ds.1f5f77a9c4b0416b837d6256cf022335:
-
-Anyways, I rewrote the function and reprocessed the data, summed the lanes of each animal into one df and in the end merged all the animals as one big df. summed percentages across animals for a given sequence cluster.
-I wrote these sequences into fasta files, giving as IDs the summed percentage values and the line numbers. I am running the mapping using different algorithms for pairwise and MS. its taking a while though.
-
-Also, the data contained animals from 1-12 but your script had only taken the ones from 8-12 before. I was wondering what the reasoning behind this was? were the others poor quality?
-'''
+#add proper delimiters 
 
 full_df.iloc[0,-1]
 def save_fasta(filename, full_df):
@@ -395,11 +344,10 @@ def save_fasta(filename, full_df):
         for seq_i in range(len(full_df.iloc[:,-1])):
             descr="CluSeq_%: " + str((full_df.iloc[seq_i,-1]))
             print(descr)
-            seq_obj = SeqRecord(Seq(full_df.iloc[seq_i,0]), id=str(id_f), description=descr)
+            seq_obj = SeqRecord(Seq(full_df.iloc[seq_i,0]), id=str(id_f), description="CluSeq_%: " + str((full_df.iloc[seq_i,-1])))
             count = SeqIO.write(seq_obj, handle, "fasta")
             id_f+=1
     print("Saved!")
-
 
 for seq in range(len(full_df.iloc[:,-1])):
     print(seq)
@@ -434,132 +382,67 @@ from Bio.SubsMat import MatrixInfo as matlist
 Bio.Align.substitution_matrices
 
 
+class align:
+    def __init__(self, amplicon, target_sequence):
+        self.amplicon=amplicon
+        self.target_sequence=target_sequence
+        
+        pass
+    def align_local(self):
+        alignments = pairwise2.align.localxx(self.target_sequence, self.amplicon)
+        #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
 
-def align_global(amplicon,target_sequence):
-    alignments = pairwise2.align.globalms(target_sequence, amplicon,  2, -1, -.5, -.1)
-    #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
+        alignm=format_alignment(*alignments[0])
+        #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
+        seq_align = alignm.split("\n")[2]
+        #nt_count=count_nts(seq_align)
+        #seq_and_perc[group]["match"]
+        return(seq_align)
 
-    alignm=format_alignment(*alignments[0])
-    #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
-    seq_align = alignm.split("\n")[2]
-    #nt_count=count_nts(seq_align)
-    #seq_and_perc[group]["match"]
-    return(seq_align)
-def align_global2(amplicon,target_sequence):
-    alignments = pairwise2.align.globalxx(target_sequence, amplicon)
+    def align_local2(self):
+        alignment, score, start_end_positions = local_pairwise_align_ssw(DNA(self.target_sequence),DNA(self.amplicon),gap_open_penalty = 3,gap_extend_penalty = 1)
+        out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
+        return out_align
 
-    alignm=format_alignment(*alignments[0])
-    #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
-    seq_align = alignm.split("\n")[2]
-    #nt_count=count_nts(seq_align)
-    #seq_and_perc[group]["match"]
-    return(seq_align)
-def align_local(amplicon,target_sequence):
-    alignments = pairwise2.align.localxx(target_sequence, amplicon)
-    #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
+    def align_local3(self):
+        alignments = pairwise2.align.localms(self.target_sequence, self.amplicon, 2, -1, -5, -1)
+        #alignments = pairwise2.align.localms(self.target_sequence, self.amplicon, 2, -1, -.5, -.1)
+        #alignments= pairwise2.align.localds(self.target_sequence, self.amplicon, 2, -1, -.5, -.1)
+        alignm=format_alignment(*alignments[0])
+        seq_align = alignm.split("\n")[2]
+        #nt_count=count_nts(seq_align)
+        #seq_and_perc[group]["match"]
+        return(seq_align)
+    def align_global(self):
+        alignments = pairwise2.align.globalms(self.target_sequence, self.amplicon,  2, -1, -.5, -.1)
+        alignm=format_alignment(*alignments[0])
+        seq_align = alignm.split("\n")[2]
+        #nt_count=count_nts(seq_align)
+        #seq_and_perc[group]["match"]
+        return(seq_align)
+    def align_global2(self):
+        alignments = pairwise2.align.globalxx(self.target_sequence, self.amplicon)
 
-    alignm=format_alignment(*alignments[0])
-    #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
-    seq_align = alignm.split("\n")[2]
-    #nt_count=count_nts(seq_align)
-    #seq_and_perc[group]["match"]
-    return(seq_align)
+        alignm=format_alignment(*alignments[0])
+        #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
+        seq_align = alignm.split("\n")[2]
+        #nt_count=count_nts(seq_align)
+        #seq_and_perc[group]["match"]
+        return(seq_align)
 
-
-def align_local2(query_sequence, target_sequence):
-    alignment, score, start_end_positions = local_pairwise_align_ssw(DNA(target_sequence),DNA(query_sequence),gap_open_penalty = 3,gap_extend_penalty = 1)
-    out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
-    return out_align
-
-def align_local3(amplicon,target_sequence):
-    alignments = pairwise2.align.localms(target_sequence, amplicon, 2, -1, -.5, -.1)
-    #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
-    alignm=format_alignment(*alignments[0])
-    #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
-    seq_align = alignm.split("\n")[2]
-    #nt_count=count_nts(seq_align)
-    #seq_and_perc[group]["match"]
-    return(seq_align)
-
-
-test = align_local2(seq_and_perc["8_percent"].iloc[1,0], target_sequence)
-tests = pairwise2.align.globalmx(seq_and_perc["8_percent"].iloc[1,0], target_sequence,  2, -1, -.5, -.1)
-tests
-test_a = format_alignment(*tests[0])
-test_a = pairwise2.align.globalms(target_sequence, seq_and_perc["8_percent"].iloc[1,0],  2, -1, -.5, -.1)
-test_a[0]
-
-
-seq_align = test_a.split("\n")[2]
-seq_align
 def longest_align(seqs):
     return max(seqs, key=len)
-
-
-id_f=1
-aligned_data=dict()
-#align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then make them equal length ny adding Nx"-"
-for seq_i in range(len(full_df_trim.iloc[:,-1])):
-        header=">"+ str(id_f)+" CluSeq: " + str((full_df_trim.iloc[seq_i,-1]))
-        seq_obj_1= align_local3(full_df_trim.iloc[seq_i,0], target_sequence)
-        aligned_data[header]=seq_obj_1
-        id_f+=1
-
-longest_seq=longest_align(aligned_data.values())
-aligned_data
-longest_seq
-len(longest_align(aligned_data.values()))
-aligned_data['>582 CluSeq: 0.0']
-N_dashes=len(longest_align(aligned_data.values()))-len(aligned_data['>582 CluSeq: 0.0'])
-N_dashes
-aligned_data['>582 CluSeq: 0.0']=aligned_data['>582 CluSeq: 0.0']+N_dashes*"-"
-for id in aligned_data.keys():
-    if len(aligned_data[id])==len(longest_align(aligned_data.values())):
-        continue
-    else:
-        N_dashes=len(longest_align(aligned_data.values()))-len(aligned_data[id])
-        aligned_data[id]=aligned_data[id]+N_dashes*"-"
-aligned_data['>579 CluSeq: 1.1998809718075966e-06']
-test_a = pairwise2.align.globalms(target_sequence, aligned_data['>579 CluSeq: 1.1998809718075966e-06'],  2, -1, -.5, -.1)
-alignment, score, start_end_positions = local_pairwise_align_ssw(DNA(target_sequence),DNA(aligned_data['>579 CluSeq: 1.1998809718075966e-06']),gap_open_penalty = 3,gap_extend_penalty = 1)
-out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
-
-from skbio.core.ssw import align_striped_smith_waterman
-
-from SW_script import *
-start, end = smith_waterman(target_sequence, aligned_data['>579 CluSeq: 1.1998809718075966e-06'])
-start
-end
-print(aligned_data['>579 CluSeq: 1.1998809718075966e-06'][start:end])
-
-query_sequence = 'ATGGAAGCTATAAGCGCGGGTGAG'
-target_sequence = 'AACTTATATAATAAAAATTATATATTCGTTGGGTTCTTTTGATATAAATC'
-query = StripedSmithWaterman(query_sequence)
-align1 = query(target_sequence)
-align2 = local_pairwise_align_ssw(DNA(query_sequence),
-                                    DNA(target_sequence))
-
-alignment = align_striped_smith_waterman(target_sequence, aligned_data['>579 CluSeq: 1.1998809718075966e-06'])
-
-test_a
-
 import re
-
-pattern = r'[(\d|\s]'
-s="2 C-GCGGCATGGACGAGCTGTACAAGGTCGGTG----GG-"
-# Remove characters 's', 'a' and 'i' from a string
-mod_string = re.sub(r'[(\d|\s]', '', s)
-mod_string
-
-len(aligned_data['>579 CluSeq: 1.1998809718075966e-06'])
 #downstream an issue with visualising the seqs using mview is that all the seqs are not SAME length. thus, needs to fix this
-def align_and_save(filename, full_df):
+def align_and_save(filename, full_df,target_sequence):
     id_f=1
     aligned_data=dict()
     #align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then add padding!
     for seq_i in range(len(full_df.iloc[:,-1])):
             header=">"+ str(id_f)+" CluSeq: " + str((full_df.iloc[seq_i,-1]))
-            seq_obj_1= align_local2(full_df.iloc[seq_i,0], target_sequence)
+            align_inst=align(full_df.iloc[seq_i,0], target_sequence)
+            seq_obj_1=align_inst.align_local3()
+            #seq_obj_1= align_local(full_df.iloc[seq_i,0], target_sequence)
             seq_obj_1 = re.sub(r'[(\d|\s]', '', seq_obj_1) #remove digits from the string caused by the alignment and empty spaces from the start
             aligned_data[header]=seq_obj_1
             id_f+=1
@@ -574,7 +457,8 @@ def align_and_save(filename, full_df):
             print("Seq length larger than ref by " + str(N_dashes) + " ... \n After removal length: " + str(len(aligned_data[id][:N_dashes])))
         else:
             N_dashes=len(target_sequence)-len(aligned_data[id])
-            aligned_data[id]=aligned_data[id]+ -N_dashes*"-"
+            aligned_data[id]=aligned_data[id]+ N_dashes*"-"
+            print("Seq length smaller than ref by " + str(N_dashes) + " ... \n After addition length: " + str(len(aligned_data[id])))
 
 
     with open(filename, "w") as handle:
@@ -582,53 +466,20 @@ def align_and_save(filename, full_df):
         handle.write(header + "\n" + target_sequence + "\n")
         for seq_i in aligned_data.keys():
             handle.write(seq_i + "\n" + aligned_data[seq_i] + "\n")
+#we want to show if these are alignments that can happen via framshift but still be in frame
 
-def align_and_save2(filename, seq_and_perc):
-    id_f=1
-    with open(filename, "w") as handle:
-        seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description="mcherry_p3_seq_ref")
-        header=">0"+" mcherry_p3_seq_ref"
-        handle.write(header + "\n" + target_sequence + "\n")
+#we have deletions for sure, not sure about insertions
 
-        for group in seq_and_perc.keys():
-            for seq_i in range(len(seq_and_perc[group])):
-                header=">"+ str(id_f)+" CluSeq: " + str((full_df.iloc[seq_i,-1]))
-                seq_obj_1 = align_global(seq_and_perc[group].iloc[seq_i,0], target_sequence)
-                handle.write(header + "\n" + seq_obj_1 + "\n")
-                id_f+=1
+'''
+RRHGRAVQGRCCGSAEPQHRRPDGAGPYDHRRPPRLPCPAGWAGRQTQCDPADW*VPS*DAGTRTEDPPASVDRSVQAGGARAERVAQVGGQAGEQLGRLRAHRRLTALEEVHQGLSLPLPGDHRQPGALGQA*DARVEGGLLPSGE
 
 
-    print("Saved into " + str(filename))
-from skbio.alignment import local_pairwise_align_ssw
-from skbio import DNA
-def align_to_ref(query_sequence, target_sequence):
-    alignment, score, start_end_positions = local_pairwise_align_ssw(
-        DNA(target_sequence),
-        DNA(query_sequence),
-        gap_open_penalty = 3,
-        gap_extend_penalty = 1
-    )
-    out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
-    
-    return out_align
-DNA(target_sequence)
-target_sequence
-seq_obj_1= align_local2(full_df.iloc[1,0], target_sequence)
-seq_obj_1
-full_df.iloc[1,0]
-import swalign
-match = 2
-mismatch = -1
-scoring = swalign.NucleotideScoringMatrix(match, mismatch)
-scoring
-sw = swalign.LocalAlignment(scoring)  # you can also choose gap penalties, etc...
-alignment = sw.align(full_df.iloc[1,0], target_sequence)
-alignment
-a = alignment.dump()
+'''
+#feed in the predefined aligment file 
 
 align_pairwise_loc1="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_1.fasta"
-align_pairwise_loc2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_2sk_redo.fasta"
-align_pairwise_loc3="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_3.fasta"
+align_pairwise_loc2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_2sk_redo_go5_ge3.fasta"
+align_pairwise_loc3="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_3_go3_ge1.fasta"
 
 align_pairwise_glob1="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_glob.fasta"
 align_pairwise_glob2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_glob2.fasta"
@@ -638,23 +489,21 @@ from Bio import SeqIO
 
 for record in SeqIO.parse(musc, "fasta"):
     print(record.id)
-    print(len(record.seq))
+    print(record.seq)
     print("==================")
 
 #maybe add progress bars?
-align_and_save(align_pairwise_loc1, full_df_trim)
+align_and_save(align_pairwise_loc3, full_df_trim, target_sequence)
 align_and_save(align_pairwise_loc2, full_df_trim)
 
 align_and_save(align_pairwise_glob1, full_df_trim)
 align_and_save(align_pairwise_glob2, full_df_trim)
 
-align_and_save2(align_pairwise_glob1, full_df_trim)
-
-test
 #returns a dict with percentage value of the certain cluster seq and the aligned seq as the value
 
 outp="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all2.fasta"
 
+#no spaces at all, just align and see if colour coded. 
 id_f=1
 with open(outp, "w") as handle:
     seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description="mcherry_p3_seq_ref")
@@ -691,9 +540,77 @@ standard_table = CodonTable.unambiguous_dna_by_name["Standard"]
 standard_table.start_codons
 nt_seq=SeqIO.parse(result, "fasta")
 
-s="CGGCGGCATGGACGAGCTGTACAAGGTCGGTGCTGCGGCTCCGAGATGGAGCTGGTCGAGATGAGCACCGCCGG"
-ac=str(Seq(s).translate())
-ac
+
+#no intersection found for most of the sequences....how to deal with these cases? this would imply that the cluster seq
+#exists but downstream
+#issues with aligning with muscle downstream
+
+result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all.fasta"
+result='/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all_redo.fasta'
+#translate NT sequences to the AAs based on the right codon order. Thus, we need the full mcherry sequence from which we find the overlap between the amplicon and mcherry.
+#from this, we calculate the position from full mcherry's start codon till the start of the amplicon where the overlap has occured. If this is divisible by 3, the read is 
+#in frame. If not, then start counting from the index where it is. Then ,translate the amplicon seq into AAs  
+
+'''
+GGMDELYKVGAAAPRSRSTDDQMELDHMTTGGLHAYPAPRGGPAAKPNVILQIGKCRAEMLEHVRRTHRHLLTEVSKQVERELKGLHRSVGKLENNLDGYVPTGDSQRWKKSIKACLCRCQETIANLERWVKREMHVWREVFYRLER
+GGMDELYKVGAAAPTRWSWTI*PP
+-this one encodes just mcherry
+---translate the seqs in diff frames, align to the ref, visualise (0,2). 
+-the out of frame ones will have several stop codons but we should be able to see Arc when we try
+different frames.(which reading frame is the arc read in!)
+-the frame change only applied to the ref, then align
+
+sds, delimiters, so that its easier to extract the percentages and delimiters
+
+-diff reading frame 
+'''
+
+def translate_nt_aa(input, output_aa, frame):
+    aa_and_perc={}
+    for record in SeqIO.parse(input, "fasta"):
+        aa_and_perc[">"+str(record.description)]=Seq(record.seq[frame:]).translate()
+    with open(output_aa, "w") as aa_fasta:
+        for id in aa_and_perc.keys():
+            aa_fasta.write(id + "\n" + str(aa_and_perc[id]) + "\n")
+
+    return(aa_and_perc)  #save as fasta which you will then align with muscle
+
+    print("done")
+output_aa="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_inframe_redo.fasta"
+#output_aa="/media/data/AtteR/projects/hiti/translated/mcherry_p3_seq_clusters_all_AA_inframe_aligned_pw_loc2_go5_ge3.fasta"
+result
+#str(aa_and_perc[">348 CluSeq_%: 0.0135"])
+aa_dict=translate_nt_aa(result,output_aa, 1)
+aa_dict
+
+####################
+#import the translated AA version (function found lower down the code)
+aa_seq = "/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_inframe_redo.fasta"
+seq_clusters=[]
+percs=[]
+aa_df=dict()
+for record in SeqIO.parse(aa_seq, "fasta"):
+    print(record.seq)
+    print(record.id)
+    print("========")
+    #perc = str(record.description).split(" ")[-1]
+    seq_clusters.append(str(record.seq))
+    percs.append(str(record.description).split(" ")[-1])
+    #aa_df[perc]=str(record.seq)
+tuples_aa_data=list(zip(seq_clusters,percs))
+#tuples_aa_data=list(zip(aa_df.values(),aa_df.keys()))
+full_df_aa=pd.DataFrame(tuples_aa_data, columns=["AA_seq", "Percentage_sum"])
+full_df_aa
+align_pairwise_loc2_aa="/media/data/AtteR/projects/hiti/translated/AA_mcherry_p3_seq_aligned_pairwise_local3_3_1.fasta"
+#align_pairwise_loc2_aa="/media/data/AtteR/projects/hiti/translated/AA_mcherry_p3_seq_aligned_pairwise_global_05_1.fasta"
+align_pairwise_loc2_aa="/media/data/AtteR/projects/hiti/translated/AA_mcherry_p3_seq_aligned_pairwise_local3_5_1.fasta"
+
+align_and_save(align_pairwise_loc2_aa, full_df_aa.iloc[1:,], full_df_aa.iloc[0,0])
+
+####################
+
+
+
 def find_overlap(amplicon, mcherry_full):
     longest_seq = None
     n=0
@@ -833,52 +750,8 @@ def find_frame(overlap_bases): #rewrite this based on taking the aligned sequenc
             frame_N=len(seq)%3
             return frame_N
 
-aa_and_perc={}
-
-#no intersection found for most of the sequences....how to deal with these cases? this would imply that the cluster seq
-#exists but downstream
-#issues with aligning with muscle downstream
-
-result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all.fasta"
-
-#translate NT sequences to the AAs based on the right codon order. Thus, we need the full mcherry sequence from which we find the overlap between the amplicon and mcherry.
-#from this, we calculate the position from full mcherry's start codon till the start of the amplicon where the overlap has occured. If this is divisible by 3, the read is 
-#in frame. If not, then start counting from the index where it is. Then ,translate the amplicon seq into AAs  
 
 
-def translate_nt_aa(input, output_aa, frame):
-    with open(input) as nt_seq:
-        header=[]
-        for i, line in enumerate(nt_seq):
-            if line.startswith(">"):
-                header.append(line.strip())
-            else:
-                amplicon=line.strip()
-                aa_and_perc[header[0]]=seq=Seq(amplicon[frame:]).translate()
-                # overlap=find_overlap(line, mcherry_full)
-                # print(overlap)
-                # frameN=find_frame(overlap)
-                # aa_and_perc[header[0]]=str(Seq(amplicon[frameN:]).translate())
-                header=[]
-                #print(str(Seq(next(nt_seq)).translate()))
-    with open(output_aa, "w") as aa_fasta:
-        for id in aa_and_perc.keys():
-            aa_fasta.write(id + "\n" + str(aa_and_perc[id]) + "\n")
-
-    return(aa_and_perc)  #save as fasta which you will then align with muscle
-
-    print("done")
-output_aa="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_inframe.fasta"
-
-str(aa_and_perc[">348 CluSeq_%: 0.0135"])
-aa_dict=translate_nt_aa(result,output_aa, 0)
-aa_dict
-
-
-outp="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA.fasta"
-with open(outp, "w") as handle:
-    for id in aa_and_perc.keys():
-        handle.write(id + "\n" + aa_and_perc[id] + "\n")
 
 
 #RRHGRAVQGRCCGSAEP--QHRRPDGAGPYDHRRPPRLPCPAGWAGRQTQCDPADW*VPS*DAGTRTEDPPASVDRSVQAGGARAERVAQVGGQAGEQLGRLRAHRRLTALEEVHQGLSLPLPGDHRQPGALGQA*DARVEGGLLPSGE
@@ -977,50 +850,6 @@ def count_nts(seq):
 
 #if several nts with equally good match, get the one which extends longest and trim seqs based on this one
  
-all_nt_counts=[]
-for p in align_and_perc.keys():
-    N_nts = count_nts(align_and_perc[p])
-    all_nt_counts.append(N_nts)
-all_nt_counts
-highest = max(all_nt_counts)
-highest
-
-indices = []
-i=0
-for n in all_nt_counts:
-    if n==highest:
-        indices.append(i)
-    i+=1
-indices  #report this number as it tells how many seqs had this highest match number
-keys_list=list(align_and_perc.keys())
-
-#need to retain the index info so that we can get back to the original dict with the percentages and the seq clusters. 
-#out of the best mathcing seqs, we take the one that goes the farthest and trim all the seqs based on this one's length
-index_best = {}
-
-for seq_i in indices:
-    match_seq_perc=keys_list[seq_i] #get the key value based on the index (we retrieve the key for the value that was one of the many longest ones, e.g. when many seqs of length 75 were found)
-    best_match = align_and_perc[match_seq_perc]
-    index_best[match_seq_perc]=best_match
-best_match
-#get the longest seq
-longest=max(list(index_best.values()), key = len)
-longest_seq_key=list(align_and_perc.keys())[list(align_and_perc.values()).index(longest)]
-
-#trim the seqs
-align_and_perc_trim = {}
-for keys, values in align_and_perc.items():
-    align_and_perc_trim[keys]=values[:len(longest)]
-
-target_sequence_trim=target_sequence[:len(longest)]
-
-len(align_and_perc_trim.keys())
-len(align_and_perc_trim.values())
-df = pd.DataFrame(list(zip(align_and_perc_trim.keys(), align_and_perc_trim.values(), all_nt_counts)), columns =['Percentage_seqs', 'Aligned_seq', 'N(bases)'])
-
-df2 = df.assign(Percent_match = lambda x: x['N(bases)']/len(target_sequence_trim))
-del df2["N(bases)"]
-
 
 #5'-3'
 #bottom strand
@@ -1035,18 +864,3 @@ mcherry_full="TACCACTCGTTCCCGCTCCTCCTATTGTACCGGTAGTAGTTCCTCAAGTACGCGAAGTTCCACGTG
 mcherry_full="ATGGTGAGCAAGGGCGAGGAGGATAACATGGCCATCATCAAGGAGTTCATGCGCTTCAAGGTGCACATGGAGGGCTCCGTGAACGGCCACGAGTTCGAGATCGAGGGCGAGGGCGAGGGCCGCCCCTACGAGGGCACCCAGACCGCCAAGCTGAAGGTGACCAAGGGTGGCCCCCTGCCCTTCGCCTGGGACATCCTGTCCCCTCAGTTCATGTACGGCTCCAAGGCCTACGTGAAGCACCCCGCCGACATCCCCGACTACTTGAAGCTGTCCTTCCCCGAGGGCTTCAAGTGGGAGCGCGTGATGAACTTCGAGGACGGCGGCGTGGTGACCGTGACCCAGGACTCCTCCCTGCAGGACGGCGAGTTCATCTACAAGGTGAAGCTGCGCGGCACCAACTTCCCCTCCGACGGCCCCGTAATGCAGAAGAAGACCATGGGCTGGGAGGCCTCCTCCGAGCGGATGTACCCCGAGGACGGCGCCCTGAAGGGCGAGATCAAGCAGAGGCTGAAGCTGAAGGACGGCGGCCACTACGACGCTGAGGTCAAGACCACCTACAAGGCCAAGAAGCCCGTGCAGCTGCCCGGCGCCTACAACGTCAACATCAAGTTGGACATCACCTCCCACAACGAGGACTACACCATCGTGGAACAGTACGAACGCGCCGAGGGCCGCCACTCCACCGGCGGCATGGACGAGCTGTACAAG"
 
 #top
-
-result="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_clusters_pairwise.fasta"
-with open(result, "w") as handle:
-#write ref template to the top of the file
-    seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description="mcherry_p3_seq_ref")
-    count = SeqIO.write(seq_obj, handle, "fasta")
-    for i, seq in enumerate(df2.iloc[:,1]):
-        descr="ClusterSeq%: " + str(round((df2.iloc[i,0]*100),2)) + "% --- Match: " + str(round((df2.iloc[i,2]*100),2)) + "%"
-        seq_obj = SeqRecord(Seq(seq), id=str(id_f), description=descr)
-        count = SeqIO.write(seq_obj, handle, "fasta")
-        id_f+=1
-
-
-
-
