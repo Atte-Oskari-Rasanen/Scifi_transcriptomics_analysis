@@ -1,4 +1,5 @@
 from curses import window
+from email.mime import base
 from fnmatch import translate
 import ntpath
 from re import L
@@ -20,13 +21,14 @@ os.getcwd()
 os.chdir("/media/data/AtteR/projects/hiti")
 from alignment_scripts import *
 import Bio.Align.Applications; dir(Bio.Align.Applications)
-from Bio import SeqIO
 from Bio.Align.Applications import MuscleCommandline#Read in unfiltered data
 from Bio import AlignIO
 from Bio import pairwise2
 from Bio import SeqIO
 from Bio.pairwise2 import *
 from alignment_scripts import *
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
 #into the id save the row number, perc.seqs and perc.match to the ref
 
@@ -199,134 +201,99 @@ def trimRead_hiti(data_dict, transgene,assay_end,filterlitteral,lliteral,rlitera
 #Pool the reads based on striatum and hippocampus but prior to pooling them, normalise against oneself as otherwise one will contribute 
 #more than the other. 
 
-#hip_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder and "h_" in folder or "s_" in folder]
-group_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder]
-#str_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder and "s_" in folder]
-group_folders
-search_paths_groups = []
-search_paths_s = []
+
+def create_datadict(base_path):
+
+    #hip_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder and "h_" in folder or "s_" in folder]
+    group_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder]
+    #str_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder and "s_" in folder]
+    group_folders
+    search_paths_groups = []
+    search_paths_s = []
 
 
-def animal_names(group_folders):
-    animals=[]
-    animal_list = [*range(13)]
+    def animal_names(group_folders):
+        animals=[]
+        animal_list = [*range(13)]
 
-    for s in group_folders:
-        animal_name="_".join(s.split("_")[:3])
-        if int(animal_name.split("_")[0]) in animal_list:
-            print(animal_name)
-            animals.append("_".join(s.split("_")[:3]))
-    #animals=list(set(animals))
-    return(sorted(list(((set(animals))))))
+        for s in group_folders:
+            animal_name="_".join(s.split("_")[:3])
+            if int(animal_name.split("_")[0]) in animal_list:
+                print(animal_name)
+                animals.append("_".join(s.split("_")[:3]))
+        #animals=list(set(animals))
+        return(sorted(list(((set(animals))))))
 
-animals = animal_names(group_folders)
-animals
+    animals = animal_names(group_folders)
+    animals
 
-#key: animal number and whether it comes from striatum or hippocampus, value: the paths to all lane subdirs
+    #key: animal number and whether it comes from striatum or hippocampus, value: the paths to all lane subdirs
 
-data_dict = dict()
-for animal_group in animals:
-    lanes=[]
-    for g_f in group_folders:
-        if animal_group in g_f:
-            g_p=base_path+g_f
-            lanes.append(g_p)
-            data_dict[animal_group]=lanes
+    data_dict = dict()
+    for animal_group in animals:
+        lanes=[]
+        for g_f in group_folders:
+            if animal_group in g_f:
+                g_p=base_path+g_f
+                lanes.append(g_p)
+                data_dict[animal_group]=lanes
 
-data_dict
+    return(data_dict)
 
-s="/media/data/AtteR/projects/hiti/FASTQ_Generation_2020-03-09_08_30_27Z-13364364/9_mCherry_5s_3p_L004-ds.43f02f596a2c4d30a4297e04a1cebaa2"
-a=s.split("/")[-1].split("_")[2]
-a
-for animal in data_dict.keys():
-    #print(animal)
-    for search_path in data_dict[animal]:
-        print(search_path)
+# after generation of the full df containing all animals, the following function calculates the stats (sd, mean,
+# perc. sum per seq cluster and raw counts sum per seq cluster)
+def postprocess_data(full_df):
+    import statistics as st
+    #animal group contains all lanes of the certain data
+    full_df = full_df.fillna(value=0)
+    perc_cols = [col for col in full_df.columns if 'percent' in col]
+    count_cols = [col for col in full_df.columns if 'count' in col]
 
-for animal in data_dict.keys():
-    print(animal)
-    animal_group_name=animal.split("_")[0] + "_" + animal.split("_")[2]
-    for search_path in data_dict[animal]:
-        print(search_path)
-        group=search_path.split("/")[-1].split("_")[2]
-        print(group)
+    perc_cols
+    #sum the percentages of each seq cluster of each animal together to see how much the certain seq is found 
+    full_df['percent_sum_unit'] = full_df[perc_cols].sum(axis=1)  
 
-#take subdirs as same group (dic key) if they come from the same animal and group but different lanes
-#2_mCherry_4h_5p_L
+    total_perc_unit=full_df.iloc[:,-1].sum()
+    full_df['percent_sum'] = (full_df['percent_sum_unit'] / total_perc_unit)
+    full_df.head()
+    count_cols
+    #full_df['sd']=full_df[count_cols].std()
+    full_df['total_reads_seq'] = full_df[count_cols].sum(axis=1)  
 
+    full_df['sd']=full_df[perc_cols].std(axis=1)
+    full_df['mean']=full_df[perc_cols].mean(axis=1)
 
-# for h_f in hip_folders:
-#     s_p=base_path+h_f
-#     search_paths_h.append(s_p)
+    #remove sequences that have 0-3 reads in total across groups
 
-# for s_f in str_folders:
-#     s_p=base_path+s_f
-#     search_paths_s.append(s_p)
-# search_paths_s
+    #get the total number of percentages from the percent_sum column and then divide all the perc units with this
+    #to get the percs
+    #calculate the SD for each seq
+    full_df.sort_values(by=['percent_sum_unit'], ascending=False, inplace=True)
+    full_df.head()
+    full_df.columns
+    #discard seqs that contribute less than 0.0001% percentage
+    rows_drop=[]
+    full_df[count_cols]
+    full_df_trim = full_df.drop(full_df[full_df["total_reads_seq"] <= 3].index)
+    return(full_df_trim)
 
-#this line caused the perfect match to occur since we had the target seq included!
-#complete_df = pd.DataFrame({'sequence': [target_sequence]})
-
-# go over each individual animal subfolder i.e. s and h, process them and generate a starcode file, then a df
-# so unlike with last function which gave individual df8, df9 etc., now we get df8s, df8h etc. where they have been normalised against the total number 
 
 #after which we merge the ones that have matching numbers
-complete_df = pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
-complete_df
+# complete_df = pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
+# complete_df
+data_dict=create_datadict(base_path)
 
-data_dict
 #you could trim and starcode all individual lane files of certain animal first. after this you sum these based on matches
 full_df = trimRead_hiti(data_dict,transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd)
 #the function returns you a complete dataframe containing animals_x_brain_area (h,s). since each animal_x_brain_area contains data from 4 different subdirs, these have been
 # summed into the same ones, i.e. column 12_6h contains the sequences from lanes 1-4 all summed up  
 #now take the percentage values of each animal (so brain area s and h), merge into same column so that the percentages will be a sum of the two.
-import statistics as st
+
+full_df_trim = postprocess_data(full_df)
 
 
-#animal group contains all lanes of the certain data
-full_df = full_df.fillna(value=0)
-
-
-perc_cols = [col for col in full_df.columns if 'percent' in col]
-count_cols = [col for col in full_df.columns if 'count' in col]
-
-perc_cols
-#sum the percentages of each seq cluster of each animal together to see how much the certain seq is found 
-full_df['percent_sum_unit'] = full_df[perc_cols].sum(axis=1)  
-
-total_perc_unit=full_df.iloc[:,-1].sum()
-full_df['percent_sum'] = (full_df['percent_sum_unit'] / total_perc_unit)
-full_df.head()
-count_cols
-#full_df['sd']=full_df[count_cols].std()
-full_df['total_reads_seq'] = full_df[count_cols].sum(axis=1)  
-
-full_df['sd']=full_df[perc_cols].std(axis=1)
-full_df['mean']=full_df[perc_cols].mean(axis=1)
-
-#remove sequences that have 0-3 reads in total across groups
-
-#get the total number of percentages from the percent_sum column and then divide all the perc units with this
-#to get the percs
-#calculate the SD for each seq
-full_df.sort_values(by=['percent_sum_unit'], ascending=False, inplace=True)
-full_df.head()
-full_df.columns
-#discard seqs that contribute less than 0.0001% percentage
-rows_drop=[]
-full_df[count_cols]
-full_df_trim = full_df.drop(full_df[full_df["total_reads_seq"] <= 3].index)
-full_df_trim
-
-from Bio.Seq import Seq 
-
-complete_df.iloc[:,0]
-s = Seq(complete_df.iloc[1,0])
-s
 
 #transforms the aligned seqs into seqrecord objects
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
 
 
 #extract the aligned seq part, ignoring the scores etc. 
@@ -335,6 +302,17 @@ from Bio.SeqRecord import SeqRecord
 #and take the 3rd element, i.e the NTs matching the template one, i.e. the alignment. Transform this into seq object, save
 #objects into a list and then iteratively save into fasta file. visualise them
 #try different alignment methods
+
+'''
+class for df stuff
+
+instantiate
+
+method:gain df
+method:trim df
+method:save appropriate fasta file
+method:import the fasta for analysis
+'''
 
 
 #we need to know what percentage of the clusters mapped with high accuracy, ideally 100%, to the reference genome. Thus
@@ -372,27 +350,10 @@ def save_fasta(filename, full_df):
 
 for seq in range(len(full_df.iloc[:,-1])):
     print(seq)
-#this saves them via seq record formatting. However, when importing this content back for translation,
-#there are new line characters in some of the longer seqs so need to create another approach too
-#---or open them via seqio and it will retain the correct formatting
-
-def save_fasta_seqrec(filename, seq_and_perc):
-    id_f=1
-    with open(filename, "w") as handle:
-        seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description="mcherry_p3_seq_ref")
-        header=">0"+" mcherry_p3_seq_ref"
-        handle.write(header + "\n" + target_sequence + "\n")
-
-        for group in seq_and_perc.keys():
-            for seq_i in range(len(seq_and_perc[group])):
-                header=">"+ str(id_f)+" CluSeq_%: " + str(round((seq_and_perc[group].iloc[seq_i,1]*100),4))
-                handle.write(header + "\n" + seq_and_perc[group].iloc[seq_i,0] + "\n")
-                id_f+=1
 
 result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all.fasta"
 result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all_redo.fasta"
 
-save_fasta_seqrec(result, seq_and_perc)
 save_fasta(result, full_df_trim)
 aligned_seqs = []
 
@@ -402,13 +363,13 @@ aligned_seqs = []
 from Bio.SubsMat import MatrixInfo as matlist
 Bio.Align.substitution_matrices
 
-
-class align:
-    def __init__(self, amplicon, target_sequence):
+class align():
+    def __init__(self, amplicon, target_sequence,gop=3, gep=1):
         self.amplicon=amplicon
         self.target_sequence=target_sequence
-        
-        pass
+        self.gop=gop
+        self.gep=gep
+
     def align_local(self):
         alignments = pairwise2.align.localxx(self.target_sequence, self.amplicon)
         #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
@@ -421,7 +382,7 @@ class align:
         return(seq_align)
 
     def align_local2(self):
-        alignment, score, start_end_positions = local_pairwise_align_ssw(DNA(self.target_sequence),DNA(self.amplicon),gap_open_penalty = 3,gap_extend_penalty = 1)
+        alignment, score, start_end_positions = local_pairwise_align_ssw(DNA(self.target_sequence),DNA(self.amplicon),gap_open_penalty =self.gop,gap_extend_penalty = self.gep)
         out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
         return out_align
 
