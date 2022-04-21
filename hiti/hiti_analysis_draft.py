@@ -235,11 +235,17 @@ for animal_group in animals:
 
 data_dict
 
+s="/media/data/AtteR/projects/hiti/FASTQ_Generation_2020-03-09_08_30_27Z-13364364/9_mCherry_5s_3p_L004-ds.43f02f596a2c4d30a4297e04a1cebaa2"
+a=s.split("/")[-1].split("_")[2]
+a
+for animal in data_dict.keys():
+    #print(animal)
+    for search_path in data_dict[animal]:
+        print(search_path)
+
 for animal in data_dict.keys():
     print(animal)
     animal_group_name=animal.split("_")[0] + "_" + animal.split("_")[2]
-    group=search_path.split("/")[-1].split("_")[2]
-    dfs_lane=[]
     for search_path in data_dict[animal]:
         print(search_path)
         group=search_path.split("/")[-1].split("_")[2]
@@ -274,28 +280,43 @@ full_df = trimRead_hiti(data_dict,transgene,assay_end,filterlitteral,lliteral,rl
 #the function returns you a complete dataframe containing animals_x_brain_area (h,s). since each animal_x_brain_area contains data from 4 different subdirs, these have been
 # summed into the same ones, i.e. column 12_6h contains the sequences from lanes 1-4 all summed up  
 #now take the percentage values of each animal (so brain area s and h), merge into same column so that the percentages will be a sum of the two.
+import statistics as st
 
-#each animal contains data either from striatum or hippocampus after all.
 
-a = [f for f in full_df.columns if "h_percent" in f]
-a
 #animal group contains all lanes of the certain data
 full_df = full_df.fillna(value=0)
+
+
 perc_cols = [col for col in full_df.columns if 'percent' in col]
+count_cols = [col for col in full_df.columns if 'count' in col]
+
 perc_cols
 #sum the percentages of each seq cluster of each animal together to see how much the certain seq is found 
-full_df['percent_sum'] = full_df[perc_cols].sum(axis=1)  
-full_df.sort_values(by=['percent_sum'], ascending=False, inplace=True)
+full_df['percent_sum_unit'] = full_df[perc_cols].sum(axis=1)  
+
+total_perc_unit=full_df.iloc[:,-1].sum()
+full_df['percent_sum'] = (full_df['percent_sum_unit'] / total_perc_unit)
+full_df.head()
+count_cols
+#full_df['sd']=full_df[count_cols].std()
+full_df['total_reads_seq'] = full_df[count_cols].sum(axis=1)  
+
+full_df['sd']=full_df[perc_cols].std(axis=1)
+full_df['mean']=full_df[perc_cols].mean(axis=1)
+
+#remove sequences that have 0-3 reads in total across groups
+
+#get the total number of percentages from the percent_sum column and then divide all the perc units with this
+#to get the percs
+#calculate the SD for each seq
+full_df.sort_values(by=['percent_sum_unit'], ascending=False, inplace=True)
 full_df.head()
 full_df.columns
 #discard seqs that contribute less than 0.0001% percentage
 rows_drop=[]
-
-#you could have done this when you got raw counts for seq clusters (remove low ones )
-for i, perc in enumerate(full_df.iloc[:,-1]):
-    if perc<0.00001:
-        rows_drop.append(i)
-full_df_trim=full_df.drop(rows_drop, axis=0, inplace=False)
+full_df[count_cols]
+full_df_trim = full_df.drop(full_df[full_df["total_reads_seq"] <= 3].index)
+full_df_trim
 
 from Bio.Seq import Seq 
 
