@@ -9,11 +9,11 @@ import os
 import warnings
 import matplotlib.pyplot as plt
 from subprocess import call
-import subprocess
 import glob
 import pandas as pd
 import tempfile
-from skbio.alignment import local_pairwise_align_ssw
+import numpy as np
+from skbio.alignment import *
 from skbio import DNA
 
 import os
@@ -119,7 +119,7 @@ search_path = base_path+animal_nr+'*'+transgene+'*'+assay_end+'*/'
 search_path
 
 hip=animal_nr + "_" + transgene + "*h_"
-str=animal_nr + transgene + "*s_"
+stri=animal_nr + transgene + "*s_"
     
 
 from functools import reduce
@@ -160,7 +160,7 @@ def trimRead_hiti(data_dict, transgene,assay_end,filterlitteral,lliteral,rlitera
             call([cat_p7], shell=True)
             #os.system(cat_p7)
 
-            stats_out = export_path+group+'_'+transgene+'_'+assay_end+'_stats-filter.txt'
+            stats_out = export_path+animal_group_name+'_'+transgene+'_'+assay_end+'_stats-filter.txt'
 
             kmer = '20'
             hdist = '3'
@@ -291,7 +291,7 @@ full_df = trimRead_hiti(data_dict,transgene,assay_end,filterlitteral,lliteral,rl
 
 full_df_trim = postprocess_data(full_df)
 
-
+full_df_trim.to_csv("/media/data/AtteR/projects/hiti/dfs/full_df_trim_mcherry_p3_exp1.csv")
 
 #transforms the aligned seqs into seqrecord objects
 
@@ -319,9 +319,9 @@ method:import the fasta for analysis
 #we must save the percentages from the starcluster data
 ############################
 ############################
-seq_and_perc = {}
+#seq_and_perc = {}
 
-full_df.iloc[:, [0,-1]]
+#full_df.iloc[:, [0,-1]]
 
 
 #We take the seq and percent sum for each column and then align. the full_df contains ALL the clustered seqs from all the animals. we have taken the percentage amount of raw counts
@@ -334,27 +334,39 @@ result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster.fasta"
 
 #add proper delimiters 
 
-full_df.iloc[0,-1]
-def save_fasta(filename, full_df):
+full_df_trim.loc[1, "percent_sum"]
+id_f=1
+full_df_trim.columns
+full_df_trim.iloc[0,-1]
+full_df_trim.iloc[0,-2]
+full_df_trim.iloc[0,-3]
+full_df_trim.iloc[0,-4]
+
+full_df_trim["percent_sum"]
+full_df_trim.head()
+len(full_df_trim.index)
+
+
+
+def save_fasta(filename, full_df, target_sequence):
     id_f = 1
-    with open(result, "w") as handle:
-        seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description="mcherry_p3_seq_ref")
+    ref="mcherry_p3_seq_ref"
+    with open(filename, "w") as handle:
+        seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description=ref)
         count = SeqIO.write(seq_obj, handle, "fasta")
-        for seq_i in range(len(full_df.iloc[:,-1])):
-            descr="CluSeq_%: " + str((full_df.iloc[seq_i,-1]))
+        for seq_i in range(len(full_df.index)):
+            print("seq_i:" + str(seq_i))
+            descr="CluSeq:" + str(round(full_df.iloc[seq_i,-4],5)) + "_sd:" + str(round(full_df.iloc[seq_i,-2],5))
             print(descr)
-            seq_obj = SeqRecord(Seq(full_df.iloc[seq_i,0]), id=str(id_f), description="CluSeq_%: " + str((full_df.iloc[seq_i,-1])))
+            seq_obj = SeqRecord(Seq(full_df.iloc[seq_i,0]), id=str(id_f), description=descr)
+            print(seq_obj)
             count = SeqIO.write(seq_obj, handle, "fasta")
             id_f+=1
     print("Saved!")
 
-for seq in range(len(full_df.iloc[:,-1])):
-    print(seq)
-
+#result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all_redo.fasta"
 result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all.fasta"
-result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all_redo.fasta"
-
-save_fasta(result, full_df_trim)
+save_fasta(result, full_df_trim, target_sequence)
 aligned_seqs = []
 
 
@@ -387,7 +399,7 @@ class align():
         return out_align
 
     def align_local3(self):
-        alignments = pairwise2.align.localms(self.target_sequence, self.amplicon, 2, -1, -5, -1)
+        alignments = pairwise2.align.localms(self.target_sequence, self.amplicon, 2, -1, self.gop, self.gep)
         #alignments = pairwise2.align.localms(self.target_sequence, self.amplicon, 2, -1, -.5, -.1)
         #alignments= pairwise2.align.localds(self.target_sequence, self.amplicon, 2, -1, -.5, -.1)
         alignm=format_alignment(*alignments[0])
@@ -412,8 +424,10 @@ class align():
         #seq_and_perc[group]["match"]
         return(seq_align)
 
-def longest_align(seqs):
-    return max(seqs, key=len)
+full_df_trim.head()
+full_df_trim.columns
+
+full_df_trim.loc[1,"percent_sum"]
 import re
 #downstream an issue with visualising the seqs using mview is that all the seqs are not SAME length. thus, needs to fix this
 def align_and_save(filename, full_df,target_sequence):
@@ -421,9 +435,9 @@ def align_and_save(filename, full_df,target_sequence):
     aligned_data=dict()
     #align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then add padding!
     for seq_i in range(len(full_df.iloc[:,-1])):
-            header=">"+ str(id_f)+" CluSeq: " + str((full_df.iloc[seq_i,-1]))
+            header=">"+ str(id_f)+"CluSeq:" + str((round(full_df.iloc[seq_i,-4],5))) + "_sd:" + str((round(full_df.iloc[seq_i,-2],5)))
             align_inst=align(full_df.iloc[seq_i,0], target_sequence)
-            seq_obj_1=align_inst.align_local3()
+            seq_obj_1=align_inst.align_local2()
             #seq_obj_1= align_local(full_df.iloc[seq_i,0], target_sequence)
             seq_obj_1 = re.sub(r'[(\d|\s]', '', seq_obj_1) #remove digits from the string caused by the alignment and empty spaces from the start
             aligned_data[header]=seq_obj_1
@@ -441,8 +455,6 @@ def align_and_save(filename, full_df,target_sequence):
             N_dashes=len(target_sequence)-len(aligned_data[id])
             aligned_data[id]=aligned_data[id]+ N_dashes*"-"
             print("Seq length smaller than ref by " + str(N_dashes) + " ... \n After addition length: " + str(len(aligned_data[id])))
-
-
     with open(filename, "w") as handle:
         header=">0"+" mcherry_p3_seq_ref"
         handle.write(header + "\n" + target_sequence + "\n")
@@ -460,7 +472,7 @@ RRHGRAVQGRCCGSAEPQHRRPDGAGPYDHRRPPRLPCPAGWAGRQTQCDPADW*VPS*DAGTRTEDPPASVDRSVQAGG
 #feed in the predefined aligment file 
 
 align_pairwise_loc1="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_1.fasta"
-align_pairwise_loc2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_2sk_redo_go5_ge3.fasta"
+align_pairwise_loc2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_2sk.fasta"
 align_pairwise_loc3="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_3_go3_ge1.fasta"
 
 align_pairwise_glob1="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_glob.fasta"
@@ -476,7 +488,7 @@ for record in SeqIO.parse(musc, "fasta"):
 
 #maybe add progress bars?
 align_and_save(align_pairwise_loc3, full_df_trim, target_sequence)
-align_and_save(align_pairwise_loc2, full_df_trim)
+align_and_save(align_pairwise_loc2, full_df_trim, target_sequence)
 
 align_and_save(align_pairwise_glob1, full_df_trim)
 align_and_save(align_pairwise_glob2, full_df_trim)
@@ -484,21 +496,6 @@ align_and_save(align_pairwise_glob2, full_df_trim)
 #returns a dict with percentage value of the certain cluster seq and the aligned seq as the value
 
 outp="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all2.fasta"
-
-#no spaces at all, just align and see if colour coded. 
-id_f=1
-with open(outp, "w") as handle:
-    seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description="mcherry_p3_seq_ref")
-    header=">0"+" mcherry_p3_seq_ref"
-    handle.write(header + "\n" + target_sequence + "\n")
-
-    for group in seq_and_perc.keys():
-        for seq_i in range(len(seq_and_perc[group])):
-            header=">"+ str(id_f)+" CluSeq_%: " + str(round((seq_and_perc[group].iloc[seq_i,1]*100),4))
-            seq_obj_1 = seq_and_perc[group].iloc[seq_i,0]
-            handle.write(header + "\n" + seq_obj_1 + "\n")
-            id_f+=1
-
 
 
 ###############
@@ -520,15 +517,16 @@ from Bio.Data import CodonTable
 from Bio.Seq import Seq
 standard_table = CodonTable.unambiguous_dna_by_name["Standard"]
 standard_table.start_codons
-nt_seq=SeqIO.parse(result, "fasta")
+result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all.fasta"
 
+nt_seq=SeqIO.parse(result, "fasta")
 
 #no intersection found for most of the sequences....how to deal with these cases? this would imply that the cluster seq
 #exists but downstream
 #issues with aligning with muscle downstream
 
 result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all.fasta"
-result='/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all_redo.fasta'
+# result='/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all_redo.fasta'
 #translate NT sequences to the AAs based on the right codon order. Thus, we need the full mcherry sequence from which we find the overlap between the amplicon and mcherry.
 #from this, we calculate the position from full mcherry's start codon till the start of the amplicon where the overlap has occured. If this is divisible by 3, the read is 
 #in frame. If not, then start counting from the index where it is. Then ,translate the amplicon seq into AAs  
@@ -547,10 +545,18 @@ sds, delimiters, so that its easier to extract the percentages and delimiters
 -diff reading frame 
 '''
 
-def translate_nt_aa(input, output_aa, frame):
+nt_seq.seq
+for record in SeqIO.parse(result, "fasta"):
+    print(record.id)
+
+def translate_nt_aa(input, output_aa, frame_ampl, frame_ref):
+    output_aa=output_aa.split(".")[0] + "_frameref_" + str(frame_ref) + ".fasta"
     aa_and_perc={}
     for record in SeqIO.parse(input, "fasta"):
-        aa_and_perc[">"+str(record.description)]=Seq(record.seq[frame:]).translate()
+        if record.id=="0":
+            aa_and_perc[">"+str(record.description) +"_transl.frame:" + str(frame_ref)]=Seq(record.seq[frame_ref:]).translate()
+        else:
+            aa_and_perc[">"+str(record.description) + "_transl.frame:" + str(frame_ampl)]=Seq(record.seq[frame_ampl:]).translate()
     with open(output_aa, "w") as aa_fasta:
         for id in aa_and_perc.keys():
             aa_fasta.write(id + "\n" + str(aa_and_perc[id]) + "\n")
@@ -559,125 +565,18 @@ def translate_nt_aa(input, output_aa, frame):
 
     print("done")
 output_aa="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_inframe_redo.fasta"
+output_aa="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA"
+
 #output_aa="/media/data/AtteR/projects/hiti/translated/mcherry_p3_seq_clusters_all_AA_inframe_aligned_pw_loc2_go5_ge3.fasta"
 result
 #str(aa_and_perc[">348 CluSeq_%: 0.0135"])
-aa_dict=translate_nt_aa(result,output_aa, 1)
+
+#ONLY translate the ref seq with different frames
+aa_dict=translate_nt_aa(result,output_aa, 1, 1)
 aa_dict
 
-####################
-#import the translated AA version (function found lower down the code)
-aa_seq = "/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_inframe_redo.fasta"
-seq_clusters=[]
-percs=[]
-aa_df=dict()
-for record in SeqIO.parse(aa_seq, "fasta"):
-    print(record.seq)
-    print(record.id)
-    print("========")
-    #perc = str(record.description).split(" ")[-1]
-    seq_clusters.append(str(record.seq))
-    percs.append(str(record.description).split(" ")[-1])
-    #aa_df[perc]=str(record.seq)
-tuples_aa_data=list(zip(seq_clusters,percs))
-#tuples_aa_data=list(zip(aa_df.values(),aa_df.keys()))
-full_df_aa=pd.DataFrame(tuples_aa_data, columns=["AA_seq", "Percentage_sum"])
-full_df_aa
-align_pairwise_loc2_aa="/media/data/AtteR/projects/hiti/translated/AA_mcherry_p3_seq_aligned_pairwise_local3_3_1.fasta"
-#align_pairwise_loc2_aa="/media/data/AtteR/projects/hiti/translated/AA_mcherry_p3_seq_aligned_pairwise_global_05_1.fasta"
-align_pairwise_loc2_aa="/media/data/AtteR/projects/hiti/translated/AA_mcherry_p3_seq_aligned_pairwise_local3_5_1.fasta"
-
-align_and_save(align_pairwise_loc2_aa, full_df_aa.iloc[1:,], full_df_aa.iloc[0,0])
-
-####################
 
 
-
-def find_overlap(amplicon, mcherry_full):
-    longest_seq = None
-    n=0
-    for i in range(1, min(len(amplicon), len(mcherry_full))):
-        # Store the current iteration's intersection
-        current_seq = intersects(amplicon, mcherry_full, i)
-        
-        # If this was one character too long, return.
-        # Else, a longer intersection was found. Store it.
-        if current_seq == None:
-            print("No overlap found!")
-            n+=1
-            return 0
-        else:
-            longest_seq = current_seq
-    # If we get here, the strings were the same.
-    # For consistency, return longest_seq and its length.
-    print("no overlap found between " + str(n) + " amplicons!")
-    return longest_seq
-
-
-#Translate and save as dictionary containing header as the key and the translated AA seq as value
-
-
-#go over the two seqs in a frame of lets 5
-
-amplicon = "TGTTCAAATAAG"
-amplicon=seq_and_perc["8_percent"].iloc[1,0]
-from itertools import islice
-
-def window(seq, n):
-    "Returns a sliding window (of width n) over data from the iterable"
-    "   s -> (s0,s1,...s[n-1]), (s1,s2,...,sn), ...                   "
-    it = iter(seq)
-    result = tuple(islice(it, n))
-    if len(result) == n:
-        yield result
-    for elem in it:
-        result = result[1:] + (elem,)
-        yield result
-window_prev=0
-mcherry_chunks = list(window(mcherry_full,10))
-
-
-from difflib import SequenceMatcher
-
-def similar(a, b):
-    return SequenceMatcher(None, a, b).ratio()
-#iterate over based on blocks of certain size, also considers cases where the seq length is not divisible by the step
-def blocks(mcherry_full, step):
-    size = len(mcherry_full)
-
-    for pos in range(0, size - step, step): 
-        #print(pos, step)
-        #print(pos)
-        #print(window)
-        yield mcherry_full[pos:pos+step] 
-
-    else: 
-        if size % step != 0: 
-            # print("not an even divide, the last block:")
-            # print(pos)
-            # print(pos+size%step)
-            yield mcherry_full[pos:pos+size%step+step]
-
-'''
-The overlap part is useless as mcherry will map to amplicons mcherry with 100% accuracy! Instead we want to align them, then look at the reference and calculate
-in codon pairs till the primer binding site and see if the rest of the seq is in frame or not. if not, then when translating the protein, we will add +1 or +2 etc 
-and then translate into the AAs to SEE if the produced Arc after the scar is a functional protein. mcherry will be fine nevertheless!
-CGGCGGCA
-CGGCGGCA
-
-TGGACGAGCTGTACAAGGt
-TGGACGAGCTGTACAAGGTC
-
-GAG ... GGT
-'''
-#a = (2891-2210) / 3
-a = (2919-2210) % 3
-
-prim_ma03_frame=(2906-2210) % 3 #ma03 found in the amplicon
-prim_ma03_frame=(2909-2210) % 3 #based on the short 
-
-prim_ma03_frame
-a #out of frame by 1
 def hash_sequence(string, k):
 
     dictionary={}
@@ -685,24 +584,20 @@ def hash_sequence(string, k):
         sequence = string[i:i+k]
         dictionary.setdefault(sequence,[]).append(i)
     return dictionary
-
-
-
 def intersects(string1, string2, k): #what if k=0?
     dictionary = hash_sequence(string1, k)
 
     for i in range(len(string2)-1): #O(n) for sybstring in string
-
         if string2[i:i+k] in dictionary: #O(n
             return string2[i:i+k]
     return None
 
-def find_overlap(amplicon, mcherry_full):
+def find_overlap(amplicon, ref):
     longest_seq = None
     n=0
-    for i in range(1, min(len(amplicon), len(mcherry_full))):
+    for i in range(1, min(len(amplicon), len(ref))):
         # Store the current iteration's intersection
-        current_seq = intersects(amplicon, mcherry_full, i)
+        current_seq = intersects(amplicon, ref, i)
         
         # If this was one character too long, return.
         # Else, a longer intersection was found. Store it.
@@ -717,132 +612,73 @@ def find_overlap(amplicon, mcherry_full):
     print("no overlap found between " + str(n) + " amplicons!")
     return longest_seq
 
-
-def find_frame(overlap_bases): #rewrite this based on taking the aligned sequence and then calculate frame by taking the full mcherry
-    start_codon_i=mcherry_full.index("ATG")
-    if overlap_bases==0:
-        return 0
-    else:
-        seq=mcherry_full[start_codon_i:mcherry_full.index(overlap_bases)]
-        if len(seq)%3==0:
-            print("In frame!")
-            frame_N=0
-        else:
-            print("out of frame:" + str(len(seq)%3))
-            frame_N=len(seq)%3
-            return frame_N
+#Get the full ref seq. then with the amplicon, go over it AA by AA and compare to the ref. If match found start another loop
+#where you start counting how many similar AAs, starting from match are found. Keep count of on which AA this match was found as 
+#later on you will fill the empty space on the left with it
 
 
 
+#for each AA, save info about aa index, the name and the index of match with the ref (if any)
+#after the information has been saved for each AA, then you iterate over it and find the part with stretch of matches
+#then you go back to the original amplicon, remove everythin before this match and replace with "-", then save these
+#as overlap
+aa_info=[]
+ans = 0;
 
+ref="RRHGRAVQGRCCGSAEPQHRRPDGAGPYDHRRPPRLPCPAGWAGRQTQCDPADW*VPS*DAGTRTEDPPASVDRSVQAGGARAERVAQVGGQAGEQLGRLRAHRRLTALEEVHQGLSLPLPGDHRQPGALGQA*DARVEGGLLPSGE"
+amplicon="GGMDELYKVGAAPDGAGPYDHRRP"
+match = SequenceMatcher(None, ref, amplicon).find_longest_match(0, len(ref), 0, len(amplicon))
+ref[:match.a+match.size]
 
-#RRHGRAVQGRCCGSAEP--QHRRPDGAGPYDHRRPPRLPCPAGWAGRQTQCDPADW*VPS*DAGTRTEDPPASVDRSVQAGGARAERVAQVGGQAGEQLGRLRAHRRLTALEEVHQGLSLPLPGDHRQPGALGQA*DARVEGGLLPSGE
-#5'-3'
-#bottom strand
-#mcherry_full="CTTGTACAGCTCGTCCATGCCGCCGGTGGAGTGGCGGCCCTCGGCGCGTTCGTACTGTTCCACGATGGTGTAGTCCTCGTTGTGGGAGGTGATGTCCAACTTGATGTTGACGTTGTAGGCGCCGGGCAGCTGCACGGGCTTCTTGGCCTTGTAGGTGGTCTTGACCTCAGCGTCGTAGTGGCCGCCGTCCTTCAGCTTCAGCCTCTGCTTGATCTCGCCCTTCAGGGCGCCGTCCTCGGGGTACATCCGCTCGGAGGAGGCCTCCCAGCCCATGGTCTTCTTCTGCATTACGGGGCCGTCGGAGGGGAAGTTGGTGCCGCGCAGCTTCACCTTGTAGATGAACTCGCCGTCCTGCAGGGAGGAGTCCTGGGTCACGGTCACCACGCCGCCGTCCTCGAAGTTCATCACGCGCTCCCACTTGAAGCCCTCGGGGAAGGACAGCTTCAAGTAGTCGGGGATGTCGGCGGGGTGCTTCACGTAGGCCTTGGAGCCGTACATGAACTGAGGGGACAGGATGTCCCAGGCGAAGGGCAGGGGGCCACCCTTGGTCACCTTCAGCTTGGCGGTCTGGGTGCCCTCGTAGGGGCGGCCCTCGCCCTCGCCCTCGATCTCGAACTCGTGGCCGTTCACGGAGCCCTCCATGTGCACCTTGAAGCGCATGAACTCCTTGATGATGGCCATGTTATCCTCCTCGCCCTTGCTCACCAT"
-#top
-#mcherry_full="CTTGTACAGCTCGTCCATGCCGCCGGTGGAGTGGCGGCCCTCGGCGCGTTCGTACTGTTCCACGATGGTGTAGTCCTCGTTGTGGGAGGTGATGTCCAACTTGATGTTGACGTTGTAGGCGCCGGGCAGCTGCACGGGCTTCTTGGCCTTGTAGGTGGTCTTGACCTCAGCGTCGTAGTGGCCGCCGTCCTTCAGCTTCAGCCTCTGCTTGATCTCGCCCTTCAGGGCGCCGTCCTCGGGGTACATCCGCTCGGAGGAGGCCTCCCAGCCCATGGTCTTCTTCTGCATTACGGGGCCGTCGGAGGGGAAGTTGGTGCCGCGCAGCTTCACCTTGTAGATGAACTCGCCGTCCTGCAGGGAGGAGTCCTGGGTCACGGTCACCACGCCGCCGTCCTCGAAGTTCATCACGCGCTCCCACTTGAAGCCCTCGGGGAAGGACAGCTTCAAGTAGTCGGGGATGTCGGCGGGGTGCTTCACGTAGGCCTTGGAGCCGTACATGAACTGAGGGGACAGGATGTCCCAGGCGAAGGGCAGGGGGCCACCCTTGGTCACCTTCAGCTTGGCGGTCTGGGTGCCCTCGTAGGGGCGGCCCTCGCCCTCGCCCTCGATCTCGAACTCGTGGCCGTTCACGGAGCCCTCCATGTGCACCTTGAAGCGCATGAACTCCTTGATGATGGCCATGTTATCCTCCTCGCCCTTGCTCACCAT"
+temp = SequenceMatcher(None,ref ,amplicon)
+temp
+print(temp.get_matching_blocks())
 
-#3'-5'
-#bottom
-mcherry_full="TACCACTCGTTCCCGCTCCTCCTATTGTACCGGTAGTAGTTCCTCAAGTACGCGAAGTTCCACGTGTACCTCCCGAGGCACTTGCCGGTGCTCAAGCTCTAGCTCCCGCTCCCGCTCCCGGCGGGGATGCTCCCGTGGGTCTGGCGGTTCGACTTCCACTGGTTCCCACCGGGGGACGGGAAGCGGACCCTGTAGGACAGGGGAGTCAAGTACATGCCGAGGTTCCGGATGCACTTCGTGGGGCGGCTGTAGGGGCTGATGAACTTCGACAGGAAGGGGCTCCCGAAGTTCACCCTCGCGCACTACTTGAAGCTCCTGCCGCCGCACCACTGGCACTGGGTCCTGAGGAGGGACGTCCTGCCGCTCAAGTAGATGTTCCACTTCGACGCGCCGTGGTTGAAGGGGAGGCTGCCGGGGCATTACGTCTTCTTCTGGTACCCGACCCTCCGGAGGAGGCTCGCCTACATGGGGCTCCTGCCGCGGGACTTCCCGCTCTAGTTCGTCTCCGACTTCGACTTCCTGCCGCCGGTGATGCTGCGACTCCAGTTCTGGTGGATGTTCCGGTTCTTCGGGCACGTCGACGGGCCGCGGATGTTGCAGTTGTAGTTCAACCTGTAGTGGAGGGTGTTGCTCCTGATGTGGTAGCACCTTGTCATGCTTGCGCGGCTCCCGGCGGTGAGGTGGCCGCCGTACCTGCTCGACATGTTC"
-#top
-#mcherry_full="ATGGTGAGCAAGGGCGAGGAGGATAACATGGCCATCATCAAGGAGTTCATGCGCTTCAAGGTGCACATGGAGGGCTCCGTGAACGGCCACGAGTTCGAGATCGAGGGCGAGGGCGAGGGCCGCCCCTACGAGGGCACCCAGACCGCCAAGCTGAAGGTGACCAAGGGTGGCCCCCTGCCCTTCGCCTGGGACATCCTGTCCCCTCAGTTCATGTACGGCTCCAAGGCCTACGTGAAGCACCCCGCCGACATCCCCGACTACTTGAAGCTGTCCTTCCCCGAGGGCTTCAAGTGGGAGCGCGTGATGAACTTCGAGGACGGCGGCGTGGTGACCGTGACCCAGGACTCCTCCCTGCAGGACGGCGAGTTCATCTACAAGGTGAAGCTGCGCGGCACCAACTTCCCCTCCGACGGCCCCGTAATGCAGAAGAAGACCATGGGCTGGGAGGCCTCCTCCGAGCGGATGTACCCCGAGGACGGCGCCCTGAAGGGCGAGATCAAGCAGAGGCTGAAGCTGAAGGACGGCGGCCACTACGACGCTGAGGTCAAGACCACCTACAAGGCCAAGAAGCCCGTGCAGCTGCCCGGCGCCTACAACGTCAACATCAAGTTGGACATCACCTCCCACAACGAGGACTACACCATCGTGGAACAGTACGAACGCGCCGAGGGCCGCCACTCCACCGGCGGCATGGACGAGCTGTACAAG"
-
-
-#########################################
-#here trim the extra seqs from muscle file? do later
-muscle_alignment="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_clusters_all_aligned_nonrecseq.fasta"
-muscle_alignment
-
-from Bio import SeqIO
 from difflib import SequenceMatcher
+import csv
 
-def similarity(a, b):
-    return SequenceMatcher(None, a, b).ratio()
-###########################################
+#the first line in the input AA file must be the ref seq
+def align_AAs(inputAA):
+    outputAA=inputAA.split(".")[0] + "_aligned.csv"
+    with open(outputAA, 'w') as f:
+        with open(AAfile) as file:
+            lines = [line.rstrip("\n") for line in file]
+            for i, line in enumerate(lines):
+                if ">0" in line:
+                    ref=lines[i+1]
+                if ">" in line and not ">0" in line:
+                    seq_info=line
+                    amplicon=lines[i+1]
+                    #find all matches with size greater than 3, assign to the seq
+                    
+                    match = SequenceMatcher(None, ref, lines[i+1]).find_longest_match(0, len(ref), 0, len(lines[i+1]))
+                    
+                    matched_ampl= len(ref[:match.a])*"-" + str(lines[i+1][match.b:]) + "|"
+                    # create the csv writer
+                    writer = csv.writer(f)
+                    writer.writerow([seq_info])
+                    writer.writerow(["Ref | "+ ref[:match.a+match.size]])
+                    writer.writerow(["Seq | "+ matched_ampl])
+AAfile="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_frameref_0.fasta"
+AAfile="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_frameref_2.fasta"
+AAfile="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_frameref_1.fasta"
 
+align_AAs(AAfile)
 
-#find the highest match
-#parse the muscle file, put into dict. once we have specific seq, calculate the similarity score, add to the id key for later
-
-#another option is to make a function that takes in all the seqs and finds the highest match, then trims all the seqs based on this.
-#function takes in the dict of muscle alignment file
-
-#no need to change the translation start, just report in the id whether the read is in frame or not
-
-muscle_alignment_AA="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_clusters_all_aligned_AA.fasta"
-muscle_alignment = "/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_clusters_all_aligned.fasta"
-#Takes in the muscle aligned file, parses through it, calculates the match to the reference seq and saves the file
-def muscle_align_postproc(muscle_f,target_sequence):
-    f_name=os.path.basename(muscle_f)
-    muscle_dict = {}
-    for seq_record in SeqIO.parse(muscle_alignment, "fasta"):
-        seq=(str(seq_record.seq))
-        match_score=similarity(seq,target_sequence)
-        id_head=">"+str(seq_record.description) + ", Match_%: " + str(round(match_score*100,4))
-        muscle_dict[id_head]=seq
-    outp=os.path.dirname(muscle_f) + "/" + f_name.split(".")[0] + "_2.fasta"
-    print(outp)
-    with open(outp, "w") as handle:
-        for id in muscle_dict.keys():
-            handle.write(id + "\n" + muscle_dict[id] + "\n")
-
-target_sequence_AA=Seq(target_sequence).translate()
-target_sequence_AA
-
-muscle_align_postproc(muscle_alignment_AA,target_sequence_AA)
-muscle_align_postproc(muscle_alignment,target_sequence)
-
-muscle_alignment="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_clusters_all_aligned_2.fasta"
-os.path.basename(muscle_alignment).split(".")[0]
-m=muscle_alignment.split(".")[-2].split("/")[-1]
-m
-
-with open(muscle_alignment, "r") as align_file:
-    for line in align_file:
-        if not line.startswith(">"):
-            print(line)
-            print("#############")
+#write into html instead....
 
 
+'''
+modify the above function to create a summary file: a script that calculates number of seqs with aligned mcherry - lets say 8AAs match from start,
+then it counts the number of seqs with matching arc WHEN ref is 1) in frame (+1), 2) out of frame (0,+2)
 
+the number of AAs
+Sum up the seqs with matching mcherry, lets say if theres 8AA match, then sum up the appropriate percentages.
+Do the same with Arc
+Summarise 
 
-AAs=nt_seq.translate(table=standard_table)
+Ilmoita kuinka suuri osa sekvenseistä sisältää arkin
+--- täten voimme todeta onko yhdistelmä onnistunut vai ei, mutta jos arkki ei ole raamissaan niin sitä
+ei voida tuottaa solussa. tehdäänkö arvelle mitään?
 
-
-
-def count_nts(seq):
-    nts=0
-    for base in seq:
-        if base.isalpha():
-            nts+=1
-    return nts
-
-
-
-######
-#TRIM (Do later)
-######
-#you need to find the highest count but you also need to keep the index so save this info into the same dic. Then we define the highest matching seq's len as 
-#the cut off for the rest and thus we cut off the extra from the others as well.
-
-#get all the results and save them into the list, find the highest one along with its index, then trim the lengths of all seqs based on this, then calculate the percentage of
-#match relative to the reference template, save into list, put into the df
-
-#if several nts with equally good match, get the one which extends longest and trim seqs based on this one
- 
-
-#5'-3'
-#bottom strand
-mcherry_full="CTTGTACAGCTCGTCCATGCCGCCGGTGGAGTGGCGGCCCTCGGCGCGTTCGTACTGTTCCACGATGGTGTAGTCCTCGTTGTGGGAGGTGATGTCCAACTTGATGTTGACGTTGTAGGCGCCGGGCAGCTGCACGGGCTTCTTGGCCTTGTAGGTGGTCTTGACCTCAGCGTCGTAGTGGCCGCCGTCCTTCAGCTTCAGCCTCTGCTTGATCTCGCCCTTCAGGGCGCCGTCCTCGGGGTACATCCGCTCGGAGGAGGCCTCCCAGCCCATGGTCTTCTTCTGCATTACGGGGCCGTCGGAGGGGAAGTTGGTGCCGCGCAGCTTCACCTTGTAGATGAACTCGCCGTCCTGCAGGGAGGAGTCCTGGGTCACGGTCACCACGCCGCCGTCCTCGAAGTTCATCACGCGCTCCCACTTGAAGCCCTCGGGGAAGGACAGCTTCAAGTAGTCGGGGATGTCGGCGGGGTGCTTCACGTAGGCCTTGGAGCCGTACATGAACTGAGGGGACAGGATGTCCCAGGCGAAGGGCAGGGGGCCACCCTTGGTCACCTTCAGCTTGGCGGTCTGGGTGCCCTCGTAGGGGCGGCCCTCGCCCTCGCCCTCGATCTCGAACTCGTGGCCGTTCACGGAGCCCTCCATGTGCACCTTGAAGCGCATGAACTCCTTGATGATGGCCATGTTATCCTCCTCGCCCTTGCTCACCAT"
-#top
-mcherry_full="CTTGTACAGCTCGTCCATGCCGCCGGTGGAGTGGCGGCCCTCGGCGCGTTCGTACTGTTCCACGATGGTGTAGTCCTCGTTGTGGGAGGTGATGTCCAACTTGATGTTGACGTTGTAGGCGCCGGGCAGCTGCACGGGCTTCTTGGCCTTGTAGGTGGTCTTGACCTCAGCGTCGTAGTGGCCGCCGTCCTTCAGCTTCAGCCTCTGCTTGATCTCGCCCTTCAGGGCGCCGTCCTCGGGGTACATCCGCTCGGAGGAGGCCTCCCAGCCCATGGTCTTCTTCTGCATTACGGGGCCGTCGGAGGGGAAGTTGGTGCCGCGCAGCTTCACCTTGTAGATGAACTCGCCGTCCTGCAGGGAGGAGTCCTGGGTCACGGTCACCACGCCGCCGTCCTCGAAGTTCATCACGCGCTCCCACTTGAAGCCCTCGGGGAAGGACAGCTTCAAGTAGTCGGGGATGTCGGCGGGGTGCTTCACGTAGGCCTTGGAGCCGTACATGAACTGAGGGGACAGGATGTCCCAGGCGAAGGGCAGGGGGCCACCCTTGGTCACCTTCAGCTTGGCGGTCTGGGTGCCCTCGTAGGGGCGGCCCTCGCCCTCGCCCTCGATCTCGAACTCGTGGCCGTTCACGGAGCCCTCCATGTGCACCTTGAAGCGCATGAACTCCTTGATGATGGCCATGTTATCCTCCTCGCCCTTGCTCACCAT"
-
-#3'-5'
-#bottom
-mcherry_full="TACCACTCGTTCCCGCTCCTCCTATTGTACCGGTAGTAGTTCCTCAAGTACGCGAAGTTCCACGTGTACCTCCCGAGGCACTTGCCGGTGCTCAAGCTCTAGCTCCCGCTCCCGCTCCCGGCGGGGATGCTCCCGTGGGTCTGGCGGTTCGACTTCCACTGGTTCCCACCGGGGGACGGGAAGCGGACCCTGTAGGACAGGGGAGTCAAGTACATGCCGAGGTTCCGGATGCACTTCGTGGGGCGGCTGTAGGGGCTGATGAACTTCGACAGGAAGGGGCTCCCGAAGTTCACCCTCGCGCACTACTTGAAGCTCCTGCCGCCGCACCACTGGCACTGGGTCCTGAGGAGGGACGTCCTGCCGCTCAAGTAGATGTTCCACTTCGACGCGCCGTGGTTGAAGGGGAGGCTGCCGGGGCATTACGTCTTCTTCTGGTACCCGACCCTCCGGAGGAGGCTCGCCTACATGGGGCTCCTGCCGCGGGACTTCCCGCTCTAGTTCGTCTCCGACTTCGACTTCCTGCCGCCGGTGATGCTGCGACTCCAGTTCTGGTGGATGTTCCGGTTCTTCGGGCACGTCGACGGGCCGCGGATGTTGCAGTTGTAGTTCAACCTGTAGTGGAGGGTGTTGCTCCTGATGTGGTAGCACCTTGTCATGCTTGCGCGGCTCCCGGCGGTGAGGTGGCCGCCGTACCTGCTCGACATGTTC"
-#top
-mcherry_full="ATGGTGAGCAAGGGCGAGGAGGATAACATGGCCATCATCAAGGAGTTCATGCGCTTCAAGGTGCACATGGAGGGCTCCGTGAACGGCCACGAGTTCGAGATCGAGGGCGAGGGCGAGGGCCGCCCCTACGAGGGCACCCAGACCGCCAAGCTGAAGGTGACCAAGGGTGGCCCCCTGCCCTTCGCCTGGGACATCCTGTCCCCTCAGTTCATGTACGGCTCCAAGGCCTACGTGAAGCACCCCGCCGACATCCCCGACTACTTGAAGCTGTCCTTCCCCGAGGGCTTCAAGTGGGAGCGCGTGATGAACTTCGAGGACGGCGGCGTGGTGACCGTGACCCAGGACTCCTCCCTGCAGGACGGCGAGTTCATCTACAAGGTGAAGCTGCGCGGCACCAACTTCCCCTCCGACGGCCCCGTAATGCAGAAGAAGACCATGGGCTGGGAGGCCTCCTCCGAGCGGATGTACCCCGAGGACGGCGCCCTGAAGGGCGAGATCAAGCAGAGGCTGAAGCTGAAGGACGGCGGCCACTACGACGCTGAGGTCAAGACCACCTACAAGGCCAAGAAGCCCGTGCAGCTGCCCGGCGCCTACAACGTCAACATCAAGTTGGACATCACCTCCCACAACGAGGACTACACCATCGTGGAACAGTACGAACGCGCCGAGGGCCGCCACTCCACCGGCGGCATGGACGAGCTGTACAAG"
-
-#top
+'''
