@@ -105,28 +105,37 @@ assay_end = '3p'
 read_fwd = True
 animal_list = [7, 8, 9, 10, 11, 12] 
 filterlitteral = 'CTCCCTCCACACGTGCATCTCACGCTTGACCCAGCGCTCCAGGTTGGCGATGGT' #region prior to r2 primer
-lliteral = ' literal=GGCGGCATGGACGAG' #to check that its on target with mcherry
+lliteral = ' literal=GGCGGCATGGACGAGC' #added C at the end as its part of tje primer #to check that its on target with mcherry - the primer
 rliteral = ' literal=CATATGACCACCGG'
 #base_path = '/home/lcadmin/mnm-lts/SequencingFiles/arc_hiti_asyn/HITI1-8977973/FASTQ_Generation_2020-03-09_08_30_27Z-13364364/'
 #export_path = '/home/lcadmin/mnm-lts/HITI-analysis/'
 base_path = '/media/data/AtteR/projects/hiti/FASTQ_Generation_2020-03-09_08_30_27Z-13364364/'
 export_path = '/media/data/AtteR/projects/hiti/output/'
-target_sequence = "CGGCGGCATGGACGAGCTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGACCATATGACCACCGGCGGCCTCCACGCCTACCCTGCCCCGCGGGGTGGGCCGGCCGCCAAACCCAATGTGATCCTGCAGATTGGTAAGTGCCGAGCTGAGATGCTGGAACACGTACGGAGGACCCACCGGCATCTGTTGACCGAAGTGTCCAAGCAGGTGGAGCGAGAGCTGAAAGGGTTGCACAGGTCGGTGGGCAAGCTGGAGAACAACTTGGACGGCTACGTGCCCACCGGCGACTCACAGCGCTGGAAGAAGTCCATCAAGGCCTGTCTTTGCCGCTGCCAGGAGACCATCGCCAACCTGGAGCGCTGGGTCAAGCGTGAGATGCACGTGTGGAGGGAGGTCTTCTACCGTCTGGAGAGG"
-
-animal_nr = str(9)
+target_sequence = "GGCGGCATGGACGAGCTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGACCATATGACCACCGGCGGCCTCCACGCCTACCCTGCCCCGCGGGGTGGGCCGGCCGCCAAACCCAATGTGATCCTGCAGATTGGTAAGTGCCGAGCTGAGATGCTGGAACACGTACGGAGGACCCACCGGCATCTGTTGACCGAAGTGTCCAAGCAGGTGGAGCGAGAGCTGAAAGGGTTGCACAGGTCGGTGGGCAAGCTGGAGAACAACTTGGACGGCTACGTGCCCACCGGCGACTCACAGCGCTGGAAGAAGTCCATCAAGGCCTGTCTTTGCCGCTGCCAGGAGACCATCGCCAACCTGGAGCGCTGGGTCAAGCGTGAGATGCACGTGTGGAGGGAGGTCTTCTACCGTCTGGAGAGG"
+#removed the first C from the target seq
 "Filters and trims the reads"
 search_path = base_path+animal_nr+'*'+transgene+'*'+assay_end+'*/'
 search_path
 
-hip=animal_nr + "_" + transgene + "*h_"
-stri=animal_nr + transgene + "*s_"
+# hip=animal_nr + "_" + transgene + "*h_"
+# stri=animal_nr + transgene + "*s_"
+'''
+checks with r2 that it has arc in it - fliteral
+in r1 to make sure it has the amplicon - then trim it away (the primer)
+the  scar is close to the pcr primer. 
+we placed the primer close to the scar - to make sure that sequencing works?
+
+compare the aliments with and without removing the primer and try different alignments
+
+'''
     
 
 from functools import reduce
 
 
 #you could trim and starcode all individual lane files of certain animal first. after this you sum these based on matches
-
+test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied
+test_file_p5_filter2
 #Takes in all the reads based on lane, trims them, combines the lanes, sums the seq counts, calculates the percentage of 
 #reads being the certain sequence (starcode cluster) out of all the reads
 def trimRead_hiti(data_dict, transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd):
@@ -140,7 +149,8 @@ def trimRead_hiti(data_dict, transgene,assay_end,filterlitteral,lliteral,rlitera
             animal_p7_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
             test_file_p5_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
             test_file_p7_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
-            test_file_p5_filter = tempfile.NamedTemporaryFile(suffix = '.fastq').name
+            test_file_p5_filter = tempfile.NamedTemporaryFile(suffix = '.fastq').name#when bbduk applied
+
 
             if read_fwd:
                 animal_p5 = glob.glob(search_path+'/*R1*')
@@ -169,13 +179,18 @@ def trimRead_hiti(data_dict, transgene,assay_end,filterlitteral,lliteral,rlitera
             #to check if the read is an amplicon
             call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+animal_p7_cat+" in2="+animal_p5_cat+" outm1="+test_file_p7_out+" outm2="+test_file_p5_out+" literal="+filterlitteral+" stats="+stats_out + param
             call([call_sequence], shell=True)
-
             #actual trimming
             call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+test_file_p5_out+" out="+test_file_p5_filter+ " literal=AAAAAAAAA,CCCCCCCCC,GGGGGGGGG,TTTTTTTTT k=9 mm=f overwrite=true minlength=40"
             call([call_sequence], shell=True)
+            test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied
 
+            cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
+            call([cutadapt_call], shell=True)
+
+            print("Cutadapt done! Performed on test_file_p5_filter2: "+ test_file_p5_filter2)
             test_file_p5_out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
-            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter+" -t 32 -o "+test_file_p5_out_starcode
+            print("test_file_p5_out_starcode: "+ test_file_p5_out_starcode)
+            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter2+" -t 32 -o "+test_file_p5_out_starcode
             call([starcode_call], shell=True)
 
             df=pd.read_csv(test_file_p5_out_starcode, sep='\t', header=None)
@@ -261,7 +276,6 @@ def postprocess_data(full_df):
     full_df['total_reads_seq'] = full_df[count_cols].sum(axis=1)  
 
     full_df['sd']=full_df[perc_cols].std(axis=1)
-    full_df['mean']=full_df[perc_cols].mean(axis=1)
 
     #remove sequences that have 0-3 reads in total across groups
 
@@ -290,8 +304,9 @@ full_df = trimRead_hiti(data_dict,transgene,assay_end,filterlitteral,lliteral,rl
 #now take the percentage values of each animal (so brain area s and h), merge into same column so that the percentages will be a sum of the two.
 
 full_df_trim = postprocess_data(full_df)
-
-full_df_trim.to_csv("/media/data/AtteR/projects/hiti/dfs/full_df_trim_mcherry_p3_exp1.csv")
+full_df_trim.head()
+#full_df_trim.to_csv("/media/data/AtteR/projects/hiti/dfs/full_df_trim_mcherry_p3_exp2_retrimC.csv")
+full_df_trim.to_csv("/media/data/AtteR/projects/hiti/dfs/full_df_trim_mcherry_p3_exp2_trimPrimer.csv")
 
 #transforms the aligned seqs into seqrecord objects
 
@@ -330,7 +345,7 @@ method:import the fasta for analysis
 #how well it maps to the ref. 
 
 
-result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster.fasta"
+result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_retrim.fasta"
 
 #add proper delimiters 
 
@@ -356,7 +371,7 @@ def save_fasta(filename, full_df, target_sequence):
         count = SeqIO.write(seq_obj, handle, "fasta")
         for seq_i in range(len(full_df.index)):
             print("seq_i:" + str(seq_i))
-            descr="CluSeq:" + str(round(full_df.iloc[seq_i,-4],5)) + "_sd:" + str(round(full_df.iloc[seq_i,-2],5))
+            descr="CluSeq:" + str(round(full_df.iloc[seq_i,-3],5)) + "_sd:" + str(round(full_df.iloc[seq_i,-1],5))
             print(descr)
             seq_obj = SeqRecord(Seq(full_df.iloc[seq_i,0]), id=str(id_f), description=descr)
             print(seq_obj)
@@ -365,7 +380,7 @@ def save_fasta(filename, full_df, target_sequence):
     print("Saved!")
 
 #result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all_redo.fasta"
-result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all.fasta"
+result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all_retrim.fasta"
 save_fasta(result, full_df_trim, target_sequence)
 aligned_seqs = []
 
@@ -424,18 +439,15 @@ class align():
         #seq_and_perc[group]["match"]
         return(seq_align)
 
-full_df_trim.head()
-full_df_trim.columns
-
-full_df_trim.loc[1,"percent_sum"]
 import re
+full_df_trim.columns
 #downstream an issue with visualising the seqs using mview is that all the seqs are not SAME length. thus, needs to fix this
 def align_and_save(filename, full_df,target_sequence):
     id_f=1
     aligned_data=dict()
     #align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then add padding!
     for seq_i in range(len(full_df.iloc[:,-1])):
-            header=">"+ str(id_f)+"CluSeq:" + str((round(full_df.iloc[seq_i,-4],5))) + "_sd:" + str((round(full_df.iloc[seq_i,-2],5)))
+            header=">"+ str(id_f)+"CluSeq:" + str((round(full_df.iloc[seq_i,-3],5))) + "_sd:" + str((round(full_df.iloc[seq_i,-1],5)))
             align_inst=align(full_df.iloc[seq_i,0], target_sequence)
             seq_obj_1=align_inst.align_local2()
             #seq_obj_1= align_local(full_df.iloc[seq_i,0], target_sequence)
@@ -472,19 +484,13 @@ RRHGRAVQGRCCGSAEPQHRRPDGAGPYDHRRPPRLPCPAGWAGRQTQCDPADW*VPS*DAGTRTEDPPASVDRSVQAGG
 #feed in the predefined aligment file 
 
 align_pairwise_loc1="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_1.fasta"
-align_pairwise_loc2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_2sk.fasta"
+align_pairwise_loc2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_2sk_retrim.fasta"
 align_pairwise_loc3="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_3_go3_ge1.fasta"
 
 align_pairwise_glob1="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_glob.fasta"
 align_pairwise_glob2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_glob2.fasta"
 
 musc = "/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_muscle_redo.fasta"
-from Bio import SeqIO
-
-for record in SeqIO.parse(musc, "fasta"):
-    print(record.id)
-    print(record.seq)
-    print("==================")
 
 #maybe add progress bars?
 align_and_save(align_pairwise_loc3, full_df_trim, target_sequence)
@@ -496,6 +502,18 @@ align_and_save(align_pairwise_glob2, full_df_trim)
 #returns a dict with percentage value of the certain cluster seq and the aligned seq as the value
 
 outp="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all2.fasta"
+
+'''
+Import aligned fasta file - save the header as the key and the seq as the value
+'''
+
+out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
+align_pairwise_loc2
+starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+align_pairwise_loc2+" -t 32 -o "+out_starcode
+call([starcode_call], shell=True)
+df=pd.read_csv(out_starcode, sep='\t', header=None)
+df = df.rename(columns={0: 'sequence', 1:'count'})
+
 
 
 ###############
@@ -512,7 +530,16 @@ subprocess.call('muscle -align %s -output %s'%(input,output)) #does not work, ne
 ###############
 #TRANSLATION
 ###############
+'''
+Make a holistic summary script with colour coded AAs where:
+   +1(in-frame)   0       +2
+ref |AAAAAAAAAAAAAA|BBBBBBB|CCCCCC
+Seq1|AAAAAAAAAAAAAA|BBBBBBB|------
+Seq2|AAAAAAAAAAAAAA|-------|CCCCCC
 
+So align the AAs with the ref in each frame, save the coordinates of the match in each case, then merge by making the changes to the ref
+as well.
+'''
 from Bio.Data import CodonTable
 from Bio.Seq import Seq
 standard_table = CodonTable.unambiguous_dna_by_name["Standard"]
@@ -543,6 +570,7 @@ different frames.(which reading frame is the arc read in!)
 sds, delimiters, so that its easier to extract the percentages and delimiters
 
 -diff reading frame 
+
 '''
 
 nt_seq.seq
@@ -624,20 +652,94 @@ def find_overlap(amplicon, ref):
 #as overlap
 aa_info=[]
 ans = 0;
-
+from difflib import Differ, SequenceMatcher
+dif = Differ()
 ref="RRHGRAVQGRCCGSAEPQHRRPDGAGPYDHRRPPRLPCPAGWAGRQTQCDPADW*VPS*DAGTRTEDPPASVDRSVQAGGARAERVAQVGGQAGEQLGRLRAHRRLTALEEVHQGLSLPLPGDHRQPGALGQA*DARVEGGLLPSGE"
 amplicon="GGMDELYKVGAAPDGAGPYDHRRP"
+df = list(dif.compare(ref , amplicon))
+df
+
+l= [ref, amplicon]
+match = get_close_matches(ref,amplicon , n=2 , cutoff=0.5)
+match
 match = SequenceMatcher(None, ref, amplicon).find_longest_match(0, len(ref), 0, len(amplicon))
+match
 ref[:match.a+match.size]
 
 temp = SequenceMatcher(None,ref ,amplicon)
 temp
-print(temp.get_matching_blocks())
 
-from difflib import SequenceMatcher
+"RRHGRAVQGRCCGSAEPQHRRPDGAGPYDHRRPPRLPCPAGWAGRQTQCDPADW*VPS*DAGTRTEDPPASVDRSVQAGGARAERVAQVGGQAGEQLGRLRAHRRLTALEEVHQGLSLPLPGDHRQPGALGQA*DARVEGGLLPSGE"
+"---------RCCGSA"
+ref[:5]
+matches=[]
+matched_ampls=[]
+
+a="ABCDEFGHIJK"
+b="KDCDEFIGHI"
+temp = SequenceMatcher(None,a ,b)
+seqs=[]
+i=temp.get_matching_blocks()[1]
+c = len(a[:i.a])*"-"+b[i.b:i.b+i.size] #this is how you will get the coordinates and the length of each matching block.
+seqs.append(len(a[:i.a])*"-"+b[i.b:i.b+i.size])
+range_line=0
+len(a[:i.a])
+#get the total length of the ref seq, start going along with it, for each mathcing amplicon's subseq, place them in the right
+#place in the ref, the rest add just "--"
+c
+
+matched_ampl= len(ref[:match.a])*"-" + str(lines[i+1][match.b:]) + "|"
+
+seqs=[]
+range_line=0
+for i in range(len(temp.get_matching_blocks())):
+    match=temp.get_matching_blocks()[i]
+    seqs.append(len(a[range_line:match.a])*"-"+b[match.b:match.b+match.size])
+    range_line=match.a+match.size
+    #based on the coordinates, extract the start and end, get the seqs between them
+seqs
+s=''.join(seqs)
+a
+ABCDEFGHIJK
+--CDEFGHI--
+s
+matched_ampls
+ref
+
 import csv
 
 #the first line in the input AA file must be the ref seq
+def align_AAs(inputAA):
+    outputAA=inputAA.split(".")[0] + "_aligned.csv"
+    with open(outputAA, 'w') as f:
+        with open(AAfile) as file:
+            lines = [line.rstrip("\n") for line in file]
+            for i, line in enumerate(lines):
+                if ">0" in line:
+                    ref=lines[i+1]
+                if ">" in line and not ">0" in line:
+                    seq_info=line
+                    #find all matches with size greater than 3, assign to the seq
+                    
+                    match = SequenceMatcher(None, ref, lines[i+1]).find_longest_match(0, len(ref), 0, len(lines[i+1]))
+                    
+                    matched_ampl= len(ref[:match.a])*"-" + str(lines[i+1][match.b:]) + "|"
+                    # create the csv writer
+                    writer = csv.writer(f)
+                    writer.writerow([seq_info])
+                    writer.writerow(["Ref | "+ ref[:match.a+match.size]])
+                    writer.writerow(["Seq | "+ matched_ampl])
+AAfile="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_frameref_0.fasta"
+AAfile="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_frameref_2.fasta"
+AAfile="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_frameref_1.fasta"
+
+align_AAs(AAfile)
+
+#function takes in the ref as a string and the amplicon seqs as fasta file as well as the correct reading frame.
+#First the ref seq is translated in diff frames and saved into dict with key telling the frame and value showing the translated seq.
+#amplicons are saved as AAs into another dict as values with keys containing the header information.
+#We make a dict with We find all the matches between amplicons and the ref seq and locate their coordinates and generate an aligned
+#sequence this way.
 def align_AAs(inputAA):
     outputAA=inputAA.split(".")[0] + "_aligned.csv"
     with open(outputAA, 'w') as f:
@@ -659,11 +761,178 @@ def align_AAs(inputAA):
                     writer.writerow([seq_info])
                     writer.writerow(["Ref | "+ ref[:match.a+match.size]])
                     writer.writerow(["Seq | "+ matched_ampl])
-AAfile="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_frameref_0.fasta"
-AAfile="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_frameref_2.fasta"
-AAfile="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_frameref_1.fasta"
 
-align_AAs(AAfile)
+#maybe make a DF - rows being headers, then columns for the original amplicon seqs, then columns for the alignments with refs translated in different
+#frames
+
+corr_frame=1
+input=result
+#def translate_nt_aa(input, output_aa, corr_frame):
+out_of_frames=[0,1,2]
+out_of_frames.remove(corr_frame)
+refs_aa_frames={}
+output_aa=output_aa.split(".")[0] + "_frameref_" + str(corr_frame) + ".fasta"
+aa_and_perc={}
+
+
+for record in SeqIO.parse(input, "fasta"):
+    if record.id=="0":
+        refs_aa_frames["Frame:" + str(corr_frame)]=str(Seq(record.seq[corr_frame:]).translate())
+        for alt_frame in out_of_frames:
+            refs_aa_frames["Frame:" + str(alt_frame)]=str(Seq(record.seq[alt_frame:]).translate())
+    else:
+        aa_and_perc[">"+str(record.description) + "_transl.frame:" + str(corr_frame)]=str(Seq(record.seq[corr_frame:]).translate())
+refs_aa_frames
+aa_and_perc
+#you go over the ref seqs in different frames and align all the amplicons to them. save the alignment into the df's specific column. initially
+#save into a list or such
+ref_x_alignment={}
+for frame_ref in refs_aa_frames.keys():
+    alignments_per_ref=[]
+    for ampl in aa_and_perc.keys():
+        matches=SequenceMatcher(None,refs_aa_frames[frame_ref],aa_and_perc[ampl])
+        seqs=[]
+        #you use range_line so that when you fill the remnants from left side of the match, you wont keep adding from
+        #beginning since in the end, we merge the seq list elements into the whole alignment of the amplicon against the ref
+        range_line=0
+        for i in range(len(matches.get_matching_blocks())):
+            match=matches.get_matching_blocks()[i]
+            seqs.append(len(refs_aa_frames[frame_ref][range_line:match.a])*"-"+str(aa_and_perc[ampl])[match.b:match.b+match.size])
+            range_line=match.a+match.size
+        alignments_per_ref.append(''.join(seqs))
+    ref_x_alignment[frame_ref + "|Ref:" +refs_aa_frames[frame_ref]]=alignments_per_ref
+len(ref_x_alignment)
+ref_x_alignment.keys()
+ref_x_alignment["Frame:1|Ref:AAWTSCTRSVLRLRGAAAPTTRWSWTI*PPAASTPTLPRGVGRPPNPM*SCRLVSAELRCWNTYGGPTGIC*PKCPSRWSES*KGCTGRWASWRTTWTATCPPATHSAGRSPSRPVFAAARRPSPTWSAGSSVRCTCGGRSSTVWR"]
+seq_info={"Seq_info:":aa_and_perc.keys()}
+keys=list(aa_and_perc.keys())
+
+ref_x_alignment["Frame:1|Ref:AAWTSCTRSVLRLRGAAAPTTRWSWTI*PPAASTPTLPRGVGRPPNPM*SCRLVSAELRCWNTYGGPTGIC*PKCPSRWSES*KGCTGRWASWRTTWTATCPPATHSAGRSPSRPVFAAARRPSPTWSAGSSVRCTCGGRSSTVWR"][0]
+
+seq_info=["Seq_info"]+list(aa_and_perc.keys())
+ref_x_alig_list=[]
+for keys, values in ref_x_alignment.items():
+    print("".join(list((keys))[:]))
+    #ref_x_alig_list.append([("".join(list((keys))))]+list(values))
+    ref_x_alig_list.append([keys]+list(values))
+
+#df = pd.DataFrame([seq_info, ref_x_alig_list[0],ref_x_alig_list[1],ref_x_alig_list[2]], columns =[seq_info[0],ref_x_alig_list[0][0], ref_x_alig_list[1][0], ref_x_alig_list[2][0]])
+df = pd.DataFrame(data= {seq_info[0]: seq_info[1:], ref_x_alig_list[0][0]:ref_x_alig_list[0][1:], ref_x_alig_list[1][0]:ref_x_alig_list[1][1:], ref_x_alig_list[2][0]:ref_x_alig_list[2][1:]})
+len(df)
+
+#to show alignments to ref seq that has been translated in frame
+df.iloc[:,0:2]
+#now you have a df where first col contains the information about the specific amplicon, the cols 1-3 are
+#named based on the ref codon frame + the entire translated AA seq
+
+#Go over each alignment col by row, find the longest match and align these next to each other.
+#then move onto the next col (ref seq translated using a different frame), find the longest consequtive seq
+#in the amplicon and align this to the ref too. repeat with the last col as well.
+
+#when aligning to the ref using e.g. ref1 (in frame) and amplicon 1, cut off the amplicon 1 after
+#the longest conseq. seq has been found. Then take the same amplicon but when it has been aligned to the
+#ref2 (out of frame), find the longest seq, remove the extra "---" from the beginning relative to the 
+#amplicon 1 and then align to the ref. merge the two. 
+df
+df.columns[1].split(":")[-1]
+df.iloc[1,3]
+
+len(df.columns)
+match1 = SequenceMatcher(None, df.columns[1].split(":")[-1], df.iloc[1,1]).find_longest_match(0, len(df.columns[1].split(":")[-1]), 0, len(df.iloc[1,1]))
+match1
+match2 = SequenceMatcher(None, df.columns[3].split(":")[-1], df.iloc[1,3]).find_longest_match(0, len(df.columns[3].split(":")[-1]), 0, len(df.iloc[1,3]))
+match2
+
+#seq_match1 + "-"*len(match2.b-match1.b) + seq_match2
+#with the out of frame cols compare which one has the longest seq
+df.columns[1].split(":")[-1]
+end_of_match=match1.b+match.size
+"AAWTSCTRSVLRLRGAAAPTTRWSWTI*PPAASTPTLPRGVGRPPNPM*SCRLVSAELRCWNTYGGPTGIC*PKCPSRWSES*KGCTGRWASWRTTWTATCPPATHSAGRSPSRPVFAAARRPSPTWSAGSSVRCTCGGRSSTVWR"
+"AAWTSCTRSVLRLRGA-------------------------------------------------GP----------R--------------------------------------------------------------------"
+
+df.iloc[1,1][match1.b:match1.b+match1.size]
+df.columns[3].split(":")[-1]
+df.iloc[1,3][match2.b:match2.b+match2.size]
+
+#make a loop where you take the matched_ampl2 for column 2 and 3 (out of frame RFs) and then one with longest
+#match, select and merge with the matched_sampl1 
+#######
+matched_ampl1= len(df.columns[1].split(":")[-1][:match.a])*"-" + str(df.iloc[1,1][match.b:]) + "|"
+matched_ampl2= len(df.columns[3].split(":")[-1][:match.a])*"-" + str(df.iloc[1,3][match.b:]) + "|"
+end_of_match=match1.b+match.size
+a=matched_ampl1[0:end_of_match]
+
+b=matched_ampl2[end_of_match:]
+c=a+b
+#######
+for ampl_row in range(len(df.index)):
+    match1 = SequenceMatcher(None, df.columns[1].split(":")[-1], df.iloc[ampl_row,1]).find_longest_match(0, len(df.columns[1].split(":")[-1]), 0, len(df.iloc[ampl_row,1]))
+    end_of_match=match1.b+match.size
+    matched_ampl1= len(df.columns[1].split(":")[-1][:match.a])*"-" + str(df.iloc[ampl_row,1][match.b:]) + "|"
+    match2_a = SequenceMatcher(None, df.columns[2].split(":")[-1], df.iloc[ampl_row,2]).find_longest_match(0, len(df.columns[2].split(":")[-1]), 0, len(df.iloc[ampl_row,2]))
+    match2_b = SequenceMatcher(None, df.columns[3].split(":")[-1], df.iloc[ampl_row,3]).find_longest_match(0, len(df.columns[3].split(":")[-1]), 0, len(df.iloc[ampl_row,3]))
+    if match2_a.size>match2_b.size:
+        matched_ampl2= len(df.columns[2].split(":")[-1][:match2_a.a])*"-" + str(df.iloc[ampl_row,2][match2_a.b:]) + "|"
+    else:
+        matched_ampl2= len(df.columns[3].split(":")[-1][:match2_b.a])*"-" + str(df.iloc[ampl_row,3][match2_b.b:]) + "|"
+    seq_inframe=matched_ampl1[0:end_of_match]
+    seq_outframe=matched_ampl2[end_of_match:]
+    merged_align_seq=seq_inframe+seq_outframe
+
+    writer = csv.writer(f)
+    writer.writerow([seq_info])
+    writer.writerow(["Ref | "+ ref[:match.a+match.size]])
+    writer.writerow(["Seq | "+ matched_ampl])
+
+'''
+G, P, S, T		Orange
+H, K, R 		Red
+F, W, Y 		Blue
+I, L, M, V		Green
+'''
+
+    
+print any(any('Mary' in s for s in subList) for subList in myDict.values())
+from colorama import Fore, Style
+color_scheme={"RED": ["H","K","R"], "BLUE":["F","W","Y"], "GREEN":["I","L","M","V"], "YELLOW":["G","P","S","T"]}
+
+def find_colour(aa,color_scheme):
+    return [key for key,val in color_scheme.items() if any("P" in s for s in val)]
+
+def color_AAs(seq):
+    col_seq=[]
+    color_scheme={"RED": ["H","K","R"], "BLUE":["F","W","Y"], "GREEN":["I","L","M","V"], "YELLOW":["G","P","S","T"]}
+    for aa in seq:
+        col=find_colour(aa)
+        if not col:  #set line colour
+            coloured=f"{Style.RESET_ALL}aa"
+        else:
+            coloured=f"{Fore.col}" aa
+        print(coloured)
+colors = {'reset':'\033[0m', 'blue':'\033[34m'}
+person = 'you'
+formattext = 'How are %s%s%s' %(colors['blue'], person, colors['reset'])
+my_str = f"{Fore.BLUE}Hello, {Style.RESET_ALL} guys. {Fore.RED} I should be red."
+my_str
+
+end_of_match
+
+matched_ampl= len(df.columns[1].split(":")[-1][:match.a])*"-" + str(df.iloc[1,1][match.b:]) + "|"
+
+ref_col_i=1
+for ref_col_i in range(len(df.columns())):
+    for ampl_row in range(len(df.index)):
+        match = SequenceMatcher(None, df.columns[ref_col_i].split(":")[-1], df.iloc[ampl_row,ref_col_i]).find_longest_match(0, len(df.columns[ref_col_i].split(":")[-1]), 0, len(df.iloc[ampl_row,ref_col_i]))
+
+
+
+#ref_x_alignment key contains info about the frame used to translate the ref seq along with the translated ref seq, the values are amplicon alignments and
+#these become columns in the final df
+#now we have the dict containing the ref AA seqs translated in different frames as dict and the amplicon AAs with header infos as another dict
+    
+
+   # return(aa_and_perc)  #save as fasta which you will then align with muscle
+
 
 #write into html instead....
 
@@ -682,3 +951,59 @@ Ilmoita kuinka suuri osa sekvenseistä sisältää arkin
 ei voida tuottaa solussa. tehdäänkö arvelle mitään?
 
 '''
+
+
+
+
+
+with open(AAfile) as file:
+    lines = [line.rstrip("\n") for line in file]
+    for i, line in enumerate(lines):
+        print(line)
+
+
+
+
+def find_frame(overlap_bases): #rewrite this based on taking the aligned sequence and then calculate frame by taking the full mcherry
+    start_codon_i=ref.index("ATG")
+    if overlap_bases==0:
+        return 0
+    else:
+        seq=ref[start_codon_i:ref.index(overlap_bases)]
+        if len(seq)%3==0:
+            print("In frame!")
+            frame_N=0
+        else:
+            print("out of frame:" + str(len(seq)%3))
+            frame_N=len(seq)%3
+            return frame_N
+
+
+
+
+
+
+####################
+aa_seq = "/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_inframe_redo.fasta"
+seq_clusters=[]
+percs=[]
+aa_df=dict()
+for record in SeqIO.parse(aa_seq, "fasta"):
+    print(record.seq)
+    print(record.id)
+    print("========")
+    #perc = str(record.description).split(" ")[-1]
+    seq_clusters.append(str(record.seq))
+    percs.append(str(record.description).split(" ")[-1])
+    #aa_df[perc]=str(record.seq)
+tuples_aa_data=list(zip(seq_clusters,percs))
+#tuples_aa_data=list(zip(aa_df.values(),aa_df.keys()))
+full_df_aa=pd.DataFrame(tuples_aa_data, columns=["AA_seq", "Percentage_sum"])
+full_df_aa
+align_pairwise_loc2_aa="/media/data/AtteR/projects/hiti/translated/AA_mcherry_p3_seq_aligned_pairwise_local3_3_1.fasta"
+#align_pairwise_loc2_aa="/media/data/AtteR/projects/hiti/translated/AA_mcherry_p3_seq_aligned_pairwise_global_05_1.fasta"
+align_pairwise_loc2_aa="/media/data/AtteR/projects/hiti/translated/AA_mcherry_p3_seq_aligned_pairwise_local3_5_1.fasta"
+
+align_and_save(align_pairwise_loc2_aa, full_df_aa.iloc[1:,], full_df_aa.iloc[0,0])
+
+####################
