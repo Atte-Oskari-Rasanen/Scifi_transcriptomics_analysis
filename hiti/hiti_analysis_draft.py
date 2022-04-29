@@ -1113,28 +1113,37 @@ def aa_coloring(seq_infos, aligs1, aligs2, output):
     color_scheme={"RED": [["#FF0000"], ["D", "E"]], "BLUE":[["#6495ED"],["K", "R"]], "GREEN":[["#9FE2BF"], ["C", "V", "I", "L", "P", "F", "Y", "M", "W"]], "ORANGE":[["#FF7F50"],["G", "A", "S", "T"]], "MAGENTA":[["#DE3163"], ["N", "Q", "H"]], "BLACK": [["#000000"],["-","|"]]}
     f = open(output,"w")
     for info, a1,a2 in zip(seq_infos, aligs1, aligs2):
-        f.write("<html> \n <body> <p>"+info +"\n")
+        print(info)
+        a1,a2=a1[0:round(len(a1)*0.6)], a2[0:round(len(a2)*0.6)]
+        f.write("<html> \n <body> <p>"+info +"</p> <p>")
     #go over the individual AAs of the alignemnts
+        #write the html colouring into a string var for each aa and append into a list, then join and make a massive string,
+        # then after all AAs have been iterated over for the certain seq, then write into the html 
+        aa1_list=[]
+        aa2_list=[]
         for aa1,aa2, in zip(a1,a2):
-            color_i=find_colour(aa1,color_scheme)
-            f.write('<span style="color:'+ color_scheme[color_i][0][0]+ '">' + aa1 + '</span>')
+            aa2_list.append('<span style="color:'+ color_scheme[find_colour(aa2,color_scheme)][0][0]+ '">' + aa2 + '</span>')
+            aa1_list.append('<span style="color:'+ color_scheme[find_colour(aa1,color_scheme)][0][0]+ '">' + aa1 + '</span>')
+        coloured_ref="".join(aa2_list)
+        coloured_seq="".join(aa1_list)
+        f.write(coloured_ref +"<br>")
+        f.write(coloured_seq)
         f.write("</p>")
 
     f.write("</body>")
     f.close()
 out="/media/data/AtteR/projects/hiti/tuto3.html"
+aa_coloring(seqinfos,aligs_merged_seq,aligs_merged_ref,out)
+
 q="--------------GAAAPTTRWSWTI--|T-----------------------------------------------------------------------------RW--S----------TI-----------------------|"
 
 q[17]
 i=1
 for aa in q:
-    color_i=find_colour(aa,color_scheme)
-    color_i
-    color_scheme[color_i][0]
+    color_scheme[find_colour(aa,color_scheme)][0]
     i+=1
     i
 
-aa_coloring(seqinfos,aligs_merged_seq,aligs_merged_ref, out)
 
 <link rel="stylesheet" href="myCs325Style.css" type="text/css"/>
 from fpdf import FPDF
@@ -1311,7 +1320,5 @@ Ilmoita kuinka suuri osa sekvenseistä sisältää arkin
 ei voida tuottaa solussa. tehdäänkö arvelle mitään?
 
 '''
-
-
 
 
