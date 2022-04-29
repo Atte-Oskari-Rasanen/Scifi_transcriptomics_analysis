@@ -838,9 +838,12 @@ df.columns[1].split(":")[-1]
 df.iloc[1,3]
 
 len(df.columns)
-match1 = SequenceMatcher(None, df.columns[1].split(":")[-1], df.iloc[1,1]).find_longest_match(0, len(df.columns[1].split(":")[-1]), 0, len(df.iloc[1,1]))
+match_all = SequenceMatcher(None, df.columns[1].split(":")[-1], df.iloc[1,1])
+match_all.get_matching_blocks()
+
+match1 = SequenceMatcher(None, df.columns[1].split(":")[-1], df.iloc[0,1]).find_longest_match(0, len(df.columns[1].split(":")[-1]), 0, len(df.iloc[0,1]))
 match1
-match2 = SequenceMatcher(None, df.columns[3].split(":")[-1], df.iloc[1,3]).find_longest_match(0, len(df.columns[3].split(":")[-1]), 0, len(df.iloc[1,3]))
+match2 = SequenceMatcher(None, df.columns[3].split(":")[-1], df.iloc[0,3]).find_longest_match(0, len(df.columns[3].split(":")[-1]), 0, len(df.iloc[0,3]))
 match2
 
 #seq_match1 + "-"*len(match2.b-match1.b) + seq_match2
@@ -857,32 +860,36 @@ df.iloc[1,3][match2.b:match2.b+match2.size]
 #make a loop where you take the matched_ampl2 for column 2 and 3 (out of frame RFs) and then one with longest
 #match, select and merge with the matched_sampl1 
 #######
-matched_ampl1= len(df.columns[1].split(":")[-1][:match.a])*"-" + str(df.iloc[1,1][match.b:]) + "|"
-matched_ampl2= len(df.columns[3].split(":")[-1][:match.a])*"-" + str(df.iloc[1,3][match.b:]) + "|"
-end_of_match=match1.b+match.size
-a=matched_ampl1[0:end_of_match]
 
-b=matched_ampl2[end_of_match:]
+df.columns[1].split(":")[-1]
+
+matched_ampl1= len(df.columns[1].split(":")[-1][:match1.a])*"-" + str(df.iloc[1,1][match1.b:]) + "|"
+#matched_ampl2= len(df.columns[3].split(":")[-1][:match.a])*"-" + str(df.iloc[1,3][match.b:]) + "|"
+matched_ampl2= len(df.columns[3].split(":")[-1][:match2.a])*"-" + str(df.iloc[1,3][match2.b:]) + "|"
+
+end_of_match=match1.b+match1.size
+ref_a=df.columns[1].split(":")[-1][0:end_of_match] + "|"
+
+"AAWTSCTRSVLRLRGPQHRRPDGAGPYDHRRPPRLPCPAGWAGRQTQCDPADW*VPS*DAGTRTEDPPASVDRSVQAGGARAERVAQVGGQAGEQLGRLRAHRRLTALEEVHQGLSLPLPGDHRQPGALGQA*DARVEGGLLPSGE"
+"AAWTSCTRSVLRLRG----RPDGAGPYDHR--------------------------------------------------------------------------------------------------------------------|"
+a=matched_ampl1[0:end_of_match] + "|"
+len(matched_ampl2)
+b=matched_ampl2[end_of_match:] + "|"
+ref_b=df.columns[3].split(":")[-1][end_of_match:] + "|"
+ref_b
+a
+b
 c=a+b
+c
 #######
-for ampl_row in range(len(df.index)):
-    match1 = SequenceMatcher(None, df.columns[1].split(":")[-1], df.iloc[ampl_row,1]).find_longest_match(0, len(df.columns[1].split(":")[-1]), 0, len(df.iloc[ampl_row,1]))
-    end_of_match=match1.b+match.size
-    matched_ampl1= len(df.columns[1].split(":")[-1][:match.a])*"-" + str(df.iloc[ampl_row,1][match.b:]) + "|"
-    match2_a = SequenceMatcher(None, df.columns[2].split(":")[-1], df.iloc[ampl_row,2]).find_longest_match(0, len(df.columns[2].split(":")[-1]), 0, len(df.iloc[ampl_row,2]))
-    match2_b = SequenceMatcher(None, df.columns[3].split(":")[-1], df.iloc[ampl_row,3]).find_longest_match(0, len(df.columns[3].split(":")[-1]), 0, len(df.iloc[ampl_row,3]))
-    if match2_a.size>match2_b.size:
-        matched_ampl2= len(df.columns[2].split(":")[-1][:match2_a.a])*"-" + str(df.iloc[ampl_row,2][match2_a.b:]) + "|"
-    else:
-        matched_ampl2= len(df.columns[3].split(":")[-1][:match2_b.a])*"-" + str(df.iloc[ampl_row,3][match2_b.b:]) + "|"
-    seq_inframe=matched_ampl1[0:end_of_match]
-    seq_outframe=matched_ampl2[end_of_match:]
-    merged_align_seq=seq_inframe+seq_outframe
 
-    writer = csv.writer(f)
-    writer.writerow([seq_info])
-    writer.writerow(["Ref | "+ ref[:match.a+match.size]])
-    writer.writerow(["Seq | "+ matched_ampl])
+"-------------------RPDGAGPYDHR--------------------------------------------------------------------------------------------------------------------|"
+
+from fpdf import FPDF
+df.iloc[1,0]
+
+#you still need to make the merged ref seq
+
 
 '''
 G, P, S, T		Orange
@@ -899,6 +906,354 @@ color_scheme={"RED": ["H","K","R"], "BLUE":["F","W","Y"], "GREEN":["I","L","M","
 def find_colour(aa,color_scheme):
     return [key for key,val in color_scheme.items() if any("P" in s for s in val)]
 
+
+class write_pdf(FPDF):
+    #color_scheme={"RED": ["H","K","R"], "BLUE":["F","W","Y"], "GREEN":["I","L","M","V"], "YELLOW":["G","P","S","T"]}
+    #color_scheme={[255,0,0]: ["H","K","R"], [0,0,255]:["F","W","Y"], [0,128,0]:["I","L","M","V"], [255,140,0]:["G","P","S","T"], [255,255,255]: ["-"]}
+    color_scheme={"RED": [[255,0,0], ["H","K","R"]], "BLUE":[[[255,0,0]],["F","W","Y"]], "GREEN":[[0,128,0], ["I","L","M","V"]], "ORANGE":[[255,140,0],["G","P","S","T"]], "BLACK": [[255,255,255],["-"]]}
+
+    num=1
+    def __init__(self, seq_infos, aligs1, aligs2):
+        self.seq_infos=seq_infos
+        self.aligs1 = aligs1
+        self.aligs2 = aligs2
+
+    def header(self):
+        # Arial 12
+        self.set_font('Arial', '', 12)
+        # Background color
+        self.set_fill_color(200, 220, 255)
+        # Title
+        self.cell(0, 6, 'Seq %d : %s' % (1, self.seq_infos), 0, 1, 'L', 1)
+        # Line break
+        self.ln(4)
+
+    def find_colour(self):
+        col=[key for key,val in color_scheme.items() if any(self.aa in s for s in val)]
+        return(color_scheme.keys().index(col))
+
+    def add_colour(self,color_i,aa):
+        self.cell(w=0, h = 0, txt = aa, border = 0, ln = 0, align = '', fill = False, link = '')
+        self.set_font('Arial', '', 10)
+        self.set_text_color(color_scheme[color_i][0], color_scheme[color_i][1], color_scheme[color_i][2])
+
+    def color_AAs(self,color_i, aa):
+        self.cell(w=0, h = 0, txt = aa, border = 0, ln = 0, align = '', fill = False, link = '')
+        self.set_font('Arial', '', 10)
+        self.set_text_color(color_scheme[color_i][0], color_scheme[color_i][1], color_scheme[color_i][2])
+
+    def color_AAs(self):
+        pdf.add_page()
+        col_seq=[]
+        #go over the individual alignemnts
+        for info, a1,a2 in zip(self.seq_infos, self.aligs1, self.aligs2):
+            #go over the individual AAs of the alignemnts
+            for h, aa1,aa2, in zip(info,a1,a2):
+                color_i=find_colour(self.seq)
+                print(color_i)
+                self.cell(w=0, h = 0, txt = h, border = 0, ln = 0, align = '', fill = False, link = '')
+                self.set_font('Arial', '', 12)
+                color_AAs(color_i,aa1)
+            #line break after the whole seq has been coloured
+            self.ln()
+AAfile="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_ALIGN.csv"
+
+match1 = SequenceMatcher(None, df.columns[1].split(":")[-1], df.iloc[0,1]).find_longest_match(0, len(df.columns[1].split(":")[-1]), 0, len(df.iloc[0,1]))
+match1
+match2 = SequenceMatcher(None, df.columns[3].split(":")[-1], df.iloc[0,3]).find_longest_match(0, len(df.columns[3].split(":")[-1]), 0, len(df.iloc[0,3]))
+match2
+matched_ampl1= len(df.columns[1].split(":")[-1][:match1.a])*"-" + str(df.iloc[1,1][match1.b:]) + "|"
+matched_ampl2= len(df.columns[3].split(":")[-1][:match2.a])*"-" + str(df.iloc[1,3][match2.b:]) + "|"
+
+seqinfos=[]
+aligs_merged_seq=[]
+aligs_merged_ref=[]
+for ampl_row in range(round(len(df.index)*0.2)):
+    match1 = SequenceMatcher(None, df.columns[1].split(":")[-1], df.iloc[ampl_row,1]).find_longest_match(0, len(df.columns[1].split(":")[-1]), 0, len(df.iloc[ampl_row,1]))
+    end_of_match=match1.b+match.size
+    print(match1)
+    matched_ampl1= len(df.columns[1].split(":")[-1][:match1.a])*"-" + str(df.iloc[ampl_row,1][match1.b:]) + "|"
+    seq_inframe=matched_ampl1[0:end_of_match] + "|"
+    print(seq_inframe)
+    ref_inframe1=df.columns[1].split(":")[-1][0:end_of_match] + "|"
+    #get the matches with the other reading frames (i.e. the last 2 cols of the df)
+    match2_a = SequenceMatcher(None, df.columns[2].split(":")[-1], df.iloc[ampl_row,2]).find_longest_match(0, len(df.columns[2].split(":")[-1]), 0, len(df.iloc[ampl_row,2]))
+    match2_b = SequenceMatcher(None, df.columns[3].split(":")[-1], df.iloc[ampl_row,3]).find_longest_match(0, len(df.columns[3].split(":")[-1]), 0, len(df.iloc[ampl_row,3]))
+    if match2_a.size>match2_b.size:
+        matched_ampl2= len(df.columns[2].split(":")[-1][:match2_a.a])*"-" + str(df.iloc[ampl_row,2][match2_a.b:]) + "|"
+        ref_outframe2=df.columns[2].split(":")[-1][0:end_of_match] + "|"
+        # seq_inframe2=matched_ampl2[0:end_of_match]
+        seq_outframe=matched_ampl2[end_of_match:]
+        print("match2_a larger than b!")
+    else:
+        matched_ampl2= len(df.columns[3].split(":")[-1][:match2_b.a])*"-" + str(df.iloc[ampl_row,3][match2_b.b:]) + "|"
+        ref_outframe2=df.columns[3].split(":")[-1][end_of_match:] + "|"
+        seq_outframe=matched_ampl2[end_of_match:]
+        # seq_inframe2=matched_ampl2[0:end_of_match]
+        seq_outframe=matched_ampl2[end_of_match:]
+        print("match2_b larger than a!")
+
+    merged_align_seq=seq_inframe+seq_outframe
+    # ref_inframe=matched_ampl1[0:end_of_match]
+    # ref_outframe=matched_ampl2[end_of_match:]
+    print("inframe1:" + seq_inframe)
+
+    print("inframe2:" + seq_outframe)
+    print("merged:" + merged_align_seq)
+    merged_align_ref=ref_inframe1+ref_outframe2
+    header_info=df.iloc[ampl_row,0]
+    seqinfos.append(df.iloc[ampl_row,0])
+    aligs_merged_seq.append(merged_align_seq)
+    aligs_merged_ref.append(merged_align_ref)
+
+# pdf=write_pdf(seqinfos,aligs_merged_seq,aligs_merged_ref)
+# pdf.add_page()
+# pdf.color_AAs()
+# pdf.header(header_info)
+# pdf.color_AAs(merged_align_ref)
+# pdf.color_AAs(merged_align_seq)
+# pdf.output('/media/data/AtteR/projects/hiti/tuto3.pdf', 'F')
+
+########
+########
+
+#FIX
+def find_colour(aa,color_scheme):
+    col=[key for key,val in color_scheme.items() if any(aa in s for s in val)]
+    return("".join(col))
+
+color_scheme={"RED": [[255,0,0], ["H","K","R"]], "BLUE":[[255,0,0],["F","W","Y"]], "GREEN":[[0,128,0], ["I","L","M","V"]], "ORANGE":[[255,140,0],["G","P","S","T"]], "BLACK": [[255,255,255],["-", "|"]]}
+ex_s="--------------GAAAPTTRWSWTI--|"
+
+pdf=FPDF(format='letter', unit='in')
+color_scheme["RED"][0][0]
+color_i = find_colour("H", color_scheme)
+print(color_i)
+
+pdf.add_page()
+# Set color red
+pdf.set_font('Arial', '', 10)
+pdf.set_text_color(color_scheme[color_i][0][0], color_scheme[color_i][0][1], color_scheme[color_i][0][2])
+pdf.cell(80)
+
+pdf.cell(0, 0, txt = "H",border = 0, ln = 0)
+color_i = find_colour("F", color_scheme)
+color_scheme[color_i][0][1]
+pdf.set_font('Arial', '', 10)
+pdf.set_text_color(color_scheme[color_i][0][0], color_scheme[color_i][0][1], color_scheme[color_i][0][2])
+pdf.cell(0, 0, txt = "F",border = 3, ln = 0)
+
+# # Colors of frame, background and text
+# pdf.set_draw_color(0, 80, 180)
+# pdf.set_fill_color(230, 230, 0)
+out="/media/data/AtteR/projects/hiti/tuto3.pdf"
+out="/media/data/AtteR/projects/hiti/tuto3.rtf"
+
+pdf.output(out,'F')
+template = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\\deflang1033{\\fonttbl{\\f0\\fnil\\fcharset0 Times New Roman;}}\n{\\colortbl;\\red255\\green0\\blue0;\\red0\\green0\\blue255;\\red0\\green255\\blue0;\\red255\\green0\\blue255;}'
+with open(out, 'w') as f:
+    f.write(template)
+###########
+style = """<style type='text/css'>
+html {
+  font-family: Courier;
+}
+r {
+  color: #ff0000;
+}
+g {
+  color: #00ff00;
+}
+b {
+  color: #0000ff;
+}
+</style>"""
+
+RED = 'r'
+GREEN = 'g'
+BLUE = 'b'
+
+def write_html(f, type, str_):
+    f.write('<%(type)s>%(str)s</%(type)s>' % {
+            'type': type, 'str': str_ } )
+
+f = open(out, 'w')
+f.write('<html>')
+f.write(style)
+
+write_html(f, RED, 'My name is so foo..\n')
+write_html(f, BLUE, '102838183820038.028391')
+
+f.write('</html>')
+#######
+
+'''
+<html>
+
+    <body>
+
+        <h1>Heading</h1>
+
+    </body>
+
+</html>
+'''
+def find_colour(aa,color_scheme):
+    col=[key for key,val in color_scheme.items() if any(aa in s for s in val)]
+    out="".join(col)
+    if out=='':
+        out="BLACK"
+        return
+    else:
+        return(out)
+
+def aa_coloring(seq_infos, aligs1, aligs2, output):
+    # color_scheme={"RED": [[255,0,0], ["H","K","R"]], "BLUE":[[[255,0,0]],["F","W","Y"]], "GREEN":[[0,128,0], ["I","L","M","V"]], "ORANGE":[[255,140,0],["G","P","S","T"]], "BLACK": [[255,255,255],["-"]]}
+    #using lesk color code scheme:
+    color_scheme={"RED": [["#FF0000"], ["D", "E"]], "BLUE":[["#6495ED"],["K", "R"]], "GREEN":[["#9FE2BF"], ["C", "V", "I", "L", "P", "F", "Y", "M", "W"]], "ORANGE":[["#FF7F50"],["G", "A", "S", "T"]], "MAGENTA":[["#DE3163"], ["N", "Q", "H"]], "BLACK": [["#000000"],["-","|"]]}
+    f = open(output,"w")
+    for info, a1,a2 in zip(seq_infos, aligs1, aligs2):
+        f.write("<html> \n <body> <p>"+info +"\n")
+    #go over the individual AAs of the alignemnts
+        for aa1,aa2, in zip(a1,a2):
+            color_i=find_colour(aa1,color_scheme)
+            f.write('<span style="color:'+ color_scheme[color_i][0][0]+ '">' + aa1 + '</span>')
+        f.write("</p>")
+
+    f.write("</body>")
+    f.close()
+out="/media/data/AtteR/projects/hiti/tuto3.html"
+q="--------------GAAAPTTRWSWTI--|T-----------------------------------------------------------------------------RW--S----------TI-----------------------|"
+
+q[17]
+i=1
+for aa in q:
+    color_i=find_colour(aa,color_scheme)
+    color_i
+    color_scheme[color_i][0]
+    i+=1
+    i
+
+aa_coloring(seqinfos,aligs_merged_seq,aligs_merged_ref, out)
+
+<link rel="stylesheet" href="myCs325Style.css" type="text/css"/>
+from fpdf import FPDF
+ 
+# Create instance of FPDF class
+# Letter size paper, use inches as unit of measure
+pdf=FPDF(format='letter', unit='in')
+# Add new page. Without this you cannot create the document.
+pdf.add_page()
+# Set font face to Times, size 10.0 pt
+pdf.set_font('Times','',10.0)
+ 
+# Set color red
+pdf.set_text_color(255,0,0)    
+pdf.cell(1.0,0.0,'Hello World!')
+# Line break 0.15 inches height
+pdf.ln(0.15)
+ 
+# Set color green
+pdf.set_text_color(0,255,0)    
+pdf.cell(1.0,0.0,'Hello World!')
+pdf.ln(0.15)
+ 
+# Set color blue
+pdf.set_text_color(0,0,255)    
+pdf.cell(1.0,0.0,'Hello World!')
+pdf.ln(0.15)
+ 
+# output content into a file ('F') named 'hello3.pdf'
+pdf.output(out,'F')
+
+def aa_coloring(seq_infos, aligs1, aligs2, output):
+    color_scheme={"RED": [[255,0,0], ["H","K","R"]], "BLUE":[[[255,0,0]],["F","W","Y"]], "GREEN":[[0,128,0], ["I","L","M","V"]], "ORANGE":[[255,140,0],["G","P","S","T"]], "BLACK": [[255,255,255],["-"]]}
+
+    pdf=FPDF("P", "mm", "A4")
+    # add a page 
+    pdf.add_page()
+    # Set font: Times, normal, size 10
+    pdf.set_font('Times','', 12)
+    for info, a1,a2 in zip(seq_infos, aligs1, aligs2):
+    #go over the individual AAs of the alignemnts
+        for h, aa1,aa2, in zip(info,a1,a2):
+            #write in the header of certain seq alignment
+            pdf.cell(w=0, h = 0, txt = h, border = 0, ln = 0, align = '', fill = False, link = '')
+            pdf.set_font('Arial', h, 12)
+            print(aa1)
+            #write in the ref seq that has been merged with in-and out of frame versions 
+            color_i=find_colour(aa1,color_scheme)
+            print(color_i)
+            pdf.cell(0, 2, txt = aa1, border = 0, ln = 0, align = '', fill = False, link = '')
+            pdf.set_font('Arial', '', 10)
+            pdf.set_text_color(color_scheme[color_i][0], color_scheme[color_i][1], color_scheme[color_i][2])
+            #write in the aligned seq that has been merged with in-and out of frame versions 
+            color_i=find_colour(aa2,color_scheme)
+            print(color_i)
+            pdf.cell(0, 2, txt = aa2, border = 0, ln = 0, align = '', fill = False, link = '')
+            pdf.set_font('Arial', '', 10)
+            pdf.set_text_color(color_scheme[color_i][0], color_scheme[color_i][1], color_scheme[color_i][2])
+
+    #line break after the whole seq has been coloured
+        pdf.ln()
+
+    pdf.output(output,'F')
+aligs_merged_seq
+out="/media/data/AtteR/projects/hiti/tuto3.pdf"
+aa_coloring(seqinfos,aligs_merged_seq,aligs_merged_ref, out)
+
+class pdf():
+    color_scheme={"RED": [[255,0,0], ["H","K","R"]], "BLUE":[[[255,0,0]],["F","W","Y"]], "GREEN":[[0,128,0], ["I","L","M","V"]], "ORANGE":[[255,140,0],["G","P","S","T"]], "BLACK": [[255,255,255],["-"]]}
+
+    pdf=FPDF("P", "mm", "A4")
+    # add a page 
+    pdf.add_page()
+    # Set font: Times, normal, size 10
+    pdf.set_font('Times','', 12)
+    pdf.output(out,'F')
+
+
+    num=1
+    def __init__(self, seq_infos, aligs1, aligs2, output):
+        self.seq_infos=seq_infos
+        self.aligs1 = aligs1
+        self.aligs2 = aligs2
+        self.output=output
+
+    def color_AAs(self,color_i, aa):
+        self.cell(0, 2, txt = aa, border = 0, ln = 0, align = '', fill = False, link = '')
+        self.set_font('Arial', '', 10)
+        self.set_text_color(color_scheme[color_i][0], color_scheme[color_i][1], color_scheme[color_i][2])
+
+    def color_AAs(self):
+        pdf.add_page()
+        col_seq=[]
+        #go over the individual alignemnts
+        for info, a1,a2 in zip(self.seq_infos, self.aligs1, self.aligs2):
+            #go over the individual AAs of the alignemnts
+            for h, aa1,aa2, in zip(info,a1,a2):
+                color_i=find_colour(self.seq)
+                print(color_i)
+                self.cell(w=0, h = 0, txt = h, border = 0, ln = 0, align = '', fill = False, link = '')
+                self.set_font('Arial', '', 12)
+                color_AAs(color_i,aa1)
+            #line break after the whole seq has been coloured
+            self.ln()
+
+#make a function that calls the fpdf and the rest INSIDE it
+
+pdf=pdf()
+a=pdf._save('/media/data/AtteR/projects/hiti/tuto3.pdf')
+
+
+'''
+if 
+    self.set_text_color(220, 50, 50)
+    self.set_text_color(color_scheme[0][0], color_scheme[0][1], color_scheme[0][2])
+
+'''
+color_scheme={[220, 50, 50]: ["H","K","R"], "BLUE":["F","W","Y"], "GREEN":["I","L","M","V"], "YELLOW":["G","P","S","T"]}
+
 def color_AAs(seq):
     col_seq=[]
     color_scheme={"RED": ["H","K","R"], "BLUE":["F","W","Y"], "GREEN":["I","L","M","V"], "YELLOW":["G","P","S","T"]}
@@ -910,11 +1265,16 @@ def color_AAs(seq):
             coloured=f"{Fore.col}" aa
         print(coloured)
 colors = {'reset':'\033[0m', 'blue':'\033[34m'}
+color_asci={"RED": "\033[1;31;40m"}
+print ("\033[91m" + 'I know I can be red' + "\033[0m")
 person = 'you'
 formattext = 'How are %s%s%s' %(colors['blue'], person, colors['reset'])
 my_str = f"{Fore.BLUE}Hello, {Style.RESET_ALL} guys. {Fore.RED} I should be red."
 my_str
-
+import termcolor
+string = "type-name-function-location"
+string = string.replace('-', termcolor.colored('-', 'red'))
+string
 end_of_match
 
 matched_ampl= len(df.columns[1].split(":")[-1][:match.a])*"-" + str(df.iloc[1,1][match.b:]) + "|"
@@ -955,55 +1315,3 @@ ei voida tuottaa solussa. tehdäänkö arvelle mitään?
 
 
 
-
-with open(AAfile) as file:
-    lines = [line.rstrip("\n") for line in file]
-    for i, line in enumerate(lines):
-        print(line)
-
-
-
-
-def find_frame(overlap_bases): #rewrite this based on taking the aligned sequence and then calculate frame by taking the full mcherry
-    start_codon_i=ref.index("ATG")
-    if overlap_bases==0:
-        return 0
-    else:
-        seq=ref[start_codon_i:ref.index(overlap_bases)]
-        if len(seq)%3==0:
-            print("In frame!")
-            frame_N=0
-        else:
-            print("out of frame:" + str(len(seq)%3))
-            frame_N=len(seq)%3
-            return frame_N
-
-
-
-
-
-
-####################
-aa_seq = "/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_inframe_redo.fasta"
-seq_clusters=[]
-percs=[]
-aa_df=dict()
-for record in SeqIO.parse(aa_seq, "fasta"):
-    print(record.seq)
-    print(record.id)
-    print("========")
-    #perc = str(record.description).split(" ")[-1]
-    seq_clusters.append(str(record.seq))
-    percs.append(str(record.description).split(" ")[-1])
-    #aa_df[perc]=str(record.seq)
-tuples_aa_data=list(zip(seq_clusters,percs))
-#tuples_aa_data=list(zip(aa_df.values(),aa_df.keys()))
-full_df_aa=pd.DataFrame(tuples_aa_data, columns=["AA_seq", "Percentage_sum"])
-full_df_aa
-align_pairwise_loc2_aa="/media/data/AtteR/projects/hiti/translated/AA_mcherry_p3_seq_aligned_pairwise_local3_3_1.fasta"
-#align_pairwise_loc2_aa="/media/data/AtteR/projects/hiti/translated/AA_mcherry_p3_seq_aligned_pairwise_global_05_1.fasta"
-align_pairwise_loc2_aa="/media/data/AtteR/projects/hiti/translated/AA_mcherry_p3_seq_aligned_pairwise_local3_5_1.fasta"
-
-align_and_save(align_pairwise_loc2_aa, full_df_aa.iloc[1:,], full_df_aa.iloc[0,0])
-
-####################
