@@ -359,6 +359,8 @@ full_df_trim.iloc[0,-4]
 
 full_df_trim["percent_sum"]
 full_df_trim.head()
+full_df_trim.columns
+full_df_trim.iloc[0,-3]
 len(full_df_trim.index)
 
 
@@ -595,50 +597,6 @@ def translate_nt_aa(input, output_aa, frame_ampl, frame_ref):
 output_aa="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_inframe_redo.fasta"
 output_aa="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA"
 
-#output_aa="/media/data/AtteR/projects/hiti/translated/mcherry_p3_seq_clusters_all_AA_inframe_aligned_pw_loc2_go5_ge3.fasta"
-result
-#str(aa_and_perc[">348 CluSeq_%: 0.0135"])
-
-#ONLY translate the ref seq with different frames
-aa_dict=translate_nt_aa(result,output_aa, 1, 1)
-aa_dict
-
-
-
-def hash_sequence(string, k):
-
-    dictionary={}
-    for i in range(len(string)-(k-1)):
-        sequence = string[i:i+k]
-        dictionary.setdefault(sequence,[]).append(i)
-    return dictionary
-def intersects(string1, string2, k): #what if k=0?
-    dictionary = hash_sequence(string1, k)
-
-    for i in range(len(string2)-1): #O(n) for sybstring in string
-        if string2[i:i+k] in dictionary: #O(n
-            return string2[i:i+k]
-    return None
-
-def find_overlap(amplicon, ref):
-    longest_seq = None
-    n=0
-    for i in range(1, min(len(amplicon), len(ref))):
-        # Store the current iteration's intersection
-        current_seq = intersects(amplicon, ref, i)
-        
-        # If this was one character too long, return.
-        # Else, a longer intersection was found. Store it.
-        if current_seq == None:
-            print("No overlap found!")
-            n+=1
-            return 0
-        else:
-            longest_seq = current_seq
-    # If we get here, the strings were the same.
-    # For consistency, return longest_seq and its length.
-    print("no overlap found between " + str(n) + " amplicons!")
-    return longest_seq
 
 #Get the full ref seq. then with the amplicon, go over it AA by AA and compare to the ref. If match found start another loop
 #where you start counting how many similar AAs, starting from match are found. Keep count of on which AA this match was found as 
@@ -697,15 +655,6 @@ for i in range(len(temp.get_matching_blocks())):
     seqs.append(len(a[range_line:match.a])*"-"+b[match.b:match.b+match.size])
     range_line=match.a+match.size
     #based on the coordinates, extract the start and end, get the seqs between them
-seqs
-s=''.join(seqs)
-a
-ABCDEFGHIJK
---CDEFGHI--
-s
-matched_ampls
-ref
-
 import csv
 
 #the first line in the input AA file must be the ref seq
@@ -766,6 +715,7 @@ def align_AAs(inputAA):
 #frames
 
 corr_frame=1
+result
 input=result
 #def translate_nt_aa(input, output_aa, corr_frame):
 out_of_frames=[0,1,2]
@@ -774,14 +724,15 @@ refs_aa_frames={}
 output_aa=output_aa.split(".")[0] + "_frameref_" + str(corr_frame) + ".fasta"
 aa_and_perc={}
 
-
-for record in SeqIO.parse(input, "fasta"):
+len(aa_and_perc)
+for record in SeqIO.parse(result, "fasta"):
     if record.id=="0":
         refs_aa_frames["Frame:" + str(corr_frame)]=str(Seq(record.seq[corr_frame:]).translate())
         for alt_frame in out_of_frames:
             refs_aa_frames["Frame:" + str(alt_frame)]=str(Seq(record.seq[alt_frame:]).translate())
     else:
         aa_and_perc[">"+str(record.description) + "_transl.frame:" + str(corr_frame)]=str(Seq(record.seq[corr_frame:]).translate())
+aa_and_perc['>1 CluSeq:0.53018_sd:0.15116_transl.frame:1']
 refs_aa_frames
 aa_and_perc
 #you go over the ref seqs in different frames and align all the amplicons to them. save the alignment into the df's specific column. initially
@@ -819,7 +770,7 @@ for keys, values in ref_x_alignment.items():
 #df = pd.DataFrame([seq_info, ref_x_alig_list[0],ref_x_alig_list[1],ref_x_alig_list[2]], columns =[seq_info[0],ref_x_alig_list[0][0], ref_x_alig_list[1][0], ref_x_alig_list[2][0]])
 df = pd.DataFrame(data= {seq_info[0]: seq_info[1:], ref_x_alig_list[0][0]:ref_x_alig_list[0][1:], ref_x_alig_list[1][0]:ref_x_alig_list[1][1:], ref_x_alig_list[2][0]:ref_x_alig_list[2][1:]})
 len(df)
-
+seq_info[1]
 #to show alignments to ref seq that has been translated in frame
 df.iloc[:,0:2]
 #now you have a df where first col contains the information about the specific amplicon, the cols 1-3 are
@@ -833,148 +784,17 @@ df.iloc[:,0:2]
 #the longest conseq. seq has been found. Then take the same amplicon but when it has been aligned to the
 #ref2 (out of frame), find the longest seq, remove the extra "---" from the beginning relative to the 
 #amplicon 1 and then align to the ref. merge the two. 
-df
-df.columns[1].split(":")[-1]
-df.iloc[1,3]
 
-len(df.columns)
-match_all = SequenceMatcher(None, df.columns[1].split(":")[-1], df.iloc[1,1])
-match_all.get_matching_blocks()
-
-match1 = SequenceMatcher(None, df.columns[1].split(":")[-1], df.iloc[0,1]).find_longest_match(0, len(df.columns[1].split(":")[-1]), 0, len(df.iloc[0,1]))
-match1
-match2 = SequenceMatcher(None, df.columns[3].split(":")[-1], df.iloc[0,3]).find_longest_match(0, len(df.columns[3].split(":")[-1]), 0, len(df.iloc[0,3]))
-match2
-
-#seq_match1 + "-"*len(match2.b-match1.b) + seq_match2
-#with the out of frame cols compare which one has the longest seq
-df.columns[1].split(":")[-1]
-end_of_match=match1.b+match.size
-"AAWTSCTRSVLRLRGAAAPTTRWSWTI*PPAASTPTLPRGVGRPPNPM*SCRLVSAELRCWNTYGGPTGIC*PKCPSRWSES*KGCTGRWASWRTTWTATCPPATHSAGRSPSRPVFAAARRPSPTWSAGSSVRCTCGGRSSTVWR"
-"AAWTSCTRSVLRLRGA-------------------------------------------------GP----------R--------------------------------------------------------------------"
-
-df.iloc[1,1][match1.b:match1.b+match1.size]
-df.columns[3].split(":")[-1]
-df.iloc[1,3][match2.b:match2.b+match2.size]
-
-#make a loop where you take the matched_ampl2 for column 2 and 3 (out of frame RFs) and then one with longest
-#match, select and merge with the matched_sampl1 
-#######
-
-df.columns[1].split(":")[-1]
-
-matched_ampl1= len(df.columns[1].split(":")[-1][:match1.a])*"-" + str(df.iloc[1,1][match1.b:]) + "|"
-#matched_ampl2= len(df.columns[3].split(":")[-1][:match.a])*"-" + str(df.iloc[1,3][match.b:]) + "|"
-matched_ampl2= len(df.columns[3].split(":")[-1][:match2.a])*"-" + str(df.iloc[1,3][match2.b:]) + "|"
-
-end_of_match=match1.b+match1.size
-ref_a=df.columns[1].split(":")[-1][0:end_of_match] + "|"
-
-"AAWTSCTRSVLRLRGPQHRRPDGAGPYDHRRPPRLPCPAGWAGRQTQCDPADW*VPS*DAGTRTEDPPASVDRSVQAGGARAERVAQVGGQAGEQLGRLRAHRRLTALEEVHQGLSLPLPGDHRQPGALGQA*DARVEGGLLPSGE"
-"AAWTSCTRSVLRLRG----RPDGAGPYDHR--------------------------------------------------------------------------------------------------------------------|"
-a=matched_ampl1[0:end_of_match] + "|"
-len(matched_ampl2)
-b=matched_ampl2[end_of_match:] + "|"
-ref_b=df.columns[3].split(":")[-1][end_of_match:] + "|"
-ref_b
-a
-b
-c=a+b
-c
-#######
-
-"-------------------RPDGAGPYDHR--------------------------------------------------------------------------------------------------------------------|"
-
-from fpdf import FPDF
-df.iloc[1,0]
-
-#you still need to make the merged ref seq
-
-
-'''
-G, P, S, T		Orange
-H, K, R 		Red
-F, W, Y 		Blue
-I, L, M, V		Green
-'''
-
-    
-print any(any('Mary' in s for s in subList) for subList in myDict.values())
-from colorama import Fore, Style
-color_scheme={"RED": ["H","K","R"], "BLUE":["F","W","Y"], "GREEN":["I","L","M","V"], "YELLOW":["G","P","S","T"]}
-
-def find_colour(aa,color_scheme):
-    return [key for key,val in color_scheme.items() if any("P" in s for s in val)]
-
-
-class write_pdf(FPDF):
-    #color_scheme={"RED": ["H","K","R"], "BLUE":["F","W","Y"], "GREEN":["I","L","M","V"], "YELLOW":["G","P","S","T"]}
-    #color_scheme={[255,0,0]: ["H","K","R"], [0,0,255]:["F","W","Y"], [0,128,0]:["I","L","M","V"], [255,140,0]:["G","P","S","T"], [255,255,255]: ["-"]}
-    color_scheme={"RED": [[255,0,0], ["H","K","R"]], "BLUE":[[[255,0,0]],["F","W","Y"]], "GREEN":[[0,128,0], ["I","L","M","V"]], "ORANGE":[[255,140,0],["G","P","S","T"]], "BLACK": [[255,255,255],["-"]]}
-
-    num=1
-    def __init__(self, seq_infos, aligs1, aligs2):
-        self.seq_infos=seq_infos
-        self.aligs1 = aligs1
-        self.aligs2 = aligs2
-
-    def header(self):
-        # Arial 12
-        self.set_font('Arial', '', 12)
-        # Background color
-        self.set_fill_color(200, 220, 255)
-        # Title
-        self.cell(0, 6, 'Seq %d : %s' % (1, self.seq_infos), 0, 1, 'L', 1)
-        # Line break
-        self.ln(4)
-
-    def find_colour(self):
-        col=[key for key,val in color_scheme.items() if any(self.aa in s for s in val)]
-        return(color_scheme.keys().index(col))
-
-    def add_colour(self,color_i,aa):
-        self.cell(w=0, h = 0, txt = aa, border = 0, ln = 0, align = '', fill = False, link = '')
-        self.set_font('Arial', '', 10)
-        self.set_text_color(color_scheme[color_i][0], color_scheme[color_i][1], color_scheme[color_i][2])
-
-    def color_AAs(self,color_i, aa):
-        self.cell(w=0, h = 0, txt = aa, border = 0, ln = 0, align = '', fill = False, link = '')
-        self.set_font('Arial', '', 10)
-        self.set_text_color(color_scheme[color_i][0], color_scheme[color_i][1], color_scheme[color_i][2])
-
-    def color_AAs(self):
-        pdf.add_page()
-        col_seq=[]
-        #go over the individual alignemnts
-        for info, a1,a2 in zip(self.seq_infos, self.aligs1, self.aligs2):
-            #go over the individual AAs of the alignemnts
-            for h, aa1,aa2, in zip(info,a1,a2):
-                color_i=find_colour(self.seq)
-                print(color_i)
-                self.cell(w=0, h = 0, txt = h, border = 0, ln = 0, align = '', fill = False, link = '')
-                self.set_font('Arial', '', 12)
-                color_AAs(color_i,aa1)
-            #line break after the whole seq has been coloured
-            self.ln()
-AAfile="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all_AA_ALIGN.csv"
-
-match1 = SequenceMatcher(None, df.columns[1].split(":")[-1], df.iloc[0,1]).find_longest_match(0, len(df.columns[1].split(":")[-1]), 0, len(df.iloc[0,1]))
-match1
-match2 = SequenceMatcher(None, df.columns[3].split(":")[-1], df.iloc[0,3]).find_longest_match(0, len(df.columns[3].split(":")[-1]), 0, len(df.iloc[0,3]))
-match2
-matched_ampl1= len(df.columns[1].split(":")[-1][:match1.a])*"-" + str(df.iloc[1,1][match1.b:]) + "|"
-matched_ampl2= len(df.columns[3].split(":")[-1][:match2.a])*"-" + str(df.iloc[1,3][match2.b:]) + "|"
-
+df.iloc[0,2]
 seqinfos=[]
 aligs_merged_seq=[]
 aligs_merged_ref=[]
-for ampl_row in range(round(len(df.index)*0.2)):
+frame_info=[]
+for ampl_row in range(round(len(df.index)*0.1)):
     match1 = SequenceMatcher(None, df.columns[1].split(":")[-1], df.iloc[ampl_row,1]).find_longest_match(0, len(df.columns[1].split(":")[-1]), 0, len(df.iloc[ampl_row,1]))
-    end_of_match=match1.b+match.size
-    print(match1)
+    end_of_match=match1.b+match1.size
     matched_ampl1= len(df.columns[1].split(":")[-1][:match1.a])*"-" + str(df.iloc[ampl_row,1][match1.b:]) + "|"
-    seq_inframe=matched_ampl1[0:end_of_match] + "|"
-    print(seq_inframe)
+    seq_inframe1=matched_ampl1[0:end_of_match] + "|"
     ref_inframe1=df.columns[1].split(":")[-1][0:end_of_match] + "|"
     #get the matches with the other reading frames (i.e. the last 2 cols of the df)
     match2_a = SequenceMatcher(None, df.columns[2].split(":")[-1], df.iloc[ampl_row,2]).find_longest_match(0, len(df.columns[2].split(":")[-1]), 0, len(df.iloc[ampl_row,2]))
@@ -984,165 +804,105 @@ for ampl_row in range(round(len(df.index)*0.2)):
         ref_outframe2=df.columns[2].split(":")[-1][0:end_of_match] + "|"
         # seq_inframe2=matched_ampl2[0:end_of_match]
         seq_outframe=matched_ampl2[end_of_match:]
-        print("match2_a larger than b!")
+        frame_info.append("Frame:+1 " + ref_inframe1.index("|")*" " + "Frame:0")
     else:
         matched_ampl2= len(df.columns[3].split(":")[-1][:match2_b.a])*"-" + str(df.iloc[ampl_row,3][match2_b.b:]) + "|"
         ref_outframe2=df.columns[3].split(":")[-1][end_of_match:] + "|"
         seq_outframe=matched_ampl2[end_of_match:]
         # seq_inframe2=matched_ampl2[0:end_of_match]
         seq_outframe=matched_ampl2[end_of_match:]
-        print("match2_b larger than a!")
-
-    merged_align_seq=seq_inframe+seq_outframe
+        frame_info.append("Frame:+1 " + ref_inframe1.index("|")*" " + "Frame:+2")
+        print("Frame:+1 " + ref_inframe1.index("|")*" " + "Frame:+2")
+    merged_align_seq=seq_inframe1+seq_outframe
     # ref_inframe=matched_ampl1[0:end_of_match]
     # ref_outframe=matched_ampl2[end_of_match:]
-    print("inframe1:" + seq_inframe)
+    # print("inframe1:" + seq_inframe1)
+    # print("inframe2:" + seq_outframe)
+    # print("merged:" + merged_align_seq)
 
-    print("inframe2:" + seq_outframe)
-    print("merged:" + merged_align_seq)
     merged_align_ref=ref_inframe1+ref_outframe2
     header_info=df.iloc[ampl_row,0]
+    #add one more line which adds the frames
+
     seqinfos.append(df.iloc[ampl_row,0])
+    #aligs_merged_seq.append(merged_align_seq[0:round(len(aligs_merged_seq)*0.6)])
     aligs_merged_seq.append(merged_align_seq)
+    #aligs_merged_ref.append(merged_align_ref[0:round(len(merged_align_ref)*0.6)])
     aligs_merged_ref.append(merged_align_ref)
+frame_info
 
-# pdf=write_pdf(seqinfos,aligs_merged_seq,aligs_merged_ref)
-# pdf.add_page()
-# pdf.color_AAs()
-# pdf.header(header_info)
-# pdf.color_AAs(merged_align_ref)
-# pdf.color_AAs(merged_align_seq)
-# pdf.output('/media/data/AtteR/projects/hiti/tuto3.pdf', 'F')
-
-########
-########
-
-#FIX
-def find_colour(aa,color_scheme):
-    col=[key for key,val in color_scheme.items() if any(aa in s for s in val)]
-    return("".join(col))
-
-color_scheme={"RED": [[255,0,0], ["H","K","R"]], "BLUE":[[255,0,0],["F","W","Y"]], "GREEN":[[0,128,0], ["I","L","M","V"]], "ORANGE":[[255,140,0],["G","P","S","T"]], "BLACK": [[255,255,255],["-", "|"]]}
-ex_s="--------------GAAAPTTRWSWTI--|"
-
-pdf=FPDF(format='letter', unit='in')
-color_scheme["RED"][0][0]
-color_i = find_colour("H", color_scheme)
-print(color_i)
-
-pdf.add_page()
-# Set color red
-pdf.set_font('Arial', '', 10)
-pdf.set_text_color(color_scheme[color_i][0][0], color_scheme[color_i][0][1], color_scheme[color_i][0][2])
-pdf.cell(80)
-
-pdf.cell(0, 0, txt = "H",border = 0, ln = 0)
-color_i = find_colour("F", color_scheme)
-color_scheme[color_i][0][1]
-pdf.set_font('Arial', '', 10)
-pdf.set_text_color(color_scheme[color_i][0][0], color_scheme[color_i][0][1], color_scheme[color_i][0][2])
-pdf.cell(0, 0, txt = "F",border = 3, ln = 0)
-
-# # Colors of frame, background and text
-# pdf.set_draw_color(0, 80, 180)
-# pdf.set_fill_color(230, 230, 0)
-out="/media/data/AtteR/projects/hiti/tuto3.pdf"
-out="/media/data/AtteR/projects/hiti/tuto3.rtf"
-
-pdf.output(out,'F')
-template = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\\deflang1033{\\fonttbl{\\f0\\fnil\\fcharset0 Times New Roman;}}\n{\\colortbl;\\red255\\green0\\blue0;\\red0\\green0\\blue255;\\red0\\green255\\blue0;\\red255\\green0\\blue255;}'
-with open(out, 'w') as f:
-    f.write(template)
-###########
-style = """<style type='text/css'>
-html {
-  font-family: Courier;
-}
-r {
-  color: #ff0000;
-}
-g {
-  color: #00ff00;
-}
-b {
-  color: #0000ff;
-}
-</style>"""
-
-RED = 'r'
-GREEN = 'g'
-BLUE = 'b'
-
-def write_html(f, type, str_):
-    f.write('<%(type)s>%(str)s</%(type)s>' % {
-            'type': type, 'str': str_ } )
-
-f = open(out, 'w')
-f.write('<html>')
-f.write(style)
-
-write_html(f, RED, 'My name is so foo..\n')
-write_html(f, BLUE, '102838183820038.028391')
-
-f.write('</html>')
-#######
-
-'''
-<html>
-
-    <body>
-
-        <h1>Heading</h1>
-
-    </body>
-
-</html>
-'''
 def find_colour(aa,color_scheme):
     col=[key for key,val in color_scheme.items() if any(aa in s for s in val)]
     out="".join(col)
-    if out=='':
+    if out==None or not col:
         out="BLACK"
-        return
+        return(out)
     else:
         return(out)
 
-def aa_coloring(seq_infos, aligs1, aligs2, output):
-    # color_scheme={"RED": [[255,0,0], ["H","K","R"]], "BLUE":[[[255,0,0]],["F","W","Y"]], "GREEN":[[0,128,0], ["I","L","M","V"]], "ORANGE":[[255,140,0],["G","P","S","T"]], "BLACK": [[255,255,255],["-"]]}
+def aa_coloring(seq_infos, aligs1, aligs2, frame_info, output):
     #using lesk color code scheme:
-    color_scheme={"RED": [["#FF0000"], ["D", "E"]], "BLUE":[["#6495ED"],["K", "R"]], "GREEN":[["#9FE2BF"], ["C", "V", "I", "L", "P", "F", "Y", "M", "W"]], "ORANGE":[["#FF7F50"],["G", "A", "S", "T"]], "MAGENTA":[["#DE3163"], ["N", "Q", "H"]], "BLACK": [["#000000"],["-","|"]]}
+    #color_scheme={"RED": [["#FF0000"], ["D", "E"]], "BLUE":[["#6495ED"],["K", "R"]], "GREEN":[["#9FE2BF"], ["C", "V", "I", "L", "P", "F", "Y", "M", "W"]], "ORANGE":[["#FF7F50"],["G", "A", "S", "T"]], "MAGENTA":[["#DE3163"], ["N", "Q", "H"]], "BLACK": [["#000000"],["-","|", "*"]]}
+    color_scheme={"RED": [["#FF0000"], ["D", "E"]], "BLUE":[["#6495ED"],["K", "R"]], "GREEN":[["#9FE2BF"], ["C", "V", "I", "L", "P", "F", "Y", "M", "W"]], "ORANGE":[["#FF7F50"],["G", "A", "S", "T"]], "MAGENTA":[["#DE3163"], ["N", "Q", "H"]], "BLACK": [["#000000"]]}
+
     f = open(output,"w")
-    for info, a1,a2 in zip(seq_infos, aligs1, aligs2):
-        print(info)
+    for info, a1,a2, frame in zip(seq_infos, aligs1, aligs2,frame_info):
+        aa1_list=[]
+        aa2_list=[]
+
+        print(frame)
         a1,a2=a1[0:round(len(a1)*0.6)], a2[0:round(len(a2)*0.6)]
-        f.write("<html> \n <body> <p>"+info +"</p> <p>")
+        #f.write("<html> \n <body> <p>"+ "_".join(info.split("_")[:1]) +"</p> <p>")
+        f.write('<!DOCTYPE html><html> <head><link rel="stylesheet" href="format.css"></head> <meta charset="utf-8"> <body> <p>'+ "_".join(info.split("_")[:2]) + "<br>" + frame +'</p> <p>')
+
     #go over the individual AAs of the alignemnts
         #write the html colouring into a string var for each aa and append into a list, then join and make a massive string,
         # then after all AAs have been iterated over for the certain seq, then write into the html 
-        aa1_list=[]
-        aa2_list=[]
         for aa1,aa2, in zip(a1,a2):
-            aa2_list.append('<span style="color:'+ color_scheme[find_colour(aa2,color_scheme)][0][0]+ '">' + aa2 + '</span>')
-            aa1_list.append('<span style="color:'+ color_scheme[find_colour(aa1,color_scheme)][0][0]+ '">' + aa1 + '</span>')
+            try:
+                aa2_list.append('<span style="color:'+ color_scheme[find_colour(aa2,color_scheme)][0][0]+ '">' + aa2 + '</span>')
+            except KeyError:
+                print("Keyerror with aa2 being: " + aa2)
+            try:
+                aa1_list.append('<span style="color:'+ color_scheme[find_colour(aa1,color_scheme)][0][0]+ '">' + aa1 + '</span>')
+            except KeyError:
+                print("Keyerror with aa1 being: " + aa1)
+            
+            # aa2_list.append('<span style="color:'+ color_scheme[find_colour(aa2,color_scheme)][0][0]+ '">' + aa2 + '</span>')
+            # aa1_list.append('<span style="color:'+ color_scheme[find_colour(aa1,color_scheme)][0][0]+ '">' + aa1 + '</span>')
+
+            #print("============")
         coloured_ref="".join(aa2_list)
+
         coloured_seq="".join(aa1_list)
+
         f.write(coloured_ref +"<br>")
         f.write(coloured_seq)
         f.write("</p>")
 
-    f.write("</body>")
+    f.write("</body></html>")
     f.close()
-out="/media/data/AtteR/projects/hiti/tuto3.html"
-aa_coloring(seqinfos,aligs_merged_seq,aligs_merged_ref,out)
+out="/media/data/AtteR/projects/hiti/AA_3p_mcherry_coloured_alignment.html"
+aa_coloring(seqinfos,aligs_merged_seq,aligs_merged_ref, frame_info, out)
 
 q="--------------GAAAPTTRWSWTI--|T-----------------------------------------------------------------------------RW--S----------TI-----------------------|"
 
+df.iloc[0,0]
+color_scheme={"RED": [["#FF0000"], ["D", "E"]], "BLUE":[["#6495ED"],["K", "R"]], "GREEN":[["#9FE2BF"], ["C", "V", "I", "L", "P", "F", "Y", "M", "W"]], "ORANGE":[["#FF7F50"],["G", "A", "S", "T"]], "MAGENTA":[["#DE3163"], ["N", "Q", "H"]], "BLACK": [["#000000"],["-","|"]]}
+
+for aa1 in df.iloc[0,1]:
+    a='<span style="color:'+ color_scheme[find_colour(aa1,color_scheme)][0][0]+ '">' + aa1 + '</span>'
+   
 q[17]
 i=1
+
 for aa in q:
-    color_scheme[find_colour(aa,color_scheme)][0]
+    cc= color_scheme[find_colour(aa,color_scheme)][0][0]
+    if cc!='#000000':
+        print(cc)
+        i
     i+=1
-    i
+    
 
 
 <link rel="stylesheet" href="myCs325Style.css" type="text/css"/>
