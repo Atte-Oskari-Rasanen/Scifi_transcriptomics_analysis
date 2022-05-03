@@ -1,3 +1,4 @@
+from typing import Iterator
 from scripts_hiti import *
 
 """
@@ -38,7 +39,6 @@ save_fasta(result, full_df_trim, target_sequence)
 #ALIGNMENTS
 from Bio.SubsMat import MatrixInfo as matlist
 Bio.Align.substitution_matrices
-
 class align():
     def __init__(self, amplicon, target_sequence,gop=3, gep=1):
         self.amplicon=amplicon
@@ -46,31 +46,12 @@ class align():
         self.gop=gop
         self.gep=gep
 
-    def iterator(full_df):
-        id_f=1
-        aligned_data=dict()
-        #align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then add padding!
-        for seq_i in range(len(full_df.iloc[:,-1])):
-            #yield iteratively the header of the certain seq and the corresponding seq
-            yield [">"+ str(id_f)+"CluSeq:" + str((round(full_df.iloc[seq_i,-3],5))) + "_sd:" + str((round(full_df.iloc[seq_i,-1],5))), full_df.iloc[seq_i,0]]
-
-    def iterator(full_df):
-        id_f=1
-        aligned_data=dict()
-        #align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then add padding!
-        for seq_i in range(len(full_df.iloc[:,-1])):
-            header=">"+ str(id_f)+"CluSeq:" + str((round(full_df.iloc[seq_i,-3],5))) + "_sd:" + str((round(full_df.iloc[seq_i,-1],5)))
-            align_inst=align(full_df.iloc[seq_i,0], target_sequence)
-            seq_obj_1=align_inst.align_method()
-            #seq_obj_1= align_local(full_df.iloc[seq_i,0], target_sequence)
-            seq_obj_1 = re.sub(r'[(\d|\s]', '', seq_obj_1) #remove digits from the string caused by the alignment and empty spaces from the start
-            aligned_data[header]=seq_obj_1
-            id_f+=1
-
+    #each aligment function goes over the alignments one by one
     def align_local(self):
-        alignments = pairwise2.align.localxx(self.target_sequence, self.amplicon)
-        #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
+        aligned_data=dict()
+        alignments = pairwise2.align.localxx(self.target_sequence, Iterator(self.full_df_trim)[1])
 
+        #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
         alignm=format_alignment(*alignments[0])
         #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
         seq_align = alignm.split("\n")[2]
@@ -109,6 +90,175 @@ class align():
         #seq_and_perc[group]["match"]
         return(seq_align)
 
+
+
+class align_local():
+    aligned_data=dict()
+    def __init__(self, amplicon, target_sequence,gop=-3, gep=-1):
+        self.amplicon=amplicon
+        self.target_sequence=target_sequence
+        self.gop=gop
+        self.gep=gep
+
+    def align(self):
+        alignments = pairwise2.align.localxx(self.target_sequence, self.amplicon)
+
+        #alignments = pairwise2.align.globalms(target_sequence, seq_and_perc[group][:,0],  2, -1, -.5, -.1)
+        alignm=format_alignment(*alignments[0])
+        #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
+        seq_align = alignm.split("\n")[2]
+        return(seq_align)
+
+class align_local2():
+    aligned_data=dict()
+    def __init__(self, amplicon, target_sequence,gop=-3, gep=-1):
+        self.amplicon=amplicon
+        self.target_sequence=target_sequence
+        self.gop=gop
+        self.gep=gep
+
+    def align(self):
+        alignment, score, start_end_positions = local_pairwise_align_ssw(DNA(self.target_sequence),DNA(self.amplicon),gap_open_penalty =self.gop,gap_extend_penalty = self.gep)
+        out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
+        return(out_align)
+
+class align_local3():
+    aligned_data=dict()
+    def __init__(self, amplicon, target_sequence,gop=-3, gep=-1):
+        self.amplicon=amplicon
+        self.target_sequence=target_sequence
+        self.gop=gop
+        self.gep=gep
+    def align(self):
+        alignments = pairwise2.align.localms(self.target_sequence, self.amplicon, 2, -1, self.gop, self.gep)
+        #alignments = pairwise2.align.localms(self.target_sequence, self.amplicon, 2, -1, -.5, -.1)
+        #alignments= pairwise2.align.localds(self.target_sequence, self.amplicon, 2, -1, -.5, -.1)
+        alignm=format_alignment(*alignments[0])
+        seq_align = alignm.split("\n")[2]
+        return(seq_align)
+class align_global():
+    aligned_data=dict()
+
+    def __init__(self, amplicon, target_sequence,gop=-3, gep=-1):
+        self.amplicon=amplicon
+        self.target_sequence=target_sequence
+        self.gop=gop
+        self.gep=gep
+    def align(self):
+        alignments = pairwise2.align.globalms(self.target_sequence, self.amplicon,  2, -1, -.5, -.1)
+        alignm=format_alignment(*alignments[0])
+        seq_align = alignm.split("\n")[2]
+        return(seq_align)
+    #nt_count=count_nts(seq_align)
+    #seq_and_perc[group]["match"]
+class align_global2():
+    aligned_data=dict()
+
+    def __init__(self, amplicon, target_sequence,gop=-3, gep=-1):
+        self.amplicon=amplicon
+        self.target_sequence=target_sequence
+        self.gop=gop
+        self.gep=gep
+    def align(self):
+        alignments = pairwise2.align.globalxx(self.target_sequence, self.amplicon)
+        alignm=format_alignment(*alignments[0])
+        #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
+        seq_align = alignm.split("\n")[2]
+        return(seq_align)
+
+import inspect
+
+def align_trimmer(aligned_data):
+    for id in aligned_data.keys():
+        if len(aligned_data[id])==len(target_sequence):
+            continue
+        if len(aligned_data[id])>len(target_sequence):
+            N_dashes=len(target_sequence)-len(aligned_data[id])
+            aligned_data[id]=aligned_data[id][:N_dashes]
+            print("Seq length larger than ref by " + str(N_dashes) + " ... \n After removal length: " + str(len(aligned_data[id][:N_dashes])))
+        else:
+            N_dashes=len(target_sequence)-len(aligned_data[id])
+            aligned_data[id]=aligned_data[id]+ N_dashes*"-"
+            print("Seq length smaller than ref by " + str(N_dashes) + " ... \n After addition length: " + str(len(aligned_data[id])))
+    return(aligned_data)
+def write_align(aligned_data, filename):
+    with open(filename, "w") as handle:
+        header=">0"+" Ref_seq"
+        handle.write(header + "\n" + target_sequence + "\n")
+        for seq_i in aligned_data.keys():
+            handle.write(seq_i + "\n" + aligned_data[seq_i] + "\n")
+
+#takes in the df and the choice of the alignment method. methods are found in class
+#the class must be instantiated inside the function and the appropriate method is called
+#by index passed by the user into function
+def aligner(full_df, target_sequence, align_method, gop=3, gep=1):
+    align_class = {"align_local": align_local,
+            "align_local2": align_local2,
+            "align_local3":align_local3,
+            "align_global":align_global,
+            "align_global2":align_global2}  # I'm adding a theoretical other class as an example
+
+    id_f=1
+    aligner_init = align_class.get(str(align_method), None)  # Get the chosen class, or None if input is bad
+    aligner_init
+    aligned_data=dict()
+    #align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then add padding!
+    for seq_i in range(len(full_df.iloc[:,-1])):
+        a=align(full_df_trim.iloc[seq_i,0], target_sequence)
+        #yield iteratively the header of the certain seq and the corresponding seq
+        header=">"+ str(id_f)+"CluSeq:" + str((round(full_df.iloc[seq_i,-3],5))) + "_sd:" + str((round(full_df.iloc[seq_i,-1],5)))
+        seq_obj_align = aligner_init(full_df_trim.iloc[seq_i,0], target_sequence, gop, gep).align()
+        seq_obj_align = re.sub(r'[(\d|\s]', '', seq_obj_align) #remove digits from the string caused by the alignment and empty spaces from the start
+        aligned_data[header]=seq_obj_align
+        id_f+=1
+    aligned_data_trim=align_trimmer(aligned_data)
+    write_align(aligned_data_trim, filename)
+
+    #     yield [">"+ str(id_f)+"CluSeq:" + str((round(full_df.iloc[seq_i,-3],5))) + "_sd:" + str((round(full_df.iloc[seq_i,-1],5))), full_df.iloc[seq_i,0]]
+align_class = {"align_local": align_local,
+        "align_local2": align_local2,
+        "align_local3":align_local3,
+        "align_global":align_global,
+        "align_global2":align_global2}  # I'm adding a theoretical other class as an example
+
+aligner_init = align_class.get("align_local2", None)  # Get the chosen class, or None if input is bad
+aligner_init
+new_creature = aligner_init(full_df_trim.iloc[0,0], target_sequence).align()
+new_creature
+
+a=align(full_df_trim.iloc[0,0], target_sequence)
+alig_methods = [n for n, v in inspect.getmembers(a, inspect.ismethod)]
+a.alig_methods[1]
+
+test_res=aligner(full_df_trim, target_sequence, "align_local2")
+
+
+for method in alig_methods:
+    getattr(a, method)()
+
+import re
+
+
+def other_func(match):
+     return match.group()
+
+def some_func():
+     return map(iterator, pairwise2.align.localxx(target_sequence, iterator(full_df_trim)[1]))
+
+regex = '.'
+string = 'abc'
+list(some_func())
+full_df_trim
+aligned_data=dict()
+header=iterator(full_df_trim)
+print(len(list(header)))
+ampl=iterator(self.full_df_trim)[1]
+alignment = pairwise2.align.localxx(self.target_sequence, iterator(self.full_df_trim)[1])
+alignment = re.sub(r'[(\d|\s]', '', alignment) #remove digits from the string caused by the alignment and empty spaces from the start
+aligned_data[Iterator(self.full_df_trim)[0]]=alignment
+
+
+
 #downstream an issue with visualising the seqs using mview is that all the seqs are not SAME length. thus, needs to fix this
 
 
@@ -122,7 +272,7 @@ def align_and_save(filename, full_df, align_method):
     for seq_i in range(len(full_df.iloc[:,-1])):
         header=">"+ str(id_f)+"CluSeq:" + str((round(full_df.iloc[seq_i,-3],5))) + "_sd:" + str((round(full_df.iloc[seq_i,-1],5)))
         align_inst=align(full_df.iloc[seq_i,0], target_sequence)
-        seq_obj_1=align_inst.align_method()
+        seq_obj_1=align_inst.align_local3()
         #seq_obj_1= align_local(full_df.iloc[seq_i,0], target_sequence)
         seq_obj_1 = re.sub(r'[(\d|\s]', '', seq_obj_1) #remove digits from the string caused by the alignment and empty spaces from the start
         aligned_data[header]=seq_obj_1
