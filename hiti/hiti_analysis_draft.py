@@ -1,4 +1,7 @@
-from typing import Iterator
+import pandas as pd
+import os 
+os.getcwd()
+os.chdir("/media/data/AtteR/projects/hiti")
 from scripts_hiti import *
 
 """
@@ -11,6 +14,53 @@ find the frame
 translate to AAs
 visualise
 """
+
+'''
+SP1 3' 
+lliteral=cggcggcatggacgagc
+target_sequence="tgtacaagccgaacGTTCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGACCATATGACCACCGGCGGCCTCCACGCCTACCCTGCCCCGCGGGGTGGGCCGGCCGCCAAACCCAATGTGATCCTGCAGATTGGTAAGTGCCGAGCTGAGATGCTGGAACACGTACGGAGGACCCACCGGCATCTGTTGACCGAAGTGTCCAAGCAGGTGGAGCGAGAGCTGAAAGGGTTGCACAGGTCGGTGGGCAAGCTGGAGAACAACTTGGACGGCTACGTGCCCACCGGCGACTCACAGCGCTGGAAGAAGTCCATCAAGGCCTGTCTTTGCCGCTGCCAGGAGACCATCGCCAACCTGGAGCGCTGGGTCAAGCGTGAGATGCACGTGTGGAGGGAGGTCTTCTACCGTCTGGAGAG"
+target_sequence=target_sequence.upper()
+
+SP4 3'
+target_sequence="tgtacaagATGGAGCTGGACCATATGACCCGGTGCACCGGCGGCCTCCACGCCTACCCTGCCCCGCGGGGTGGGCCGGCCGCCAAACCCAATGTGATCCTGCAGATTGGTAAGTGCCGAGCTGAGATGCTGGAACACGTACGGAGGACCCACCGGCATCTGTTGACCGAAGTGTCCAAGCAGGTGGAGCGAGAGCTGAAAGGGTTGCACAGGTCGGTGGGCAAGCTGGAGAACAACTTGGACGGCTACGTGCCCACCGGCGACTCACAGCGCTGGAAGAAGTCCATCAAGGCCTGTCTTTGCCGCTGCCAGGAGACCATCGCCAACCTGGAGCGCTGGGTCAAGCGTGAGATGCACGTGTGGAGGGAGGTCTTCTACCGTCTGGAGAGG"
+target_sequence=target_sequence.upper()
+
+'''
+
+
+def calculate_perc_sd2(full_df):
+    full_df = full_df.fillna(value=0)
+    perc_cols = [col for col in full_df.columns if 'percent' in col]
+    count_cols = [col for col in full_df.columns if 'count' in col]
+
+    perc_cols
+    #sum the percentages of each seq cluster of each animal together to see how much the certain seq is found 
+    full_df['percent_sum_unit'] = full_df[perc_cols].sum(axis=1)  
+
+    total_perc_unit=full_df.iloc[:,-1].sum()
+    full_df['percent_sum'] = (full_df['percent_sum_unit'] / total_perc_unit)
+    full_df.head()
+    count_cols
+    #full_df['sd']=full_df[count_cols].std()
+    full_df['total_reads_seq'] = full_df[count_cols].sum(axis=1)  
+
+    full_df['sd']=full_df[perc_cols].std(axis=1)
+
+    #remove sequences that have 0-3 reads in total across groups
+
+    #get the total number of percentages from the percent_sum column and then divide all the perc units with this
+    #to get the percs
+    #calculate the SD for each seq
+    full_df.sort_values(by=['percent_sum_unit'], ascending=False, inplace=True)
+    full_df.head()
+    full_df.columns
+    #discard seqs that contribute less than 0.0001% percentage
+    rows_drop=[]
+    full_df[count_cols]
+    full_df_trim = full_df.drop(full_df[full_df["total_reads_seq"] <= 3].index)
+    return(full_df_trim)
+
+
 transgene = 'mCherry'
 assay_end = '3p'
 read_fwd = True
@@ -23,61 +73,107 @@ rliteral = ' literal=CATATGACCACCGG'
 base_path = '/media/data/AtteR/projects/hiti/FASTQ_Generation_2020-03-09_08_30_27Z-13364364/'
 export_path = '/media/data/AtteR/projects/hiti/output/'
 target_sequence = "GGCGGCATGGACGAGCTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGACCATATGACCACCGGCGGCCTCCACGCCTACCCTGCCCCGCGGGGTGGGCCGGCCGCCAAACCCAATGTGATCCTGCAGATTGGTAAGTGCCGAGCTGAGATGCTGGAACACGTACGGAGGACCCACCGGCATCTGTTGACCGAAGTGTCCAAGCAGGTGGAGCGAGAGCTGAAAGGGTTGCACAGGTCGGTGGGCAAGCTGGAGAACAACTTGGACGGCTACGTGCCCACCGGCGACTCACAGCGCTGGAAGAAGTCCATCAAGGCCTGTCTTTGCCGCTGCCAGGAGACCATCGCCAACCTGGAGCGCTGGGTCAAGCGTGAGATGCACGTGTGGAGGGAGGTCTTCTACCGTCTGGAGAGG"
+target_sequence = "TGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGACCATATGACCACCGGCGGCCTCCACGCCTACCCTGCCCCGCGGGGTGGGCCGGCCGCCAAACCCAATGTGATCCTGCAGATTGGTAAGTGCCGAGCTGAGATGCTGGAACACGTACGGAGGACCCACCGGCATCTGTTGACCGAAGTGTCCAAGCAGGTGGAGCGAGAGCTGAAAGGGTTGCACAGGTCGGTGGGCAAGCTGGAGAACAACTTGGACGGCTACGTGCCCACCGGCGACTCACAGCGCTGGAAGAAGTCCATCAAGGCCTGTCTTTGCCGCTGCCAGGAGACCATCGCCAACCTGGAGCGCTGGGTCAAGCGTGAGATGCACGTGTGGAGGGAGGTCTTCTACCGTCTGGAGAGG"
+
 #removed the first C from the target seq
 "Filters and trims the reads"
 
-
+trimmed_df="/media/data/AtteR/projects/hiti/dfs/full_df_trim_mcherry_p3_exp2_trimPrimer.csv"
 data_dict=create_datadict(base_path)
-full_df_trim=import_reads_process(data_dict, transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd):
-full_df_trim.to_csv("/media/data/AtteR/projects/hiti/dfs/full_df_trim_mcherry_p3_exp2_trimPrimer.csv")
+full_df_test=import_reads_process(data_dict, transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd)
+full_df_test
 
+df_trim=calculate_perc_sd2(full_df_test)
+df_trim.iloc[0,0]
+
+df_trim.to_csv(trimmed_df)
+# tf="/media/data/AtteR/projects/hiti/dfs/full_df_trim_mcherry_p3_exp2_retrimC.csv"
+# full_df_trim2=pd.read_csv(trimmed_df)
+full_df_trim=pd.read_csv(trimmed_df)
+del full_df_trim['Unnamed: 0']
+df_trim.columns
+full_df_trim.columns
+full_df_trim.iloc[2,0]
 result="/media/data/AtteR/projects/hiti/mcherry_p3_seq_cluster_all_retrim.fasta"
 save_fasta(result, full_df_trim, target_sequence)
 
+#save_fasta(result, df_trim, target_sequence)
 
 ###############
-#Alignments
-alignment_nt="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_3_go3_ge1.fasta"
+from scripts_hiti import *
+#Alignments NT
+output_path="/media/data/AtteR/projects/hiti/pipeline_output/NT_aligned"
 
-test_res=aligner(full_df_trim, target_sequence, "align_local2", alignment_nt)
+alignment_nt="/media/data/AtteR/projects/hiti/align_output_pipeline/mcherry_p3_seq_aligned_pairwise_local_3_go3_ge1.fasta"
+test_res=aligner(full_df_trim, target_sequence, "align_local3", alignment_nt, output_path, -3, -1)
+
+#when running the aligner with biopython's methods, need to add negative penalty scores but when running 
+#smith watermans from sk package then need to be pos
+
+#add mview function into the aligner function too.
+'''
+./mview -in fasta -html head -css on -coloring any /media/data/AtteR/projects/hiti/align_output_pipeline/mcherry_p3_seq_aligned_pairwise_local_3_go3_ge1.fasta > mview_data/aligned_loc_3_refcut.html
+
+'''
+alignment_nt="/media/data/AtteR/projects/hiti/align_output_pipeline/mcherry_p3_seq_aligned_pairwise_local_2_go3_ge1.fasta"
+test_res=aligner(df_trim, target_sequence, "align_local2", alignment_nt)
 
 
+corr_frame=1
 
 
-#downstream an issue with visualising the seqs using mview is that all the seqs are not SAME length. thus, needs to fix this
+def translate_nt_aa(result, corr_frame):
+    out_of_frames=[0,1,2]
+    out_of_frames.remove(corr_frame)
+    refs_aa_frames={}
+    aa_and_perc={}
 
-
-#takes in the trimmed df and aligns each amplicon against the ref based on the aligmment method
-#of choice taken from align class. 
-
-def align_and_save(filename, full_df, align_method):
-    id_f=1
-    aligned_data=dict()
-    #align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then add padding!
-    for seq_i in range(len(full_df.iloc[:,-1])):
-        header=">"+ str(id_f)+"CluSeq:" + str((round(full_df.iloc[seq_i,-3],5))) + "_sd:" + str((round(full_df.iloc[seq_i,-1],5)))
-        align_inst=align(full_df.iloc[seq_i,0], target_sequence)
-        seq_obj_1=align_inst.align_local3()
-        #seq_obj_1= align_local(full_df.iloc[seq_i,0], target_sequence)
-        seq_obj_1 = re.sub(r'[(\d|\s]', '', seq_obj_1) #remove digits from the string caused by the alignment and empty spaces from the start
-        aligned_data[header]=seq_obj_1
-        id_f+=1
-    for id in aligned_data.keys():
-        if len(aligned_data[id])==len(target_sequence):
-            continue
-        if len(aligned_data[id])>len(target_sequence):
-            N_dashes=len(target_sequence)-len(aligned_data[id])
-            aligned_data[id]=aligned_data[id][:N_dashes]
-            print("Seq length larger than ref by " + str(N_dashes) + " ... \n After removal length: " + str(len(aligned_data[id][:N_dashes])))
+    len(aa_and_perc)
+    for record in SeqIO.parse(result, "fasta"):
+        if record.id=="0":
+            refs_aa_frames["Frame:" + str(corr_frame)]=str(Seq(record.seq[corr_frame:]).translate())
+            for alt_frame in out_of_frames:
+                refs_aa_frames["Frame:" + str(alt_frame)]=str(Seq(record.seq[alt_frame:]).translate())
         else:
-            N_dashes=len(target_sequence)-len(aligned_data[id])
-            aligned_data[id]=aligned_data[id]+ N_dashes*"-"
-            print("Seq length smaller than ref by " + str(N_dashes) + " ... \n After addition length: " + str(len(aligned_data[id])))
-    with open(filename, "w") as handle:
-        header=">0"+" mcherry_p3_seq_ref"
-        handle.write(header + "\n" + target_sequence + "\n")
-        for seq_i in aligned_data.keys():
-            handle.write(seq_i + "\n" + aligned_data[seq_i] + "\n")
+            aa_and_perc[">"+str(record.description) + "_transl.frame:" + str(corr_frame)]=str(Seq(record.seq[corr_frame:]).translate())
+
+    #you go over the ref seqs in different frames and align all the amplicons to them. save the alignment into the df's specific column. initially
+    #save into a list or such
+    ref_x_alignment={}
+    for frame_ref in refs_aa_frames.keys():
+        alignments_per_ref=[]
+        for ampl in aa_and_perc.keys():
+            matches=SequenceMatcher(None,refs_aa_frames[frame_ref],aa_and_perc[ampl])
+            seqs=[]
+            #you use range_line so that when you fill the remnants from left side of the match, you wont keep adding from
+            #beginning since in the end, we merge the seq list elements into the whole alignment of the amplicon against the ref
+            range_line=0
+            for i in range(len(matches.get_matching_blocks())):
+                match=matches.get_matching_blocks()[i]
+                seqs.append(len(refs_aa_frames[frame_ref][range_line:match.a])*"-"+str(aa_and_perc[ampl])[match.b:match.b+match.size])
+                range_line=match.a+match.size
+            alignments_per_ref.append(''.join(seqs))
+        ref_x_alignment[frame_ref + "|Ref:" +refs_aa_frames[frame_ref]]=alignments_per_ref
+    seq_info={"Seq_info:":aa_and_perc.keys()}
+    keys=list(aa_and_perc.keys())
+
+
+    seq_info=["Seq_info"]+list(aa_and_perc.keys())
+    ref_x_alig_list=[]
+    for keys, values in ref_x_alignment.items():
+        #print("".join(list((keys))[:]))
+        #ref_x_alig_list.append([("".join(list((keys))))]+list(values))
+        ref_x_alig_list.append([keys]+list(values))
+
+    #df = pd.DataFrame([seq_info, ref_x_alig_list[0],ref_x_alig_list[1],ref_x_alig_list[2]], columns =[seq_info[0],ref_x_alig_list[0][0], ref_x_alig_list[1][0], ref_x_alig_list[2][0]])
+    df = pd.DataFrame(data= {seq_info[0]: seq_info[1:], ref_x_alig_list[0][0]:ref_x_alig_list[0][1:], ref_x_alig_list[1][0]:ref_x_alig_list[1][1:], ref_x_alig_list[2][0]:ref_x_alig_list[2][1:]})
+    return(df)
+#to show alignments to ref seq that has been translated in frame
+df_aa=translate_nt_aa(result, 1)
+
+
+
+
 
 #iterate over files
 #align
@@ -85,7 +181,6 @@ def align_and_save(filename, full_df, align_method):
 
 
 #in alignment method: apply the iterator and trimmer
-align_and_save(filename, full_df_trim,target_sequence, align_local3)
 #we have deletions for sure, not sure about insertions
 
 '''
@@ -93,46 +188,12 @@ RRHGRAVQGRCCGSAEPQHRRPDGAGPYDHRRPPRLPCPAGWAGRQTQCDPADW*VPS*DAGTRTEDPPASVDRSVQAGG
 
 
 '''
-#feed in the predefined aligment file 
-
-align_pairwise_loc1="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_1.fasta"
-align_pairwise_loc2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_2sk_retrim.fasta"
-align_pairwise_loc3="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_local_3_go3_ge1.fasta"
-
-align_pairwise_glob1="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_glob.fasta"
-align_pairwise_glob2="/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_aligned_pairwise_glob2.fasta"
-
-musc = "/media/data/AtteR/projects/hiti/align_output/mcherry_p3_seq_muscle_redo.fasta"
-
-#maybe add progress bars?
-align_and_save(align_pairwise_loc3, full_df_trim, target_sequence)
-align_and_save(align_pairwise_loc2, full_df_trim, target_sequence)
-
-align_and_save(align_pairwise_glob1, full_df_trim)
-align_and_save(align_pairwise_glob2, full_df_trim)
-
-#returns a dict with percentage value of the certain cluster seq and the aligned seq as the value
-
-outp="/media/data/AtteR/projects/hiti/mcherry_p3_seq_clusters_all2.fasta"
-
-'''
-Import aligned fasta file - save the header as the key and the seq as the value
-'''
-
-out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
-align_pairwise_loc2
-starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+align_pairwise_loc2+" -t 32 -o "+out_starcode
-call([starcode_call], shell=True)
-df=pd.read_csv(out_starcode, sep='\t', header=None)
-df = df.rename(columns={0: 'sequence', 1:'count'})
-
 
 
 from Bio.Data import CodonTable
 from Bio.Seq import Seq
 
 
-nt_seq.seq
 for record in SeqIO.parse(result, "fasta"):
     print(record.id)
 
@@ -240,5 +301,6 @@ out="/media/data/AtteR/projects/hiti/AA_3p_mcherry_coloured_alignment2.html"
 
 a=aa_alignments(result,out)
 a.align_ampl_x_ref()
+from scripts_hiti import *
 
 
