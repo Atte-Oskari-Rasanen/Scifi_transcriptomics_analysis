@@ -103,10 +103,10 @@ def import_reads_process(data_dict, transgene,assay_end,filterlitteral,lliteral,
                 animal_p7 = glob.glob(search_path+'/*R2*')
                 #display('Forward run Animal: '+animal_nr)
             else:
-                animal_p5 = glob.glob(search_path+'/*R2*')
-                animal_p7 = glob.glob(search_path+'/*R1*')
+                break
+                # animal_p5 = glob.glob(search_path+'/*R2*')
+                # animal_p7 = glob.glob(search_path+'/*R1*')
                 #display('Reverse run Animal: '+animal_nr)
-            animal_p7
 
             cat_p5= "cat "+" ".join(animal_p5)+" > "+animal_p5_cat
             print(cat_p5)
@@ -122,21 +122,22 @@ def import_reads_process(data_dict, transgene,assay_end,filterlitteral,lliteral,
             hdist = '3'
             param=" k="+kmer+" hdist="+hdist+" rcomp=f skipr2=t threads=32 overwrite=true"
 
-            #to check if the read is an amplicon
+            # #to check if the read is an amplicon
             call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+animal_p7_cat+" in2="+animal_p5_cat+" outm1="+test_file_p7_out+" outm2="+test_file_p5_out+" literal="+filterlitteral+" stats="+stats_out + param
             call([call_sequence], shell=True)
-            #actual trimming
+            # #actual trimming
             call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+test_file_p5_out+" out="+test_file_p5_filter+ " literal=AAAAAAAAA,CCCCCCCCC,GGGGGGGGG,TTTTTTTTT k=9 mm=f overwrite=true minlength=40"
             call([call_sequence], shell=True)
-            test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied
+            #test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied
 
-            cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
-            call([cutadapt_call], shell=True)
+            # cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
+            # call([cutadapt_call], shell=True)
 
-            print("Cutadapt done! Performed on test_file_p5_filter2: "+ test_file_p5_filter2)
+            # print("Cutadapt done! Performed on test_file_p5_filter2: "+ test_file_p5_filter2)
             test_file_p5_out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
-            print("test_file_p5_out_starcode: "+ test_file_p5_out_starcode)
-            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter2+" -t 32 -o "+test_file_p5_out_starcode
+            print("test_file_p5_out_starcode: " + test_file_p5_filter)
+            print("test_file_p5_out_starcode: " + test_file_p5_out_starcode)
+            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter+" -t 32 -o "+test_file_p5_out_starcode
             call([starcode_call], shell=True)
 
             df=pd.read_csv(test_file_p5_out_starcode, sep='\t', header=None)
@@ -159,6 +160,88 @@ def import_reads_process(data_dict, transgene,assay_end,filterlitteral,lliteral,
     return(complete_df)
 
 
+
+def import_reads_process_mini(base_path, ref,filterlitteral,read_fwd):
+    complete_df = pd.DataFrame({'sequence': [ref]})
+    complete_df
+    dfs_lane=[]
+    for read in os.listdir(base_path):
+        animal_group_name=read.split("_")[3]
+        if "R1" in read:
+            print(read)
+            animal_p5_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
+            animal_p7_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
+            test_file_p5_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
+            test_file_p7_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
+            test_file_p5_filter = tempfile.NamedTemporaryFile(suffix = '.fastq').name#when bbduk applied
+
+
+            if read_fwd:
+                animal_p5 = glob.glob(base_path+'/*R1*')
+                animal_p7 = glob.glob(base_path+'/*R2*')
+                #display('Forward run Animal: '+animal_nr)
+            else:
+                print("WRONG")
+                break
+                # animal_p5 = glob.glob(search_path+'/*R2*')
+                # animal_p7 = glob.glob(search_path+'/*R1*')
+                #display('Reverse run Animal: '+animal_nr)
+
+            cat_p5= "cat "+" ".join(animal_p5)+" > "+animal_p5_cat
+            print(cat_p5)
+            #os.system(cat_p5)
+            call([cat_p5], shell=True) #call caused the terminal to freeze so switched to os
+            cat_p7= "cat "+" ".join(animal_p7)+" > "+animal_p7_cat
+            call([cat_p7], shell=True)
+            #os.system(cat_p7)
+
+            #stats_out = export_path+animal_group_name+'_'+transgene+'_'+assay_end+'_stats-filter.txt'
+
+            kmer = '20'
+            hdist = '3'
+            param=" k="+kmer+" hdist="+hdist+" rcomp=f skipr2=t threads=32 overwrite=true"
+
+            # #to check if the read is an amplicon
+            call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+animal_p7_cat+" in2="+animal_p5_cat+" outm1="+test_file_p7_out+" outm2="+test_file_p5_out+" literal="+filterlitteral+param
+            call([call_sequence], shell=True)
+            # #actual trimming
+            call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+test_file_p5_out+" out="+test_file_p5_filter+ " literal=AAAAAAAAA,CCCCCCCCC,GGGGGGGGG,TTTTTTTTT k=9 mm=f overwrite=true minlength=40"
+            call([call_sequence], shell=True)
+            #test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied
+
+            # cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
+            # call([cutadapt_call], shell=True)
+
+            # print("Cutadapt done! Performed on test_file_p5_filter2: "+ test_file_p5_filter2)
+            test_file_p5_out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
+            print("test_file_p5_out_starcode: " + test_file_p5_filter)
+            print("test_file_p5_out_starcode: " + test_file_p5_out_starcode)
+            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter+" -t 32 -o "+test_file_p5_out_starcode
+            call([starcode_call], shell=True)
+
+            df=pd.read_csv(test_file_p5_out_starcode, sep='\t', header=None)
+            df = df.rename(columns={0: 'sequence', 1:'count'})
+            dfs_lane.append(df)
+            #print(animal_group_name + " done!")
+    if len(dfs_lane)>1:
+        df_all_lanes=reduce(lambda  left,right: pd.merge(left,right,on='sequence', how='outer'), dfs_lane)
+        #reduce is useful when you need to apply a function to an iterable and reduce it to a single cumulative value.
+        df_all_lanes["count"]=df_all_lanes.sum(axis=1) #make a column with total count sum of reads and remove the rest. This gives a df that has the seqs and the total counts from all lanes
+        df_all_lanes.drop(df_all_lanes.iloc[:, 1:((len(df_all_lanes.columns)-1))], inplace = True, axis = 1)
+        complete_df = pd.merge(complete_df, df_all_lanes, on="sequence", how='outer')
+
+    else:
+        print("Only one df")
+        print(dfs_lane)
+        print(type(dfs_lane))
+        df_all_lanes=dfs_lane[0]
+        df_all_lanes["count"]=df_all_lanes.sum(axis=1) #make a column with total count sum of reads and remove the rest. This gives a df that has the seqs and the total counts from all lanes
+        df_all_lanes.drop(df_all_lanes.iloc[:, 1:((len(df_all_lanes.columns)-1))], inplace = True, axis = 1)
+        print(df_all_lanes)
+        complete_df = pd.merge(complete_df, df_all_lanes, on="sequence", how='outer')
+        print("A full df containing the sum from all lanes of " + animal_group_name + " is done!")
+    #full_df_trim=calculate_perc_sd(full_df)
+    return(complete_df)
 
 #Pool the reads based on striatum and hippocampus but prior to pooling them, normalise against oneself as otherwise one will contribute 
 #more than the other. 
