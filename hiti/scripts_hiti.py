@@ -36,6 +36,39 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 import statistics as st
 
+def calculate_perc_sd(full_df):
+    full_df = full_df.fillna(value=0)
+    perc_cols = [col for col in full_df.columns if 'percent' in col]
+    count_cols = [col for col in full_df.columns if 'count' in col]
+
+    perc_cols
+    #sum the percentages of each seq cluster of each animal together to see how much the certain seq is found 
+    full_df['percent_sum_unit'] = full_df[perc_cols].sum(axis=1)  
+
+    total_perc_unit=full_df.iloc[:,-1].sum()
+    full_df['percent_sum'] = (full_df['percent_sum_unit'] / total_perc_unit)
+    full_df.head()
+    count_cols
+    #full_df['sd']=full_df[count_cols].std()
+    full_df['total_reads_seq'] = full_df[count_cols].sum(axis=1)  
+
+    full_df['sd']=full_df[perc_cols].std(axis=1)
+
+    #remove sequences that have 0-3 reads in total across groups
+
+    #get the total number of percentages from the percent_sum column and then divide all the perc units with this
+    #to get the percs
+    #calculate the SD for each seq
+    full_df.sort_values(by=['percent_sum_unit'], ascending=False, inplace=True)
+    full_df.head()
+    full_df.columns
+    #discard seqs that contribute less than 0.0001% percentage
+    rows_drop=[]
+    full_df[count_cols]
+    full_df_trim = full_df.drop(full_df[full_df["total_reads_seq"] <= 3].index)
+    return(full_df_trim)
+
+
 def import_reads_process(data_dict, transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd):
     complete_df = pd.DataFrame({'sequence': ['CTGTACAAGGTCGGTGCTGCGGCTCCGCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGAC']})
     complete_df
@@ -105,43 +138,11 @@ def import_reads_process(data_dict, transgene,assay_end,filterlitteral,lliteral,
         total_counts = int(df_all_lanes[['count']].sum())
         df_all_lanes['percent'] = (df_all_lanes['count'] / total_counts)
         df_all_lanes = df_all_lanes.rename(columns={'percent':animal_group_name+'_percent','count':animal_group_name+'_count',})
-        full_df = pd.merge(complete_df, df_all_lanes, on="sequence", how='outer')
+        complete_df = pd.merge(complete_df, df_all_lanes, on="sequence", how='outer')
         print("A full df containing the sum from all lanes of " + animal_group_name + " is done!")
-    
-    # after generation of the full df containing all animals, the following function calculates the stats (sd, mean,
-    # perc. sum per seq cluster and raw counts sum per seq cluster)
-        #animal group contains all lanes of the certain data
-        full_df = full_df.fillna(value=0)
-        perc_cols = [col for col in full_df.columns if 'percent' in col]
-        count_cols = [col for col in full_df.columns if 'count' in col]
+    #full_df_trim=calculate_perc_sd(full_df)
+    return(complete_df)
 
-        perc_cols
-        #sum the percentages of each seq cluster of each animal together to see how much the certain seq is found 
-        full_df['percent_sum_unit'] = full_df[perc_cols].sum(axis=1)  
-
-        total_perc_unit=full_df.iloc[:,-1].sum()
-        full_df['percent_sum'] = (full_df['percent_sum_unit'] / total_perc_unit)
-        full_df.head()
-        count_cols
-        #full_df['sd']=full_df[count_cols].std()
-        full_df['total_reads_seq'] = full_df[count_cols].sum(axis=1)  
-
-        full_df['sd']=full_df[perc_cols].std(axis=1)
-
-        #remove sequences that have 0-3 reads in total across groups
-
-        #get the total number of percentages from the percent_sum column and then divide all the perc units with this
-        #to get the percs
-        #calculate the SD for each seq
-        full_df.sort_values(by=['percent_sum_unit'], ascending=False, inplace=True)
-        full_df.head()
-        full_df.columns
-        #discard seqs that contribute less than 0.0001% percentage
-        rows_drop=[]
-        full_df[count_cols]
-        full_df_trim = full_df.drop(full_df[full_df["total_reads_seq"] <= 3].index)
-
-    return(full_df_trim)
 
 
 #Pool the reads based on striatum and hippocampus but prior to pooling them, normalise against oneself as otherwise one will contribute 
@@ -189,7 +190,7 @@ def create_datadict(base_path):
 
 def save_fasta(filename, full_df, target_sequence):
     id_f = 1
-    ref="mcherry_p3_seq_ref"
+    ref="Ref_seq"
     with open(filename, "w") as handle:
         seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description=ref)
         count = SeqIO.write(seq_obj, handle, "fasta")
@@ -209,6 +210,9 @@ import re
 from Bio.SubsMat import MatrixInfo as matlist
 Bio.Align.substitution_matrices
 
+#########
+#ALIGNMENT CLASSES TO USE
+#########
 class align_local():
     aligned_data=dict()
     def __init__(self, amplicon, target_sequence,gop=-3, gep=-1):
@@ -228,26 +232,26 @@ class align_local():
 
 class align_local2():
     aligned_data=dict()
-    def __init__(self, amplicon, target_sequence,gop=-3, gep=-1):
+    def __init__(self, amplicon,ref,gop=-3, gep=-1):
         self.amplicon=amplicon
-        self.target_sequence=target_sequence
+        self.ref=ref
         self.gop=gop
         self.gep=gep
 
     def align(self):
-        alignment, score, start_end_positions = local_pairwise_align_ssw(DNA(self.target_sequence),DNA(self.amplicon),gap_open_penalty =self.gop,gap_extend_penalty = self.gep)
-        out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(target_sequence)-start_end_positions[0][1]-1))
+        alignment, score, start_end_positions = local_pairwise_align_ssw(DNA(self.ref),DNA(self.amplicon),gap_open_penalty=self.gop,gap_extend_penalty = self.gep)
+        out_align = ('-'*start_end_positions[0][0])+str(alignment[1])+('-'*(len(self.ref)-start_end_positions[0][1]-1))
         return(out_align)
 
 class align_local3():
     aligned_data=dict()
-    def __init__(self, amplicon, target_sequence,gop=-3, gep=-1):
+    def __init__(self, amplicon, ref,gop=-3, gep=-1):
         self.amplicon=amplicon
-        self.target_sequence=target_sequence
+        self.ref=ref
         self.gop=gop
         self.gep=gep
     def align(self):
-        alignments = pairwise2.align.localms(self.target_sequence, self.amplicon, 2, -1, self.gop, self.gep)
+        alignments = pairwise2.align.localms(self.ref, self.amplicon, 2, -1, self.gop, self.gep)
         #alignments = pairwise2.align.localms(self.target_sequence, self.amplicon, 2, -1, -.5, -.1)
         #alignments= pairwise2.align.localds(self.target_sequence, self.amplicon, 2, -1, -.5, -.1)
         alignm=format_alignment(*alignments[0])
@@ -256,13 +260,13 @@ class align_local3():
 class align_global():
     aligned_data=dict()
 
-    def __init__(self, amplicon, target_sequence,gop=-3, gep=-1):
+    def __init__(self, amplicon, ref,gop=-3, gep=-1):
         self.amplicon=amplicon
-        self.target_sequence=target_sequence
+        self.ref=ref
         self.gop=gop
         self.gep=gep
     def align(self):
-        alignments = pairwise2.align.globalms(self.target_sequence, self.amplicon,  2, -1, -.5, -.1)
+        alignments = pairwise2.align.globalms(self.ref, self.amplicon,  2, -1, -.5, -.1)
         alignm=format_alignment(*alignments[0])
         seq_align = alignm.split("\n")[2]
         return(seq_align)
@@ -271,13 +275,13 @@ class align_global():
 class align_global2():
     aligned_data=dict()
 
-    def __init__(self, amplicon, target_sequence,gop=-3, gep=-1):
+    def __init__(self, amplicon, ref,gop=-3, gep=-1):
         self.amplicon=amplicon
-        self.target_sequence=target_sequence
+        self.ref=ref
         self.gop=gop
         self.gep=gep
     def align(self):
-        alignments = pairwise2.align.globalxx(self.target_sequence, self.amplicon)
+        alignments = pairwise2.align.globalxx(self.ref, self.amplicon)
         alignm=format_alignment(*alignments[0])
         #make string objects, save into a list. then count which one has least ----, cut off the rest of the reference based on this?
         seq_align = alignm.split("\n")[2]
@@ -285,7 +289,7 @@ class align_global2():
 
 import inspect
 
-def align_trimmer(aligned_data):
+def align_trimmer(aligned_data,target_sequence):
     for id in aligned_data.keys():
         if len(aligned_data[id])==len(target_sequence):
             continue
@@ -298,17 +302,20 @@ def align_trimmer(aligned_data):
             aligned_data[id]=aligned_data[id]+ N_dashes*"-"
             print("Seq length smaller than ref by " + str(N_dashes) + " ... \n After addition length: " + str(len(aligned_data[id])))
     return(aligned_data)
-def write_align(aligned_data, filename):
+def write_align(aligned_data, filename, target_sequence):
     with open(filename, "w") as handle:
         header=">0"+" Ref_seq"
         handle.write(header + "\n" + target_sequence + "\n")
         for seq_i in aligned_data.keys():
             handle.write(seq_i + "\n" + aligned_data[seq_i] + "\n")
+import subprocess
+def bash_command(cmd):
+    subprocess.Popen(cmd, shell=True, executable='/bin/bash')
 
 #takes in the df and the choice of the alignment method. methods are found in class
 #the class must be instantiated inside the function and the appropriate method is called
 #by index passed by the user into function
-def aligner(full_df, target_sequence, align_method, filename, gop=3, gep=1):
+def aligner(full_df, target_sequence, align_method, filename, output_path, gop=3, gep=1):
     align_class = {"align_local": align_local,
             "align_local2": align_local2,
             "align_local3":align_local3,
@@ -322,10 +329,21 @@ def aligner(full_df, target_sequence, align_method, filename, gop=3, gep=1):
     for seq_i in range(len(full_df.iloc[:,-1])):
         #yield iteratively the header of the certain seq and the corresponding seq
         header=">"+ str(id_f)+"CluSeq:" + str((round(full_df.iloc[seq_i,-3],5))) + "_sd:" + str((round(full_df.iloc[seq_i,-1],5)))
-        seq_obj_align = aligner_init(full_df.iloc[seq_i,0], target_sequence, gop, gep).align()
+        #seq_obj_align = aligner_init(full_df.iloc[seq_i,0], target_sequence, gop, gep).align()
+
+        print("===SEQ===:" + full_df.iloc[seq_i,0])
+        seq_obj_align = aligner_init(full_df.iloc[seq_i,1], target_sequence, gop, gep).align()
+
         seq_obj_align = re.sub(r'[(\d|\s]', '', seq_obj_align) #remove digits from the string caused by the alignment and empty spaces from the start
         aligned_data[header]=seq_obj_align
         id_f+=1
-    aligned_data_trim=align_trimmer(aligned_data)
-    write_align(aligned_data_trim, filename)
+    aligned_data_trim=align_trimmer(aligned_data, target_sequence)
+    write_align(aligned_data_trim, filename, target_sequence)
+    #Generate a visual alignment file using mview
+    mview_file=output_path + "/" + filename.split("/")[-1].split(".")[-2] + ".html"
+    mview_command='/media/data/AtteR/Attes_bin/mview -in fasta -html head -css on -coloring any ' + filename + '>' + mview_file
+    call([mview_command], shell=True)
+
+    #subprocess.run(['/media/data/AtteR/Attes_bin/mview', '-in fasta', '-html head', '-css on', '-coloring any', filename, '>', mview_file])
+
 
