@@ -162,11 +162,9 @@ def import_reads_process(data_dict, transgene,assay_end,filterlitteral,lliteral,
 
 
 def import_reads_process_mini(base_path, ref,filterlitteral,read_fwd):
-    complete_df = pd.DataFrame({'sequence': [ref]})
-    complete_df
-    dfs_lane=[]
+    df_animal=[]
     for read in os.listdir(base_path):
-        animal_group_name=read.split("_")[3]
+        animal_group_name=read.split("_")[3] + "_" + read.split("_")[4]
         if "R1" in read:
             print(read)
             animal_p5_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
@@ -221,28 +219,15 @@ def import_reads_process_mini(base_path, ref,filterlitteral,read_fwd):
 
             df=pd.read_csv(test_file_p5_out_starcode, sep='\t', header=None)
             df = df.rename(columns={0: 'sequence', 1:'count'})
-            dfs_lane.append(df)
-            #print(animal_group_name + " done!")
-    if len(dfs_lane)>1:
-        df_all_lanes=reduce(lambda  left,right: pd.merge(left,right,on='sequence', how='outer'), dfs_lane)
-        #reduce is useful when you need to apply a function to an iterable and reduce it to a single cumulative value.
-        df_all_lanes["count"]=df_all_lanes.sum(axis=1) #make a column with total count sum of reads and remove the rest. This gives a df that has the seqs and the total counts from all lanes
-        df_all_lanes.drop(df_all_lanes.iloc[:, 1:((len(df_all_lanes.columns)-1))], inplace = True, axis = 1)
-        complete_df = pd.merge(complete_df, df_all_lanes, on="sequence", how='outer')
-
-    else:
-        print("Only one df")
-        print(dfs_lane)
-        print(type(dfs_lane))
-        df_all_lanes=dfs_lane[0]
-        df_all_lanes["count"]=df_all_lanes.sum(axis=1) #make a column with total count sum of reads and remove the rest. This gives a df that has the seqs and the total counts from all lanes
-        df_all_lanes.drop(df_all_lanes.iloc[:, 1:((len(df_all_lanes.columns)-1))], inplace = True, axis = 1)
-        print(df_all_lanes)
-        complete_df = pd.merge(complete_df, df_all_lanes, on="sequence", how='outer')
-        print("A full df containing the sum from all lanes of " + animal_group_name + " is done!")
-    #full_df_trim=calculate_perc_sd(full_df)
-    return(complete_df)
-
+            df["count"]=df.sum(axis=1) #make a column with total count sum of reads and remove the rest. This gives a df that has the seqs and the total counts from all lanes
+            df.drop(df.iloc[:, 1:((len(df.columns)-1))], inplace = True, axis = 1)
+            total_counts = int(df[['count']].sum())
+            df['percent'] = (df['count'] / total_counts)
+            df = df.rename(columns={'percent':animal_group_name+'_percent','count':animal_group_name+'_count',})
+            df_animal.append(df)
+    #complete_df = pd.merge(complete_df, df, on="sequence", how='outer')
+    df_full = reduce(lambda df1,df2: pd.merge(df1,df2,on='sequence'), df_animal)
+    return(df_full)
 #Pool the reads based on striatum and hippocampus but prior to pooling them, normalise against oneself as otherwise one will contribute 
 #more than the other. 
 
@@ -349,12 +334,17 @@ class align_local3():
         self.gop=gop
         self.gep=gep
     def align(self):
-        alignments = pairwise2.align.localms(self.ref, self.amplicon, 2, -1, self.gop, self.gep)
+        alignments = pairwise2.align.localms(str(self.ref), str(self.amplicon), 2, -1, self.gop, self.gep)
         #alignments = pairwise2.align.localms(self.target_sequence, self.amplicon, 2, -1, -.5, -.1)
         #alignments= pairwise2.align.localds(self.target_sequence, self.amplicon, 2, -1, -.5, -.1)
-        alignm=format_alignment(*alignments[0])
-        seq_align = alignm.split("\n")[2]
-        return(seq_align)
+        try:
+            alignm=format_alignment(*alignments[0])
+            seq_align = alignm.split("\n")[2]
+            return(seq_align)
+
+        except IndexError:
+            return(None)
+
 class align_global():
     aligned_data=dict()
 
@@ -430,11 +420,13 @@ def aligner(full_df, target_sequence, align_method, filename, output_path, gop=3
         #seq_obj_align = aligner_init(full_df.iloc[seq_i,0], target_sequence, gop, gep).align()
 
         print("===SEQ===:" + full_df.iloc[seq_i,0])
-        seq_obj_align = aligner_init(full_df.iloc[seq_i,1], target_sequence, gop, gep).align()
-
-        seq_obj_align = re.sub(r'[(\d|\s]', '', seq_obj_align) #remove digits from the string caused by the alignment and empty spaces from the start
-        aligned_data[header]=seq_obj_align
-        id_f+=1
+        seq_obj_align = aligner_init(full_df.iloc[seq_i,0], target_sequence, gop, gep).align()
+        if seq_obj_align==None:
+            continue
+        else:
+            seq_obj_align = re.sub(r'[(\d|\s]', '', seq_obj_align) #remove digits from the string caused by the alignment and empty spaces from the start
+            aligned_data[header]=seq_obj_align
+            id_f+=1
     aligned_data_trim=align_trimmer(aligned_data, target_sequence)
     write_align(aligned_data_trim, filename, target_sequence)
     #Generate a visual alignment file using mview
