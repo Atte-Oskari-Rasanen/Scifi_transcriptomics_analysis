@@ -103,10 +103,10 @@ def import_reads_process(data_dict, transgene,assay_end,filterlitteral,lliteral,
                 animal_p7 = glob.glob(search_path+'/*R2*')
                 #display('Forward run Animal: '+animal_nr)
             else:
-                break
-                # animal_p5 = glob.glob(search_path+'/*R2*')
-                # animal_p7 = glob.glob(search_path+'/*R1*')
+                animal_p5 = glob.glob(search_path+'/*R2*')
+                animal_p7 = glob.glob(search_path+'/*R1*')
                 #display('Reverse run Animal: '+animal_nr)
+            animal_p7
 
             cat_p5= "cat "+" ".join(animal_p5)+" > "+animal_p5_cat
             print(cat_p5)
@@ -122,22 +122,21 @@ def import_reads_process(data_dict, transgene,assay_end,filterlitteral,lliteral,
             hdist = '3'
             param=" k="+kmer+" hdist="+hdist+" rcomp=f skipr2=t threads=32 overwrite=true"
 
-            # #to check if the read is an amplicon
+            #to check if the read is an amplicon
             call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+animal_p7_cat+" in2="+animal_p5_cat+" outm1="+test_file_p7_out+" outm2="+test_file_p5_out+" literal="+filterlitteral+" stats="+stats_out + param
             call([call_sequence], shell=True)
-            # #actual trimming
+            #actual trimming
             call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+test_file_p5_out+" out="+test_file_p5_filter+ " literal=AAAAAAAAA,CCCCCCCCC,GGGGGGGGG,TTTTTTTTT k=9 mm=f overwrite=true minlength=40"
             call([call_sequence], shell=True)
-            #test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied
+            test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied
 
-            # cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
-            # call([cutadapt_call], shell=True)
+            cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
+            call([cutadapt_call], shell=True)
 
-            # print("Cutadapt done! Performed on test_file_p5_filter2: "+ test_file_p5_filter2)
+            print("Cutadapt done! Performed on test_file_p5_filter2: "+ test_file_p5_filter2)
             test_file_p5_out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
-            print("test_file_p5_out_starcode: " + test_file_p5_filter)
-            print("test_file_p5_out_starcode: " + test_file_p5_out_starcode)
-            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter+" -t 32 -o "+test_file_p5_out_starcode
+            print("test_file_p5_out_starcode: "+ test_file_p5_out_starcode)
+            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter2+" -t 32 -o "+test_file_p5_out_starcode
             call([starcode_call], shell=True)
 
             df=pd.read_csv(test_file_p5_out_starcode, sep='\t', header=None)
@@ -156,17 +155,16 @@ def import_reads_process(data_dict, transgene,assay_end,filterlitteral,lliteral,
         df_all_lanes = df_all_lanes.rename(columns={'percent':animal_group_name+'_percent','count':animal_group_name+'_count',})
         complete_df = pd.merge(complete_df, df_all_lanes, on="sequence", how='outer')
         print("A full df containing the sum from all lanes of " + animal_group_name + " is done!")
-    #full_df_trim=calculate_perc_sd(full_df)
     return(complete_df)
+from functools import reduce
 
-
-
-def import_reads_process_mini(base_path, ref,filterlitteral,read_fwd):
+def import_reads_process_mini(base_path, ref,filterlitteral,lliteral,read_fwd):
     df_animal=[]
+    complete_df = pd.DataFrame({'sequence': [ref]})
+
     for read in os.listdir(base_path):
         animal_group_name=read.split("_")[3] + "_" + read.split("_")[4]
         if "R1" in read:
-            print(read)
             animal_p5_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
             animal_p7_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
             test_file_p5_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
@@ -179,7 +177,7 @@ def import_reads_process_mini(base_path, ref,filterlitteral,read_fwd):
                 animal_p7 = glob.glob(base_path+'/*R2*')
                 #display('Forward run Animal: '+animal_nr)
             else:
-                print("WRONG")
+                print("===")
                 break
                 # animal_p5 = glob.glob(search_path+'/*R2*')
                 # animal_p7 = glob.glob(search_path+'/*R1*')
@@ -193,43 +191,42 @@ def import_reads_process_mini(base_path, ref,filterlitteral,read_fwd):
             call([cat_p7], shell=True)
             #os.system(cat_p7)
 
-            #stats_out = export_path+animal_group_name+'_'+transgene+'_'+assay_end+'_stats-filter.txt'
-
             kmer = '20'
             hdist = '3'
             param=" k="+kmer+" hdist="+hdist+" rcomp=f skipr2=t threads=32 overwrite=true"
 
-            # #to check if the read is an amplicon
+            #to check if the read is an amplicon
             call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+animal_p7_cat+" in2="+animal_p5_cat+" outm1="+test_file_p7_out+" outm2="+test_file_p5_out+" literal="+filterlitteral+param
             call([call_sequence], shell=True)
-            # #actual trimming
+            #actual trimming
             call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+test_file_p5_out+" out="+test_file_p5_filter+ " literal=AAAAAAAAA,CCCCCCCCC,GGGGGGGGG,TTTTTTTTT k=9 mm=f overwrite=true minlength=40"
             call([call_sequence], shell=True)
-            #test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied
+            test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied
 
-            # cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
-            # call([cutadapt_call], shell=True)
+            cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
+            call([cutadapt_call], shell=True)
 
-            # print("Cutadapt done! Performed on test_file_p5_filter2: "+ test_file_p5_filter2)
+            print("Cutadapt done! Performed on test_file_p5_filter2: "+ test_file_p5_filter2)
             test_file_p5_out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
-            print("test_file_p5_out_starcode: " + test_file_p5_filter)
-            print("test_file_p5_out_starcode: " + test_file_p5_out_starcode)
-            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter+" -t 32 -o "+test_file_p5_out_starcode
+            print("test_file_p5_out_starcode: "+ test_file_p5_out_starcode)
+            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter2+" -t 32 -o "+test_file_p5_out_starcode
             call([starcode_call], shell=True)
 
             df=pd.read_csv(test_file_p5_out_starcode, sep='\t', header=None)
             df = df.rename(columns={0: 'sequence', 1:'count'})
+            df_animal.append(df)
+            print(animal_group_name + " done!")
             df["count"]=df.sum(axis=1) #make a column with total count sum of reads and remove the rest. This gives a df that has the seqs and the total counts from all lanes
             df.drop(df.iloc[:, 1:((len(df.columns)-1))], inplace = True, axis = 1)
+
+            #Once you have combined all the lane dfs, then you take the percentage
             total_counts = int(df[['count']].sum())
             df['percent'] = (df['count'] / total_counts)
             df = df.rename(columns={'percent':animal_group_name+'_percent','count':animal_group_name+'_count',})
-            df_animal.append(df)
-    #complete_df = pd.merge(complete_df, df, on="sequence", how='outer')
-    df_full = reduce(lambda df1,df2: pd.merge(df1,df2,on='sequence'), df_animal)
-    return(df_full)
-#Pool the reads based on striatum and hippocampus but prior to pooling them, normalise against oneself as otherwise one will contribute 
-#more than the other. 
+
+            complete_df = pd.merge(complete_df, df, on="sequence", how='outer')
+    #df_full = reduce(lambda df1,df2: pd.merge(df1,df2,on='sequence', how='outer'), df_animal)
+    return(complete_df)
 
 
 def create_datadict(base_path):
@@ -396,9 +393,9 @@ def write_align(aligned_data, filename, target_sequence):
         handle.write(header + "\n" + target_sequence + "\n")
         for seq_i in aligned_data.keys():
             handle.write(seq_i + "\n" + aligned_data[seq_i] + "\n")
-import subprocess
-def bash_command(cmd):
-    subprocess.Popen(cmd, shell=True, executable='/bin/bash')
+# import subprocess
+# def bash_command(cmd):
+#     subprocess.Popen(cmd, shell=True, executable='/bin/bash')
 
 #takes in the df and the choice of the alignment method. methods are found in class
 #the class must be instantiated inside the function and the appropriate method is called
@@ -421,12 +418,16 @@ def aligner(full_df, target_sequence, align_method, filename, output_path, gop=3
 
         print("===SEQ===:" + full_df.iloc[seq_i,0])
         seq_obj_align = aligner_init(full_df.iloc[seq_i,0], target_sequence, gop, gep).align()
-        if seq_obj_align==None:
-            continue
-        else:
-            seq_obj_align = re.sub(r'[(\d|\s]', '', seq_obj_align) #remove digits from the string caused by the alignment and empty spaces from the start
-            aligned_data[header]=seq_obj_align
-            id_f+=1
+        # if seq_obj_align==None:
+        #     continue
+        # else:
+        #     seq_obj_align = re.sub(r'[(\d|\s]', '', seq_obj_align) #remove digits from the string caused by the alignment and empty spaces from the start
+        #     aligned_data[header]=seq_obj_align
+        #     id_f+=1
+        seq_obj_align = re.sub(r'[(\d|\s]', '', seq_obj_align) #remove digits from the string caused by the alignment and empty spaces from the start
+        aligned_data[header]=seq_obj_align
+        id_f+=1
+
     aligned_data_trim=align_trimmer(aligned_data, target_sequence)
     write_align(aligned_data_trim, filename, target_sequence)
     #Generate a visual alignment file using mview
@@ -512,17 +513,17 @@ def aa_coloring(seq_infos, aligs1, aligs2, frame_info, output):
         #write the html colouring into a string var for each aa and append into a list, then join and make a massive string,
         # then after all AAs have been iterated over for the certain seq, then write into the html 
         for aa1,aa2, in zip(a1,a2):
-            try:
-                aa2_list.append('<span style="color:'+ color_scheme[find_colour(aa2,color_scheme)][0][0]+ '">' + aa2 + '</span>')
-            except KeyError:
-                print("Keyerror with aa2 being: " + aa2)
-            try:
-                aa1_list.append('<span style="color:'+ color_scheme[find_colour(aa1,color_scheme)][0][0]+ '">' + aa1 + '</span>')
-            except KeyError:
-                print("Keyerror with aa1 being: " + aa1)
+            # try:
+            #     aa2_list.append('<span style="color:'+ color_scheme[find_colour(aa2,color_scheme)][0][0]+ '">' + aa2 + '</span>')
+            # except KeyError:
+            #     print("Keyerror with aa2 being: " + aa2)
+            # try:
+            #     aa1_list.append('<span style="color:'+ color_scheme[find_colour(aa1,color_scheme)][0][0]+ '">' + aa1 + '</span>')
+            # except KeyError:
+            #     print("Keyerror with aa1 being: " + aa1)
             
-            # aa2_list.append('<span style="color:'+ color_scheme[find_colour(aa2,color_scheme)][0][0]+ '">' + aa2 + '</span>')
-            # aa1_list.append('<span style="color:'+ color_scheme[find_colour(aa1,color_scheme)][0][0]+ '">' + aa1 + '</span>')
+            aa2_list.append('<span style="color:'+ color_scheme[find_colour(aa2,color_scheme)][0][0]+ '">' + aa2 + '</span>')
+            aa1_list.append('<span style="color:'+ color_scheme[find_colour(aa1,color_scheme)][0][0]+ '">' + aa1 + '</span>')
 
             #print("============")
         coloured_ref="".join(aa2_list)
