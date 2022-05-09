@@ -517,7 +517,46 @@ def translate_nt_aa_hiti2(result, corr_frame, output_html):
     #ref_x_alig_list[0][0]
     df = pd.DataFrame(data= {seq_info[0]: seq_info[1:], ref_x_alig_list[0][0]:ref_x_alig_list[0][1:]})
     
-    aa_coloring(list(df['Seq_info']), list(df.iloc[:,1]), df.columns[1].split(":")[2], str(corr_frame), output_html)
+    f = open(output_html,"w")
+
+    color_scheme={"RED": [["#FF0000"], ["D", "E"]], "BLUE":[["#6495ED"],["K", "R"]], "GREEN":[["#9FE2BF"], ["C", "V", "I", "L", "P", "F", "Y", "M", "W"]], "ORANGE":[["#FF7F50"],["G", "A", "S", "T"]], "MAGENTA":[["#DE3163"], ["N", "Q", "H"]], "BLACK": [["#000000"]]}
+
+    for info, a1,a2 in zip(df["Seq_info"], list(df.iloc[:,1]), [df.columns[1].split(":")[2]]*len(list(df.iloc[:,1]))):
+        aa1_list=[]
+        aa2_list=[]
+
+        a1,a2=a1[0:round(len(a1)*0.6)], a2[0:round(len(a2)*0.6)]
+        f.write("<html> \n <body> <p>"+ "_".join(info.split("_")[:1]) +"</p> <p>")
+        #test_html.append('<!DOCTYPE html><html> <head><link rel="stylesheet" href="format.css"></head> <meta charset="utf-8"> <body> <p>'+ "_".join(info.split("_")[:2]) + "<br>" + frame +'</p> <p>')
+    #go over the individual AAs of the alignemnts
+        #write the html colouring into a string var for each aa and append into a list, then join and make a massive string,
+        # then after all AAs have been iterated over for the certain seq, then write into the html 
+        for aa1,aa2, in zip(a1,a2):
+            print("aa1: "+ aa1)
+            print("aa2: "+ aa2)
+            # try:
+            #     aa2_list.append('<span style="color:'+ color_scheme[find_colour(aa2,color_scheme)][0][0]+ '">' + aa2 + '</span>')
+            # except KeyError:
+            #     print("Keyerror with aa2 being: " + aa2)
+            # try:
+            #     aa1_list.append('<span style="color:'+ color_scheme[find_colour(aa1,color_scheme)][0][0]+ '">' + aa1 + '</span>')
+            # except KeyError:
+            #     print("Keyerror with aa1 being: " + aa1)
+            
+            aa2_list.append('<span style="color:'+ color_scheme[find_colour(aa2,color_scheme)][0][0]+ '">' + aa2 + '</span>')
+            aa1_list.append('<span style="color:'+ color_scheme[find_colour(aa1,color_scheme)][0][0]+ '">' + aa1 + '</span>')
+
+            #print("============")
+        coloured_ref="".join(aa2_list)
+
+        coloured_seq="".join(aa1_list)
+
+        f.write(coloured_ref +"<br>")
+        f.write(coloured_seq)
+        f.write("</p>")
+
+    f.write("</body></html>")
+    f.close()
 
     return(df)
 
