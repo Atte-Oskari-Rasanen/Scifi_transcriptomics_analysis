@@ -175,8 +175,10 @@ test_res=aligner(df_trim_full2, target_sequence, "align_local2", result, output_
 corr_frame=1
 result="/media/data/AtteR/projects/hiti/pipeline_output/fastas/mcherry_p3_seq_SP1.fasta"
 
-out_of_frames=[0,1,2]
-out_of_frames.remove(corr_frame)
+#(2910-2210)%3
+df_aa=translate_nt_aa(result, 1)
+output_html="/media/data/AtteR/projects/hiti/pipeline_output/AA_aligned/AA_3p_mcherry_coloured_alignment_SP1_NOSCAR.html"
+#######from the function hiti2
 refs_aa_frames={}
 aa_and_perc={}
 for record in SeqIO.parse(result, "fasta"):
@@ -184,22 +186,7 @@ for record in SeqIO.parse(result, "fasta"):
         refs_aa_frames["Frame:" + str(corr_frame)]=str(Seq(record.seq[corr_frame:]).translate())
     else:
         aa_and_perc[">"+str(record.description) + "_transl.frame:" + str(corr_frame)]=str(Seq(record.seq[corr_frame:]).translate())
-
-aa_and_perc
-refs_aa_frames
-
-#overall the code takes the inte ref seq, translates it, then the amplicon and translates it
-"VQAERSEPQHRRPDGAGPYDHRRPPRLPCPAGWAGRQTQCDPADW*VPS*DAGTRTEDPPASVDRSVQAGGARAERVAQVGGQAGEQLGRLRAHRRLTALEEVHQGLSLPLPGDHRQPGALGQA*DARVEGGLLPSGE"
-"VQAEQFGAAAPTTRWSWTI"
-
-r="TGTACAAGCCGAACGTTCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGACCATATGACCACCGGCGGCCTCCACGCCTACCCTGCCCCGCGGGGTGGGCCGGCCGCCAAACCCAATGTGATCCTGCAGATTGGTAAGTGCCGAGCTGAGATGCTGGAACACGTACGGAGGACCCACCGGCATCTGTTGACCGAAGTGTCCAAGCAGGTGGAGCGAGAGCTGAAAGGGTTGCACAGGTCGGTGGGCAAGCTGGAGAACAACTTGGACGGCTACGTGCCCACCGGCGACTCACAGCGCTGGAAGAAGTCCATCAAGGCCTGTCTTTGCCGCTGCCAGGAGACCATCGCCAACCTGGAGCGCTGGGTCAAGCGTGAGATGCACGTGTGGAGGGAGGTCTTCTACCGTCTGGAGAGG"
-seq="TGTACAAGCCGAACAGTTCGGAGCCGCAGCACCGACGACCAGATGGAGCTGGACCATA"
-aa=Seq(seq[1:]).translate()
-aa
-#you go over the ref seqs in different frames and align all the amplicons to them. save the alignment into the df's specific column. initially
-#save into a list or such
 ref_x_alignment={}
-refs_aa_frames
 alignments_per_ref=[]
 refs_aa_frames['Frame:1']
 for ampl in aa_and_perc.keys():
@@ -216,27 +203,30 @@ for ampl in aa_and_perc.keys():
 ref_x_alignment['Frame:1' + "|Ref:" +refs_aa_frames['Frame:1']]=alignments_per_ref
 seq_info={"Seq_info:":aa_and_perc.keys()}
 keys=list(aa_and_perc.keys())
-ref_x_alignment.keys()
-list(aa_and_perc.values())[0]
-
 seq_info=["Seq_info"]+list(aa_and_perc.keys())
 ref_x_alig_list=[]
 for keys, values in ref_x_alignment.items():
     #make into a list with first being the ref, the rest being the aligned seqs. 
     ref_x_alig_list.append([keys]+list(values))
-
 #so we have a list containing sublist pairs of the ref seq
-ref_x_alig_list[0][0]
+#ref_x_alig_list[0][0]
 df = pd.DataFrame(data= {seq_info[0]: seq_info[1:], ref_x_alig_list[0][0]:ref_x_alig_list[0][1:]})
-output_html="/media/data/AtteR/projects/hiti/pipeline_output/AA_aligned/AA_3p_mcherry_coloured_alignment_SP1_NOSCAR.html"
-df.iloc[:,1]
-aa_coloring(list(df['Seq_info']), list(df.iloc[:,1]), df.columns[1].split(":")[2], str(corr_frame), output_html)
+
+#aa_coloring(list(df['Seq_info']), list(df.iloc[:,1]), df.columns[1].split(":")[2], str(corr_frame), output_html)
+color_scheme={"RED": [["#FF0000"], ["D", "E"]], "BLUE":[["#6495ED"],["K", "R"]], "GREEN":[["#9FE2BF"], ["C", "V", "I", "L", "P", "F", "Y", "M", "W"]], "ORANGE":[["#FF7F50"],["G", "A", "S", "T"]], "MAGENTA":[["#DE3163"], ["N", "Q", "H"]], "BLACK": [["#000000"]]}
+print(output_html)
+test_html=[]
+seq_info=df['Seq_info']
+amplicons=list(df.iloc[:,1])
+ref=[df.columns[1].split(":")[2]]*len(amplicons)
 
 
-#(2910-2210)%3
-df_aa=translate_nt_aa(result, 1)
-df_aa2=translate_nt_aa_hiti2(result,1)
-output_html="/media/data/AtteR/projects/hiti/pipeline_output/AA_aligned/AA_3p_mcherry_coloured_alignment_SP1.html"
+
+#############end
+
+df_aa2=translate_nt_aa_hiti2(result, corr_frame, output_html)
+
+#output_html="/media/data/AtteR/projects/hiti/pipeline_output/AA_aligned/AA_3p_mcherry_coloured_alignment_SP1.html"
 visualise_aa_hybrid_alignments(df_aa, output_html)
 #########
 
