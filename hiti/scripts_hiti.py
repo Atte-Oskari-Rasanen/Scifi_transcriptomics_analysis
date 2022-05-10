@@ -228,11 +228,10 @@ def import_reads_process_mini(base_path, ref,filterlitteral,lliteral,read_fwd):
     #df_full = reduce(lambda df1,df2: pd.merge(df1,df2,on='sequence', how='outer'), df_animal)
     return(complete_df)
 
-
-def create_datadict(base_path):
+def create_datadict(base_path, transgene):
 
     #hip_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder and "h_" in folder or "s_" in folder]
-    group_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder]
+    group_folders = [folder for folder in os.listdir(base_path) if transgene in folder]
     #str_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder and "s_" in folder]
     group_folders
     search_paths_groups = []
@@ -418,12 +417,6 @@ def aligner(full_df, target_sequence, align_method, filename, output_path, gop=3
 
         print("===SEQ===:" + full_df.iloc[seq_i,0])
         seq_obj_align = aligner_init(full_df.iloc[seq_i,0], target_sequence, gop, gep).align()
-        # if seq_obj_align==None:
-        #     continue
-        # else:
-        #     seq_obj_align = re.sub(r'[(\d|\s]', '', seq_obj_align) #remove digits from the string caused by the alignment and empty spaces from the start
-        #     aligned_data[header]=seq_obj_align
-        #     id_f+=1
         seq_obj_align = re.sub(r'[(\d|\s]', '', seq_obj_align) #remove digits from the string caused by the alignment and empty spaces from the start
         aligned_data[header]=seq_obj_align
         id_f+=1
@@ -433,14 +426,15 @@ def aligner(full_df, target_sequence, align_method, filename, output_path, gop=3
     #Generate a visual alignment file using mview
     mview_file=output_path + "/" + filename.split("/")[-1].split(".")[-2] + ".html"
     mview_command='/media/data/AtteR/Attes_bin/mview -in fasta -html head -css on -coloring any ' + filename + '>' + mview_file
-    #call([mview_command], shell=True)
+    call([mview_command], shell=True)
+    print("html file created!")
     #os.system('/media/data/AtteR/Attes_bin/mview -in fasta -html head -css on -coloring any {} > {}'.format(str(filename), str(mview_file))) 
     #subprocess.run(['/media/data/AtteR/Attes_bin/mview', '-in fasta', '-html head', '-css on', '-coloring any', filename, '>', mview_file])
 
 
 def translate_nt_aa(result, corr_frame):
     out_of_frames=[0,1,2]
-    out_of_frames.remove(corr_frame)
+    #out_of_frames.remove(corr_frame) dont take out any of the frames as the seqs after the scar may be in frame
     refs_aa_frames={}
     aa_and_perc={}
 
@@ -485,6 +479,7 @@ def translate_nt_aa(result, corr_frame):
     return(df)
 def translate_nt_aa_hiti2(result, corr_frame, output_html):
     refs_aa_frames={}
+
     aa_and_perc={}
     for record in SeqIO.parse(result, "fasta"):
         if record.id=="0":
@@ -493,19 +488,18 @@ def translate_nt_aa_hiti2(result, corr_frame, output_html):
             aa_and_perc[">"+str(record.description) + "_transl.frame:" + str(corr_frame)]=str(Seq(record.seq[corr_frame:]).translate())
     ref_x_alignment={}
     alignments_per_ref=[]
-    refs_aa_frames['Frame:1']
     for ampl in aa_and_perc.keys():
-        matches=SequenceMatcher(None,refs_aa_frames['Frame:1'],aa_and_perc[ampl])
+        matches=SequenceMatcher(None,refs_aa_frames["Frame:" + str(corr_frame)],aa_and_perc[ampl])
         seqs=[]
         #you use range_line so that when you fill the remnants from left side of the match, you wont keep adding from
         #beginning since in the end, we merge the seq list elements into the whole alignment of the amplicon against the ref
         range_line=0
         for i in range(len(matches.get_matching_blocks())):
             match=matches.get_matching_blocks()[i]
-            seqs.append(len(refs_aa_frames['Frame:1'][range_line:match.a])*"-"+str(aa_and_perc[ampl])[match.b:match.b+match.size])
+            seqs.append(len(refs_aa_frames["Frame:" + str(corr_frame)][range_line:match.a])*"-"+str(aa_and_perc[ampl])[match.b:match.b+match.size])
             range_line=match.a+match.size
         alignments_per_ref.append(''.join(seqs))
-    ref_x_alignment['Frame:1' + "|Ref:" +refs_aa_frames['Frame:1']]=alignments_per_ref
+    ref_x_alignment["Frame:" + str(corr_frame) + "|Ref:" +refs_aa_frames["Frame:" + str(corr_frame)]]=alignments_per_ref
     seq_info={"Seq_info:":aa_and_perc.keys()}
     keys=list(aa_and_perc.keys())
     seq_info=["Seq_info"]+list(aa_and_perc.keys())
