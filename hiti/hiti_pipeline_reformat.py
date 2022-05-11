@@ -379,8 +379,8 @@ def remove_multiples(index_pos, id_keys_dict):
     sd_sum_all=0
     for i in index_pos:
         perc_sum_all+=float(id_keys_dict[i].split("_")[0].split(":")[1])
-        var_sum_all+=float(id_keys_dict[x].split("_")[1].split(":")[1])
-        sd_sum_all+=float(id_keys_dict[x].split("_")[2].split(":")[1])
+        var_sum_all+=float(id_keys_dict[i].split("_")[1].split(":")[1])
+        sd_sum_all+=float(id_keys_dict[i].split("_")[2].split(":")[1])
     #fix the sd summing!
     merged_id=">CluSeq:"+str(perc_sum_all)+ "_var:"+str(var_sum_all) +"_sd:"+str(math.sqrt(var_sum_all))
     return(merged_id)
@@ -413,7 +413,7 @@ t
 aa=alignments.copy()
 aa
 del alignments['>4CluSeq:0.01283_var:0.00049_sd:0.02223']
-alignments.keys()
+len(alignments.keys())
 import collections
 #merged values
 dups = [item for item, count in collections.Counter(algs).items() if count >= 2]
@@ -428,19 +428,17 @@ for dupl_seq in dups:
     #single_id=remove_multiples(index_pos, id_keys_dict)
     #key includes the merged matches values and the value the seq
     merged_multiples[remove_multiples(index_pos, id_keys_dict)]=algs[index_pos[0]]
+
+#now we have removed the seqs that have duplicates and effectively merged them together into merged_multiples dict. This
+#is then added back to the original dict from which the duplicates had been removed.
+len(merged_multiples)
+len(alignments)
 alignments.update(merged_multiples)
 
-    #once you get the indices of the duplicates, get the keys based on these indices, merge the key values
+#once you get the indices of the duplicates, get the keys based on these indices, merge the key values
 #Now we have a script for detecting duplicates from the data dict, removing them via merging the values
 #need to remove the seqs from the original dict using the index_pos approach
-alignments
-a=remove_multiples(index_pos, id_keys_dict)
-a
 
-len(algs)
-for i in dups:
-    print("index of", i, "=", algs.index(i))
-len(dups)
 #NT
 ####################
 output_path="/media/data/AtteR/projects/hiti/pipeline_output_reorg/NT_aligned_html"
