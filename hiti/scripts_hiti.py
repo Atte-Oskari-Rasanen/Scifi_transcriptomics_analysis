@@ -415,7 +415,9 @@ def write_align(aligned_data, filename, target_sequence):
 
 def find_remove_duplicates(aligned_data_trim):
     id_keys_dict=dict()
-    for i, id in enumerate(alignments.keys()):
+    algs=list(aligned_data_trim.values())
+
+    for i, id in enumerate(aligned_data_trim.keys()):
         id_keys_dict[i]=id
 
     #go over the indeces where the duplicates of a seq found, two at a time and sum them all up together
@@ -428,7 +430,7 @@ def find_remove_duplicates(aligned_data_trim):
             var_sum_all+=float(id_keys_dict[i].split("_")[1].split(":")[1])
             sd_sum_all+=float(id_keys_dict[i].split("_")[2].split(":")[1])
         #fix the sd summing!
-        merged_id=">CluSeq:"+str(perc_sum_all)+ "_var:"+str(var_sum_all) +"_sd:"+str(math.sqrt(var_sum_all))
+        merged_id=str(i) + "CluSeq:"+str(round(perc_sum_all,5))+ "_var:"+str(round(var_sum_all,5)) +"_sd:"+str(round(math.sqrt(var_sum_all),5))
         return(merged_id)
 
     #gets the indices of the matching seqs
@@ -446,13 +448,13 @@ def find_remove_duplicates(aligned_data_trim):
                 break
         return index_pos_list
 
-    def remove_key_from_dict(index_pos,id_keys_dict,alignments):
+    def remove_key_from_dict(index_pos,id_keys_dict,aligned_data_trim):
         for pos in index_pos:
             #id_keys_dict[pos] value corresponds to the key of the alignments 
             print(id_keys_dict[pos])
-            print(alignments[id_keys_dict[pos]])
-            del alignments[id_keys_dict[pos]]
-        return(alignments)
+            print(aligned_data_trim[id_keys_dict[pos]])
+            del aligned_data_trim[id_keys_dict[pos]]
+        return(aligned_data_trim)
     import collections
     #merged values
     dups = [item for item, count in collections.Counter(algs).items() if count >= 2]
@@ -462,13 +464,13 @@ def find_remove_duplicates(aligned_data_trim):
         #take the seq from any of the matches
         #seq=algs[index_pos[0]]
         #print(dupl_seq[:40] + " found at pos " + str(index_pos))
-        alignments=remove_key_from_dict(index_pos,id_keys_dict,alignments)
+        aligned_data_trim=remove_key_from_dict(index_pos,id_keys_dict,aligned_data_trim)
         #key includes the merged matches values and the value the seq
         merged_multiples[remove_multiples(index_pos, id_keys_dict)]=algs[index_pos[0]]
     #now we have removed the seqs that have duplicates and effectively merged them together into merged_multiples dict. This
     #is then added back to the original dict from which the duplicates had been removed.
-    alignments.update(merged_multiples)
-    return(alignments)
+    merged_multiples.update(aligned_data_trim)
+    return(merged_multiples)
 #once you get the indices of the duplicates, get the keys based on these indices, merge the key values
 #Now we have a script for detecting duplicates from the data dict, removing them via merging the values
 #need to remove the seqs from the original dict using the index_pos approach
