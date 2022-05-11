@@ -1,3 +1,4 @@
+from cmath import nan
 from heapq import merge
 import pandas as pd
 import os 
@@ -271,79 +272,7 @@ df_full=import_reads_process_mini(base_path, target_sequence, filterlitteral, ll
 #starcode produces files with exactly same seqs, counts and percs
 #files do have different number of reads but for some reason starcode clusters all of them as the same
 df_trim_full2=calculate_perc_sd2(df_full)
-grouped = df_trim_full2.groupby(['sequence'], as_index=False)[df_trim_full2.columns[1:]].sum()
-len(df_trim_full2)
-len(grouped)
-
-complete_df = pd.DataFrame({'sequence': [target_sequence]})
-df_animal=[]
-seq_animal=[]
-for read in os.listdir(base_path):
-    animal_group_name=read.split("_")[3] + "_" + read.split("_")[4]
-    print(animal_group_name)
-    if "R1" in read:
-        animal_p5_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
-        animal_p7_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
-        test_file_p5_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
-        test_file_p7_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
-        test_file_p5_filter = tempfile.NamedTemporaryFile(suffix = '.fastq').name#when bbduk applied
-
-
-        if read_fwd:
-            animal_p5 = glob.glob(base_path+'/'+read)
-            animal_p7 = glob.glob(base_path+'/' + read.replace("R1","R2"))
-            #display('Forward run Animal: '+animal_nr)
-        else:
-            print("===")
-            break
-            # animal_p5 = glob.glob(search_path+'/*R2*')
-            # animal_p7 = glob.glob(search_path+'/*R1*')
-            #display('Reverse run Animal: '+animal_nr)
-
-        cat_p5= "cat "+" ".join(animal_p5)+" > "+animal_p5_cat
-        print(cat_p5)
-        #os.system(cat_p5)
-        call([cat_p5], shell=True) #call caused the terminal to freeze so switched to os
-        cat_p7= "cat "+" ".join(animal_p7)+" > "+animal_p7_cat
-        call([cat_p7], shell=True)
-        #os.system(cat_p7)
-
-        kmer = '20'
-        hdist = '3'
-        param=" k="+kmer+" hdist="+hdist+" rcomp=f skipr2=t threads=32 overwrite=true"
-
-        #to check if the read is an amplicon
-        call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+animal_p7_cat+" in2="+animal_p5_cat+" outm1="+test_file_p7_out+" outm2="+test_file_p5_out+" literal="+filterlitteral+param
-        call([call_sequence], shell=True)
-        #actual trimming
-        call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+test_file_p5_out+" out="+test_file_p5_filter+ " literal=AAAAAAAAA,CCCCCCCCC,GGGGGGGGG,TTTTTTTTT k=9 mm=f overwrite=true minlength=40"
-        call([call_sequence], shell=True)
-        test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied
-
-        cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
-        call([cutadapt_call], shell=True)
-
-        print("Cutadapt done! Performed on test_file_p5_filter2: "+ test_file_p5_filter2)
-        test_file_p5_out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
-        print("test_file_p5_out_starcode: "+ test_file_p5_out_starcode)
-        starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter2+" -t 32 -r 5 -o "+test_file_p5_out_starcode
-        call([starcode_call], shell=True)
-
-        df=pd.read_csv(test_file_p5_out_starcode, sep='\t', header=None)
-        df = df.rename(columns={0: 'sequence', 1:'count'})
-        total_counts = int(df[['count']].sum())
-        df['percent'] = (df['count'] / total_counts)
-        df = df.rename(columns={'percent':animal_group_name+'_percent','count':animal_group_name+'_count',})
-        df_animal.append(df)
-#we iterate over all the individual dfs and merge them by taking the seq column of all dfs and placing them under the new dfs seq and do the same with counts
-df_all_lanes=reduce(lambda  left,right: pd.merge(left,right,on=['sequence'], how='outer'), df_animal)
-df_all_lanes=df_all_lanes.fillna(0)
-#reduce is useful when you need to apply a function to an iterable and reduce it to a single cumulative value.
-grouped = df_all_lanes.groupby(['sequence'], as_index=False)[df_all_lanes.columns[1:]].sum()
-len(df_all_lanes.index)
-len(grouped.index)
-
-result="/media/data/AtteR/projects/hiti/pipeline_output_reorg/fastas/unaligned_seqs/Exp2_3p_mcherry_mcherry_SP4.fasta"
+result="/media/data/AtteR/projects/hiti/pipeline_output_reorg/fastas/unaligned_seqs/Exp2_3p_mcherry_mcherry_SP4_var.fasta"
 save_fasta(result, df_trim_full2, target_sequence)
 
 
@@ -393,7 +322,7 @@ def aligner2(full_df, target_sequence, align_method, filename, output_path, gop=
     #align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then add padding!
     for seq_i in range(len(full_df.iloc[:,-1])):
         #yield iteratively the header of the certain seq and the corresponding seq
-        header=">"+ str(id_f)+"CluSeq:" + str((round(full_df.iloc[seq_i,-3],5))) + "_sd:" + str((round(full_df.iloc[seq_i,-1],5)))
+        header=">"+ str(id_f)+"CluSeq:" + str((round(full_df.iloc[seq_i,-4],5))) + "_var:"+str((round(full_df.iloc[seq_i,-2],5))) +"_sd:" + str((round(full_df.iloc[seq_i,-1],5)))
         #seq_obj_align = aligner_init(full_df.iloc[seq_i,0], target_sequence, gop, gep).align()
 
         print("===SEQ===:" + full_df.iloc[seq_i,0])
@@ -412,10 +341,9 @@ def aligner2(full_df, target_sequence, align_method, filename, output_path, gop=
     return(aligned_data_trim)
 
 alignments=aligner2(df_trim_full2, target_sequence, "align_local2", result, output_path, 3,1)
-len(alignments)
+algs=list(alignments.values())
 
 alignments.keys()
-algs=list(alignments.values())
 len(algs)
 #get the prev dict values (consists of the id as the keys and the aligned nt seq as value)
 #and make a new dict of it in which the key is the index and the numerical values, perc and sd, are 
@@ -423,34 +351,40 @@ len(algs)
 id_keys_dict=dict()
 for i, id in enumerate(alignments.keys()):
     id_keys_dict[i]=[id.split("_")[0].split(":")[1], id.split("_")[1].split(":")[1]]
-id_keys_dict=dict()
 
-for i, id in enumerate(alignments.keys(),start=1):
+
+id_keys_dict=dict()
+for i, id in enumerate(alignments.keys()):
     id_keys_dict[i]=id
-id_keys_dict[1].split("_")[0].split(":")[1]
-id_keys_dict
-#the generator function takes in the index_pos list and the dict, then sums them 
+# none_match = {0:'>CluSeq:0_var:0_sd:0'} 
+# id_keys_dict.update(none_match)
+# id_keys_dict[1].split("_")[2].split(":")[1]
+
+
+perc_sum=float(id_keys_dict[33].split("_")[0].split(":")[1])+float(id_keys_dict[i+1].split("_")[0].split(":")[1])
+def grouped(iterable, n):
+    "s -> (s0,s1,s2,...sn-1), (sn,sn+1,sn+2,...s2n-1), (s2n,s2n+1,s2n+2,...s3n-1), ..."
+    return zip(*[iter(iterable)]*n)
+#MITEN ITER TOIMII? NONEE EI HYVÄKSY ELI KEKSI MUU KONSTI...
+
+
+l=[0, 1, 2, 4, 33]
+for x, y in grouped(l, 2):
+   print("%d,%d" % (x, y))#the generator function takes in the index_pos list and the dict, then sums them 
+import math
+#go over the indeces where the duplicates of a seq found, two at a time and sum them all up together
 def remove_multiples(index_pos, id_keys_dict):
     perc_sum_all=0
+    var_sum_all=0
     sd_sum_all=0
-    if len(index_pos)%2==0:
-        for i in index_pos:
-            perc_sum=float(id_keys_dict[1].split("_")[0].split(":")[1])+float(id_keys_dict[1].split("_")[0].split(":")[1])
-            perc_sum_all+=perc_sum
-            sd_sum=float(id_keys_dict[i][1])+float(id_keys_dict[i+1][1])
-            sd_sum_all+=sd_sum
-    else:
-        index_pos=index_pos.append(0)
-        for i in index_pos:
-            perc_sum=float(id_keys_dict[1].split("_")[0].split(":")[1])+float(id_keys_dict[1].split("_")[0].split(":")[1])
-            perc_sum_all+=perc_sum
-            sd_sum=float(id_keys_dict[i][1])+float(id_keys_dict[i+1][1])
-            sd_sum_all+=sd_sum
-    
+    for i in index_pos:
+        perc_sum_all+=float(id_keys_dict[i].split("_")[0].split(":")[1])
+        var_sum_all+=float(id_keys_dict[x].split("_")[1].split(":")[1])
+        sd_sum_all+=float(id_keys_dict[x].split("_")[2].split(":")[1])
     #fix the sd summing!
-    merged_id=">CluSeq:"+str(perc_sum_all)+"_sd:"+str(sd_sum_all)
+    merged_id=">CluSeq:"+str(perc_sum_all)+ "_var:"+str(var_sum_all) +"_sd:"+str(math.sqrt(var_sum_all))
     return(merged_id)
-
+#id_keys_dict[33].split("_")[0].split(":")[1]
 
 #gets the indices of the matching seqs
 def get_indeces_matching_seqs(list_of_elems, element):
@@ -470,13 +404,19 @@ def get_indeces_matching_seqs(list_of_elems, element):
 def remove_key_from_dict(index_pos,id_keys_dict,alignments):
     for pos in index_pos:
         #id_keys_dict[pos] value corresponds to the key of the alignments 
+        print(id_keys_dict[pos])
+        print(alignments[id_keys_dict[pos]])
         del alignments[id_keys_dict[pos]]
     return(alignments)
-
+t=get_indeces_matching_seqs(algs, 'TGTACAAGATGGAGCTGGACCATATGACCCGGTGCACCGGCGGCCTCCACGCCTACCC-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------')
+t
+aa=alignments.copy()
+aa
+del alignments['>4CluSeq:0.01283_var:0.00049_sd:0.02223']
+alignments.keys()
 import collections
-dups = [item for item, count in collections.Counter(algs).items() if count >= 2]
-len(dups)
 #merged values
+dups = [item for item, count in collections.Counter(algs).items() if count >= 2]
 merged_multiples=dict()
 for dupl_seq in dups:
     index_pos = get_indeces_matching_seqs(algs, dupl_seq)
