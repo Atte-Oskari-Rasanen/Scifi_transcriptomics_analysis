@@ -132,16 +132,23 @@ def import_reads_process(data_dict, transgene,assay_end,filterlitteral,lliteral,
             call([call_sequence], shell=True)
             test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied
 
-            cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
+            test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied on 5'
+
+            #cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
+            cutadapt_call="cutadapt -g "+lliteral+" " + test_file_p5_filter + " > " + test_file_p5_filter2
+
+            call([cutadapt_call], shell=True)
+            test_file_p5_filter3 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied on 3'
+
+            #cutadapt_call="cutadapt -a "+rliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter2
+            cutadapt_call="cutadapt -a "+rliteral+" " + test_file_p5_filter2 + " > " + test_file_p5_filter3
+
             call([cutadapt_call], shell=True)
 
-            print("Cutadapt done! Performed on test_file_p5_filter2: "+ test_file_p5_filter2)
+            print("Cutadapt done! Performed on test_file_p5_filter2: "+ test_file_p5_filter3)
             test_file_p5_out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
             print("test_file_p5_out_starcode: "+ test_file_p5_out_starcode)
-            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter2+" -t 32 -o "+test_file_p5_out_starcode
-            call([starcode_call], shell=True)
-            #Rerun starcode to make sure that the duplicates are removed
-            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_out_starcode+" -t 32 -o "+test_file_p5_out_starcode
+            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter3+" -t 32 -o "+test_file_p5_out_starcode
             call([starcode_call], shell=True)
 
             df=pd.read_csv(test_file_p5_out_starcode, sep='\t', header=None)
@@ -163,7 +170,7 @@ def import_reads_process(data_dict, transgene,assay_end,filterlitteral,lliteral,
     return(complete_df)
 from functools import reduce
 
-def import_reads_process_mini(base_path, ref,filterlitteral,lliteral,read_fwd):
+def import_reads_process_mini(base_path, ref,filterlitteral,lliteral,rliteral,read_fwd):
     complete_df = pd.DataFrame({'sequence': [ref]})
     df_animal=[]
     seq_animal=[]
@@ -207,15 +214,23 @@ def import_reads_process_mini(base_path, ref,filterlitteral,lliteral,read_fwd):
             #actual trimming
             call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+test_file_p5_out+" out="+test_file_p5_filter+ " literal=AAAAAAAAA,CCCCCCCCC,GGGGGGGGG,TTTTTTTTT k=9 mm=f overwrite=true minlength=40"
             call([call_sequence], shell=True)
-            test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied
+            test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied on 5'
 
-            cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
+            #cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
+            cutadapt_call="cutadapt -g "+lliteral+" " + test_file_p5_filter + " > " + test_file_p5_filter2
+
+            call([cutadapt_call], shell=True)
+            test_file_p5_filter3 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied on 3'
+
+            #cutadapt_call="cutadapt -a "+rliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter2
+            cutadapt_call="cutadapt -a "+rliteral+" " + test_file_p5_filter2 + " > " + test_file_p5_filter3
+
             call([cutadapt_call], shell=True)
 
-            print("Cutadapt done! Performed on test_file_p5_filter2: "+ test_file_p5_filter2)
+            print("Cutadapt done! Performed on test_file_p5_filter2: "+ test_file_p5_filter3)
             test_file_p5_out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
             print("test_file_p5_out_starcode: "+ test_file_p5_out_starcode)
-            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter2+" -t 32 -r 5 -o "+test_file_p5_out_starcode
+            starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter3+" -t 32 -r 5 -o "+test_file_p5_out_starcode
             call([starcode_call], shell=True)
 
             df=pd.read_csv(test_file_p5_out_starcode, sep='\t', header=None)
@@ -426,11 +441,11 @@ def find_remove_duplicates(aligned_data_trim):
         var_sum_all=0
         sd_sum_all=0
         for i in index_pos:
-            perc_sum_all+=float(id_keys_dict[i].split("_")[0].split(":")[1])
-            var_sum_all+=float(id_keys_dict[i].split("_")[1].split(":")[1])
-            sd_sum_all+=float(id_keys_dict[i].split("_")[2].split(":")[1])
+            perc_sum_all+=float(id_keys_dict[i].split("_")[1].split(":")[1])
+            var_sum_all+=float(id_keys_dict[i].split("_")[2].split(":")[1])
+            sd_sum_all+=float(id_keys_dict[i].split("_")[3].split(":")[1])
         #fix the sd summing!
-        merged_id=str(i) + "CluSeq:"+str(round(perc_sum_all,5))+ "_var:"+str(round(var_sum_all,5)) +"_sd:"+str(round(math.sqrt(var_sum_all),5))
+        merged_id=">"+str(i) + "CluSeq:"+str(round(perc_sum_all,5))+ "_var:"+str(round(var_sum_all,5)) +"_sd:"+str(round(math.sqrt(var_sum_all),5))
         return(merged_id)
 
     #gets the indices of the matching seqs
@@ -474,6 +489,11 @@ def find_remove_duplicates(aligned_data_trim):
 #once you get the indices of the duplicates, get the keys based on these indices, merge the key values
 #Now we have a script for detecting duplicates from the data dict, removing them via merging the values
 #need to remove the seqs from the original dict using the index_pos approach
+def addprimers(fasta_dict, filename,lliteral,rliteral):
+    with open(filename, "w") as f: 
+        for id, seq_prims in fasta_dict.items():
+            f.write(id + "\n")
+            f.write(lliteral.split("=")[1] + "|" + seq_prims + "|" + rliteral.split("=")[1] + "\n")
 
 
 
@@ -481,7 +501,7 @@ def find_remove_duplicates(aligned_data_trim):
 #takes in the df and the choice of the alignment method. methods are found in class
 #the class must be instantiated inside the function and the appropriate method is called
 #by index passed by the user into function
-def aligner(full_df, target_sequence, align_method, filename, output_path, gop=3, gep=1):
+def aligner(full_df, target_sequence, align_method, filename, output_path, lliteral, rliteral gop=3, gep=1):
     align_class = {"align_local": align_local,
             "align_local2": align_local2,
             "align_local3":align_local3,
@@ -494,10 +514,9 @@ def aligner(full_df, target_sequence, align_method, filename, output_path, gop=3
     #align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then add padding!
     for seq_i in range(len(full_df.iloc[:,-1])):
         #yield iteratively the header of the certain seq and the corresponding seq
-        header=">"+ str(id_f)+"CluSeq:" + str((round(full_df.iloc[seq_i,-4],5))) + "_var:"+str((round(full_df.iloc[seq_i,-2],5))) +"_sd:" + str((round(full_df.iloc[seq_i,-1],5)))
+        header=">"+ str(id_f)+"_CluSeq:" + str((round(full_df.iloc[seq_i,-4],5))) + "_var:"+str((round(full_df.iloc[seq_i,-2],5))) +"_sd:" + str((round(full_df.iloc[seq_i,-1],5)))
         #seq_obj_align = aligner_init(full_df.iloc[seq_i,0], target_sequence, gop, gep).align()
 
-        print("===SEQ===:" + full_df.iloc[seq_i,0])
         seq_obj_align = aligner_init(full_df.iloc[seq_i,0], target_sequence, gop, gep).align()
         seq_obj_align = re.sub(r'[(\d|\s]', '', seq_obj_align) #remove digits from the string caused by the alignment and empty spaces from the start
         aligned_data[header]=seq_obj_align
@@ -505,15 +524,17 @@ def aligner(full_df, target_sequence, align_method, filename, output_path, gop=3
 
     aligned_data_trim=align_trimmer(aligned_data, target_sequence)
     data_trim_nodupl=find_remove_duplicates(aligned_data_trim)
-    write_align(data_trim_nodupl, filename, target_sequence)
+    #Add primers to both ends of the seq and save
+    #write_align(data_trim_nodupl, filename, target_sequence)
+    addprimers(data_trim_nodupl, filename, lliteral,rliteral)
+
     #Generate a visual alignment file using mview
     mview_file=output_path + "/" + filename.split("/")[-1].split(".")[-2] + ".html"
     mview_command='/media/data/AtteR/Attes_bin/mview -in fasta -html head -css on -coloring any ' + filename + '>' + mview_file
     call([mview_command], shell=True)
-    print("html file created!")
+    print("html file created as "+ mview_file)
     #os.system('/media/data/AtteR/Attes_bin/mview -in fasta -html head -css on -coloring any {} > {}'.format(str(filename), str(mview_file))) 
     #subprocess.run(['/media/data/AtteR/Attes_bin/mview', '-in fasta', '-html head', '-css on', '-coloring any', filename, '>', mview_file])
-
 
 def translate_nt_aa(result, corr_frame):
     out_of_frames=[0,1,2]
@@ -719,6 +740,8 @@ def visualise_aa_hybrid_alignments(df, output_html): #output as html
         #get the matches with the other reading frames (i.e. the last 2 cols of the df)
         match2_a = SequenceMatcher(None, df.columns[2].split(":")[-1], df.iloc[ampl_row,2]).find_longest_match(0, len(df.columns[2].split(":")[-1]), 0, len(df.iloc[ampl_row,2]))
         match2_b = SequenceMatcher(None, df.columns[3].split(":")[-1], df.iloc[ampl_row,3]).find_longest_match(0, len(df.columns[3].split(":")[-1]), 0, len(df.iloc[ampl_row,3]))
+        
+        #modify this part so that you include AAs generated by all different frames
         if match2_a.size>match2_b.size:
             matched_ampl2= len(df.columns[2].split(":")[-1][:match2_a.a])*"-" + str(df.iloc[ampl_row,2][match2_a.b:]) + "|"
             ref_outframe2=df.columns[2].split(":")[-1][0:end_of_match] + "|"
@@ -746,6 +769,8 @@ def visualise_aa_hybrid_alignments(df, output_html): #output as html
         aligs_merged_ref.append(merged_align_ref)
     aa_coloring(seqinfos,aligs_merged_seq,aligs_merged_ref, frame_info, output_html)
 
+
+#old approach for removing duplicates
 def grouped(iterable, n):
     "s -> (s0,s1,s2,...sn-1), (sn,sn+1,sn+2,...s2n-1), (s2n,s2n+1,s2n+2,...s3n-1), ..."
     return zip(*[iter(iterable)]*n)
