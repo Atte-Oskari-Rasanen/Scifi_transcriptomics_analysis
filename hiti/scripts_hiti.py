@@ -37,21 +37,184 @@ from alignment_scripts import *
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 import statistics as st
+
+def calculate_perc_sd2(full_df):
+    full_df = full_df.fillna(value=0)
+    perc_cols = [col for col in full_df.columns if 'percent' in col]
+    count_cols = [col for col in full_df.columns if 'count' in col]
+
+    perc_cols
+    #sum the percentages of each seq cluster of each animal together to see how much the certain seq is found 
+    full_df['percent_sum_unit'] = full_df[perc_cols].sum(axis=1)  
+
+    total_perc_unit=full_df.iloc[:,-1].sum()
+    full_df['percent_sum'] = (full_df['percent_sum_unit'] / total_perc_unit) #so divide the total perc of each seq (summed across animals) with total summed percentage of summed perc column 
+    full_df.head()
+    count_cols
+    #full_df['sd']=full_df[count_cols].std()
+    full_df['total_reads_seq'] = full_df[count_cols].sum(axis=1)  
+    full_df['variance']=full_df[perc_cols].var(axis=1)
+    full_df['sd']=full_df[perc_cols].std(axis=1)
+
+    #remove sequences that have 0-3 reads in total across groups
+
+    #get the total number of percentages from the percent_sum column and then divide all the perc units with this
+    #to get the percs
+    #calculate the SD for each seq
+    full_df.sort_values(by=['percent_sum'], ascending=False, inplace=True)
+    full_df.head()
+    full_df.columns
+    #discard seqs that contribute less than 0.0001% percentage
+    rows_drop=[]
+    full_df[count_cols]
+    full_df_trim = full_df.drop(full_df[full_df["total_reads_seq"] <= 10].index)
+
+    #return(full_df_trim.iloc[0:round(len(full_df_trim.index)),:])
+    return(full_df_trim)
+
+def create_datadict(base_path, transgene, animal_list):
+
+    #hip_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder and "h_" in folder or "s_" in folder]
+    group_folders = [folder for folder in os.listdir(base_path) if transgene in folder]
+    #str_folders = [folder for folder in os.listdir(base_path) if "mCherry" in folder and "s_" in folder]
+    group_folders
+
+
+    def animal_names(animal_list):
+        for s in animal_list:
+            animal_name="_".join(s.split("_")[:3])
+            if int(animal_name.split("_")[0]) in animal_list:
+                print(animal_name)
+                animals.append("_".join(s.split("_")[:3]))
+        #animals=list(set(animals))
+        return(sorted(list(((set(animals))))))
+
+    animals = animal_names(animal_list)
+    animals
+
+    #key: animal number and whether it comes from striatum or hippocampus, value: the paths to all lane subdirs
+
+    data_dict = dict()
+    for animal_group in animals:
+        lanes=[]
+        for g_f in group_folders:
+            if animal_group in g_f:
+                g_p=base_path+g_f
+                lanes.append(g_p)
+                data_dict[animal_group]=lanes
+
+    return(data_dict)
+
+def create_datadict2(base_path, transgene):
+    group_folders = [folder for folder in os.listdir(base_path) if transgene in folder]
+    animals=[]
+    for s in group_folders:
+        animals.append("_".join(s.split("_")[:3]))
+
+    #key: animal number and whether it comes from striatum or hippocampus, value: the paths to all lane subdirs
+
+    data_dict = dict()
+    for animal_group in animals:
+        lanes=[]
+        for g_f in group_folders:
+            if animal_group in g_f:
+                g_p=base_path+g_f
+                lanes.append(g_p)
+                data_dict[animal_group]=lanes
+
+    return(data_dict)
+def trimRead_hiti(animal_nr,base_path,transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd):
+    animal_nr = str(animal_nr)
+    "Filters and trims the reads"
+    search_path = base_path+animal_nr+'*'+transgene+'*'+assay_end+'*/'
+    
+    animal_p5_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
+    animal_p7_cat = tempfile.NamedTemporaryFile(suffix = '.fastq.gz').name
+    test_file_p5_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
+    test_file_p7_out = tempfile.NamedTemporaryFile(suffix = '.fastq').name
+    test_file_p5_filter = tempfile.NamedTemporaryFile(suffix = '.fastq').name
+    
+    if read_fwd:
+        animal_p5 = glob.glob(search_path+'*R1*')
+        animal_p7 = glob.glob(search_path+'*R2*')
+    else:
+        animal_p5 = glob.glob(search_path+'*R2*')
+        animal_p7 = glob.glob(search_path+'*R1*')
+    
+
+    cat_p5= "cat "+" ".join(animal_p5)+" > "+animal_p5_cat
+    call([cat_p5], shell=True)
+    cat_p7= "cat "+" ".join(animal_p7)+" > "+animal_p7_cat
+    call([cat_p7], shell=True)
+
+    stats_out = export_path+animal_nr+'_'+transgene+'_'+assay_end+'_stats-filter.txt'
+    
+    kmer = '20'
+    hdist = '3'
+    param=" k="+kmer+" hdist="+hdist+" rcomp=f skipr2=t threads=32 overwrite=true"
+    
+    call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+animal_p7_cat+" in2="+animal_p5_cat+" outm1="+test_file_p7_out+" outm2="+test_file_p5_out+" literal="+filterlitteral+" stats="+stats_out + param
+    call([call_sequence], shell=True)
+    
+    call_sequence = "/media/data/AtteR/Attes_bin/bbmap/bbduk.sh in="+test_file_p5_out+" out="+test_file_p5_filter+ " literal=AAAAAAAAA,CCCCCCCCC,GGGGGGGGG,TTTTTTTTT k=9 mm=f overwrite=true minlength=40"
+    call([call_sequence], shell=True)
+    test_file_p5_filter2 = tempfile.NamedTemporaryFile(suffix = '.fastq').name #when cutadapt applied
+
+    cutadapt_call="cutadapt -g "+lliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter
+    call([cutadapt_call], shell=True)
+    cutadapt_call="cutadapt -a "+rliteral+" -o " + test_file_p5_filter2 + " " + test_file_p5_filter2
+    call([cutadapt_call], shell=True)
+
+
+    test_file_p5_out_starcode = tempfile.NamedTemporaryFile(suffix = '.tsv').name
+    starcode_call= "/media/data/AtteR/Attes_bin/starcode/starcode -i "+test_file_p5_filter+" -t 32 -o "+test_file_p5_out_starcode
+    call([starcode_call], shell=True)
+    
+    df=pd.read_csv(test_file_p5_out_starcode, sep='\t', header=None)
+    df = df.rename(columns={0: 'sequence', 1:'count'})
+    total_counts = int(df[['count']].sum())
+    df = df[df['count'].astype(int)>total_counts/10000]
+    total_counts = int(df[['count']].sum())
+    df['percent'] = (df['count'] / total_counts)
+    df = df.rename(columns={'percent':animal_nr+'_percent','count':animal_nr+'_count',})
+    
+    return df
+def analyze_all(base_path,transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd, animal_list, target_sequence):
+    complete_df = pd.DataFrame({'sequence': [target_sequence]})
+    for animal in animal_list:
+        df_this = trimRead_hiti(animal,base_path,transgene,assay_end,filterlitteral,lliteral,rliteral,export_path,read_fwd)
+        complete_df = pd.merge(complete_df, df_this, on="sequence", how='outer')
+    
+    complete_df = complete_df.fillna(value=0)
+    perc_cols = [col for col in complete_df.columns if 'percent' in col]
+    #complete_df['percent_sum'] = complete_df[perc_cols].sum(axis=1)
+    export_csv = export_path+transgene+'_'+assay_end+'.csv'
+    complete_df.to_csv(export_csv, index=False)
+    return complete_df
+
+#saves file as fasta and csv
 def save_fasta(filename, full_df, target_sequence):
     id_f = 1
     ref="Ref"
+    csv_file="/".join(filename.split("/")[:-1]) +"/"+ filename.split("/")[-1].split(".")[0] + ".csv"
+    full_df.to_csv(csv_file)
     with open(filename, "w") as handle:
         seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description=ref)
         count = SeqIO.write(seq_obj, handle, "fasta")
         for seq_i in range(len(full_df.index)):
             print("seq_i:" + str(seq_i))
-            descr="CluSeq:" + str(round(full_df.iloc[seq_i,-3],5)) + "_sd:" + str(round(full_df.iloc[seq_i,-1],5))
+            descr="CluSeq:" + str(round(full_df.iloc[seq_i,-4],5)) + "_sd:" + str(round(full_df.iloc[seq_i,-1],5))
             print(descr)
             seq_obj = SeqRecord(Seq(full_df.iloc[seq_i,0]), id=str(id_f), description=descr)
             print(seq_obj)
             count = SeqIO.write(seq_obj, handle, "fasta")
             id_f+=1
     print("Saved!")
+def import_fasta(result):
+    NT_and_perc={}
+    for record in SeqIO.parse(result, "fasta"):
+        NT_and_perc[str(record.description)]=str(Seq(record.seq))
+    return(NT_and_perc)
 
 def calculate_perc_sd(full_df):
     full_df = full_df.fillna(value=0)
@@ -301,21 +464,6 @@ def create_datadict(base_path, transgene):
     return(data_dict)
 
 
-def save_fasta(filename, full_df, target_sequence):
-    id_f = 1
-    ref="Ref_seq"
-    with open(filename, "w") as handle:
-        seq_obj = SeqRecord(Seq(target_sequence), id=str(0), description=ref)
-        count = SeqIO.write(seq_obj, handle, "fasta")
-        for seq_i in range(len(full_df.index)):
-            print("seq_i:" + str(seq_i))
-            descr="CluSeq:" + str(round(full_df.iloc[seq_i,-3],5)) + "_sd:" + str(round(full_df.iloc[seq_i,-1],5))
-            print(descr)
-            seq_obj = SeqRecord(Seq(full_df.iloc[seq_i,0]), id=str(id_f), description=descr)
-            print(seq_obj)
-            count = SeqIO.write(seq_obj, handle, "fasta")
-            id_f+=1
-    print("Saved!")
 
 import re
 ################
@@ -441,11 +589,13 @@ def find_remove_duplicates(aligned_data_trim):
         var_sum_all=0
         sd_sum_all=0
         for i in index_pos:
-            perc_sum_all+=float(id_keys_dict[i].split("_")[1].split(":")[1])
-            var_sum_all+=float(id_keys_dict[i].split("_")[2].split(":")[1])
-            sd_sum_all+=float(id_keys_dict[i].split("_")[3].split(":")[1])
+            perc_sum_all+=float(id_keys_dict[i].split("_")[0].split(":")[1])
+            var_sum_all+=float(id_keys_dict[i].split("_")[1].split(":")[1])
+            sd_sum_all+=float(id_keys_dict[i].split("_")[2].split(":")[1])
         #fix the sd summing!
-        merged_id=">"+str(i) + "CluSeq:"+str(round(perc_sum_all,5))+ "_var:"+str(round(var_sum_all,5)) +"_sd:"+str(round(math.sqrt(var_sum_all),5))
+#        merged_id=">"+str(i) + "CluSeq:"+str(round(perc_sum_all,5))+ "_var:"+str(round(var_sum_all,5)) +"_sd:"+str(round(math.sqrt(var_sum_all),5))
+        merged_id="CluSeq:"+str(round(perc_sum_all,5))+ "_var:"+str(round(var_sum_all,5)) +"_sd:"+str(round(math.sqrt(var_sum_all),5))
+
         return(merged_id)
 
     #gets the indices of the matching seqs
@@ -484,24 +634,34 @@ def find_remove_duplicates(aligned_data_trim):
         merged_multiples[remove_multiples(index_pos, id_keys_dict)]=algs[index_pos[0]]
     #now we have removed the seqs that have duplicates and effectively merged them together into merged_multiples dict. This
     #is then added back to the original dict from which the duplicates had been removed.
-    merged_multiples.update(aligned_data_trim)
-    return(merged_multiples)
+#    merged_multiples.update(aligned_data_trim)
+    aligned_data_trim.update(merged_multiples)
+
+    return(aligned_data_trim)
 #once you get the indices of the duplicates, get the keys based on these indices, merge the key values
 #Now we have a script for detecting duplicates from the data dict, removing them via merging the values
 #need to remove the seqs from the original dict using the index_pos approach
-def addprimers(fasta_dict, filename,lliteral,rliteral):
-    with open(filename, "w") as f: 
-        for id, seq_prims in fasta_dict.items():
-            f.write(id + "\n")
-            f.write(lliteral.split("=")[1] + "|" + seq_prims + "|" + rliteral.split("=")[1] + "\n")
-
-
+def add_primers_save(aligned_data_trim,filename, target_sequence,lliteral, rliteral):
+    id_f = 1
+    ref="Ref"
+    with open(filename, "w") as handle:
+        whole_ref=lliteral.split("=")[1] + "-" + target_sequence + "-" + rliteral.split("=")[1]
+        seq_obj = SeqRecord(Seq(whole_ref), id=str(0), description=ref)
+        count = SeqIO.write(seq_obj, handle, "fasta")
+        for id, seq_prims in aligned_data_trim.items():
+            descr=id.split("_")[0] + "_" + id.split("_")[2]
+            whole_seq=lliteral.split("=")[1] + "-" +seq_prims + "-" + rliteral.split("=")[1]
+            seq_obj = SeqRecord(Seq(whole_seq), id=str(id_f), description=descr)
+            print(seq_obj)
+            count = SeqIO.write(seq_obj, handle, "fasta")
+            id_f+=1
+    print("Saved!")
 
 
 #takes in the df and the choice of the alignment method. methods are found in class
 #the class must be instantiated inside the function and the appropriate method is called
 #by index passed by the user into function
-def aligner(full_df, target_sequence, align_method, filename, output_path, lliteral, rliteral gop=3, gep=1):
+def aligner(full_df, target_sequence, align_method, filename, output_path, lliteral, rliteral, gop=3, gep=1):
     align_class = {"align_local": align_local,
             "align_local2": align_local2,
             "align_local3":align_local3,
@@ -514,7 +674,9 @@ def aligner(full_df, target_sequence, align_method, filename, output_path, llite
     #align all the data, save into dict, then ensure that all the seqs are same length (take the longest seq). IF not, then add padding!
     for seq_i in range(len(full_df.iloc[:,-1])):
         #yield iteratively the header of the certain seq and the corresponding seq
-        header=">"+ str(id_f)+"_CluSeq:" + str((round(full_df.iloc[seq_i,-4],5))) + "_var:"+str((round(full_df.iloc[seq_i,-2],5))) +"_sd:" + str((round(full_df.iloc[seq_i,-1],5)))
+        #header=">"+ str(id_f)+"_CluSeq:" + str((round(full_df.iloc[seq_i,-4],5))) + "_var:"+str((round(full_df.iloc[seq_i,-2],5))) +"_sd:" + str((round(full_df.iloc[seq_i,-1],5)))
+        header="CluSeq:" + str((round(full_df.iloc[seq_i,-4],5))) + "_var:"+str((round(full_df.iloc[seq_i,-2],5))) +"_sd:" + str((round(full_df.iloc[seq_i,-1],5)))
+
         #seq_obj_align = aligner_init(full_df.iloc[seq_i,0], target_sequence, gop, gep).align()
 
         seq_obj_align = aligner_init(full_df.iloc[seq_i,0], target_sequence, gop, gep).align()
@@ -526,11 +688,10 @@ def aligner(full_df, target_sequence, align_method, filename, output_path, llite
     data_trim_nodupl=find_remove_duplicates(aligned_data_trim)
     #Add primers to both ends of the seq and save
     #write_align(data_trim_nodupl, filename, target_sequence)
-    addprimers(data_trim_nodupl, filename, lliteral,rliteral)
-
+    add_primers_save(data_trim_nodupl, filename, target_sequence, lliteral,rliteral)
     #Generate a visual alignment file using mview
-    mview_file=output_path + "/" + filename.split("/")[-1].split(".")[-2] + ".html"
-    mview_command='/media/data/AtteR/Attes_bin/mview -in fasta -html head -css on -coloring any ' + filename + '>' + mview_file
+    mview_file=output_path +filename.split("/")[-1].split(".")[-2] + ".html"
+    mview_command='/media/data/AtteR/Attes_bin/mview -in fasta -html head -css on -reference 1 -coloring identity ' + filename + '>' + mview_file
     call([mview_command], shell=True)
     print("html file created as "+ mview_file)
     #os.system('/media/data/AtteR/Attes_bin/mview -in fasta -html head -css on -coloring any {} > {}'.format(str(filename), str(mview_file))) 
