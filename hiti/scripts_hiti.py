@@ -657,6 +657,50 @@ def add_primers_save(aligned_data_trim,filename, target_sequence,lliteral, rlite
             id_f+=1
     print("Saved!")
 
+#removes small values and reorganises the dict from createst to smallest in terms of cluster perc value
+#def reorganise_perc(aligned_data_trim):
+def reorganise_perc(aligned_data_trim):
+    perc_and_index=dict()
+    for i, id in enumerate(aligned_data_trim.keys()):
+        perc_and_index[i]=id.split("_")[0].split(":")[1]
+
+    import operator
+    perc_and_index_sorted = dict( sorted(perc_and_index.items(), key=operator.itemgetter(1),reverse=True))
+    to_be_del=[]
+    perc_and_index_sorted2=dict()
+
+    for i, perc in perc_and_index_sorted.items():
+        if float(perc)<0.001:
+            to_be_del.append(i)
+        if "e" in perc:
+            to_be_del.append(i)
+        else:
+            perc_and_index_sorted2[i]=perc
+
+    #from the original dict remove the ones that are too small and reorder based on the order given in perc_and_index_sorted2.
+    #create new empty dict, go over the perc_and_index2, take their index, based on this take the correct key-value pair from
+    #the original dict and save this into the new one. the end result is an ordered dict
+
+    i = 0
+    elems_to_del = []
+    for key in aligned_data_trim.keys():
+        if i in to_be_del:
+            print(key)
+            elems_to_del.append(key)
+        i += 1
+
+    for key in elems_to_del:
+        if key in aligned_data_trim:
+            del aligned_data_trim[key]
+
+    reorg_data_dict=dict()
+    for perc in perc_and_index_sorted2.values():
+        for key in aligned_data_trim.keys():
+            if perc in key:
+                reorg_data_dict[key]=aligned_data_trim[key]
+    return(reorg_data_dict)
+
+
 
 #takes in the df and the choice of the alignment method. methods are found in class
 #the class must be instantiated inside the function and the appropriate method is called
@@ -686,6 +730,7 @@ def aligner(full_df, target_sequence, align_method, filename, output_path, llite
 
     aligned_data_trim=align_trimmer(aligned_data, target_sequence)
     data_trim_nodupl=find_remove_duplicates(aligned_data_trim)
+    data_trim_nodupl=reorganise_perc(data_trim_nodupl)
     #Add primers to both ends of the seq and save
     #write_align(data_trim_nodupl, filename, target_sequence)
     add_primers_save(data_trim_nodupl, filename, target_sequence, lliteral,rliteral)
