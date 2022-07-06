@@ -22,14 +22,357 @@ the weakness : prone to false positives by decoding noise that would normally be
 spot finding algorithms
 
 '''
-
-
+import os
 from PIL import Image, ImageOps
 import matplotlib.pyplot as plt
 # Open the image form working directory
 
 
+'''
+└── parent
+    ├── slideA_1_1st_Cy3.5.TIF
+    ├── slideA_1_1st_Cy3.TIF
+    ├── slideA_1_1st_Cy5.TIF
+    ├── slideA_1_1st_DAPI.TIF
+    ├── slideA_1_1st_FITC.TIF
+    ├── slideA_1_2nd_Cy3.5.TIF
+    ├── slideA_1_2nd_Cy3.TIF
+    ├── ...
+------------------------------------
+└── parent
+    ├── <Fov1_name>
+        └── <Fov1_name>
+            ├── <target_name1>.tiff
+            ├── ...
+    ├── <Fov2_name>
+        └── <Fov2_name>
+            ├── <target_name1>.tiff
+            ├── ...
+-----------------------------------
+
+Take each image tile, make into a single fov. So 1 Fov= 6 channels, 1, round, 1 z stack
+
+'''    
+base_path="/media/data/AtteR/projects/starfish/images/real_ims"
+
+he_path=base_path+"/HE/MNM_509_D1_HE_Crop_coReg.png"
+
+cdna_path=base_path+"/cDNA/MNM_509_D1_cDNA_Crop_coReg.ome.tif"
+
+#genes_paths
+c1_path=base_path+"/c1/c1_DARP32.tif"
+
+c2_path=base_path+"/c2/c2_Chat.tif"
+
+c3_path=base_path+"/c3/c3_PENK.tif"
+
+c4_path=base_path+"/c4/c4_DRD1.tif"
+
+im_paths=[he_path, cdna_path, c1_path, c2_path, c3_path, c4_path]
+
+
+'''
+before we put our data into spacetx format, we would process them into binaries right?
+
+Our data structure: N_tiles FOVs, 1 rounds, 4 channels, and 1 z-planes
+primary=4channels
+dots=cdna
+nuclei=he
+
+N_tiles_x_fovs
+prim_fovs = [
+    [
+        (0, 0, 0),
+        (0, 1, 0),
+        (0, 2, 0),
+        (0, 3, 0),
+        (0, 4, 0),
+        (0, 5, 0),
+    ]
+]
+
+he_fovs = [
+    [
+        (0, 0, 0),
+    ]
+]
+'''
+
+
+def start_points(size, split_size, overlap):
+    points = [0]
+    stride = int(split_size * (1-overlap))
+    counter = 1
+    while True:
+        pt = stride * counter
+        if pt + split_size >= size:
+            points.append(size - split_size)
+            break
+        else:
+            points.append(pt)
+        counter += 1
+    return points
+
+import csv
+
+def fovs_gen(im_arrs, tile_size, tile_points, base_path, fov_struc, image_type):
+    #make this into a function that takes in the im_arrs list and iterates over the list
+    #components
+    #print(f'imported im_arrs shape: {im_arrs.shape}')
     
+    print(f'imported im_arrs len: {len(im_arrs)}')
+
+    coord_fovs={'xc_min':0, 'xc_max':0, 'yc_min':0, 'yc_max':0, 'zc_min':0.005, 'zc_max':0.010}
+    '''
+    determine the root dir (either nuclei or primary) inside which all the fovs are saved
+    (equals to the number of tiles)
+    '''
+    if image_type=="nuclei":
+            nucl_dir="nuclei"
+            nucl_path = os.path.join(base_path, nucl_dir)
+            try:
+                os.mkdir(nucl_path)
+            except FileExistsError:
+                print("Directory already exists")
+            base_path=nucl_path
+    else:
+        prim_dir="primary"
+        prim_path = os.path.join(base_path, prim_dir)
+        try:
+            os.mkdir(prim_path)
+        except FileExistsError:
+            print("Directory already exists")
+        base_path=prim_path
+    
+    img_tiles=[]
+    fov_n=0
+    for y in tile_points[0][:-2]:
+        for x in tile_points[1][:-2]:
+            '''
+            Add here all the 6 channels, apply same procedure, name them, make their own
+            fov subdir and save there. import images as lists. the HE saved into its own fov bits,
+            the rest into the same fovs. make give coordinates as percs based on y and x points
+            so:
+            xmin=0
+            xmax=xmin+tile_size
+            '''
+            #coordinates that will be saved into the coordinate file
+            coord_fovs["yc_min"]=y/tile_points[0][-1]
+            coord_fovs["yc_max"]=(y+tile_points[0][y+1])/tile_points[0][-1]
+            coord_fovs["xc_min"]=x/tile_points[1][-1]
+            coord_fovs["xc_max"]=(x+tile_points[1][x+1])/tile_points[1][-1]
+            coord_fovs_list=[]
+            coord_fovs_list.append(coord_fovs)
+
+            fov_dir=f'fov_{fov_n}'
+            fov_path = os.path.join(base_path, fov_dir)
+            try:
+                os.mkdir(fov_path)
+                print("Directory '% s' created" % fov_path)
+            except FileExistsError:
+                print("Directory exists")
+            fov_n+=1
+            #nuclei-f0-r2-c3-z33.tiff
+            '''
+            now you have the fov and fov coord dirs set up. in these places you save each tile
+            dir structure
+            └── Primary
+                ├──<Fov_0>
+                    ├── Primary-f0-r1-c1-z1.tiff
+                    ├── Primary-f0-r1-c2-z1.tiff
+                    ├── ...
+                ├──<Fov_1>
+                    ├── Primary-f1-r1-c1-z1.tiff
+                    ├── Primary-f1-r1-c2-z1.tiff
+                    ├── ...
+            ------------------------------------
+            └── nuclei
+                ├──<Fov_0>
+                    ├── nuclei-f0-r1-c1-z1.tiff
+                    ├── nuclei-f0-r1-c2-z1.tiff
+                    ├── ...
+                ├──<Fov_1>
+                    ├── nuclei-f1-r1-c1-z1.tiff
+                    ├── nuclei-f1-r1-c2-z1.tiff
+                    ├── ...
+            '''
+            
+            #save the tile from each im to the fov dir
+            for c,im in enumerate(im_arrs):
+                print(im)
+                print(im.shape)
+                split = im[y:y+tile_size, x:x+tile_size]
+                tile_im=Image.fromarray(split)
+                tile_im.save(f'{fov_path}/{image_type}-f{fov_n}-r0-c{c}-z0.tif')
+                img_tiles.append(split)
+            
+            print(coord_fovs_list)
+            #save the coordinate file into each fov subdir
+            with open(os.path.join(fov_path, "coordinates.csv"), "w") as fh:
+                csv_writer = csv.DictWriter(
+                    fh,
+                    [
+                        'fov', 'round', 'ch', 'zplane',
+                        'xc_min', 'yc_min', 'zc_min', 'xc_max', 'yc_max', 'zc_max',
+                    ]
+                )
+                csv_writer.writeheader()
+                for fov_id, (fov_info, coord_fov) in enumerate(zip(fov_struc, coord_fovs_list)):
+                    tile_coordinates = coord_fov.copy()
+                    tile_coordinates.update({
+                        'fov': fov_id,
+                        'round': fov_info[0],
+                        'ch': fov_info[1],
+                        'zplane': fov_info[2],
+                    })
+                    csv_writer.writerow(tile_coordinates)
+
+
+    return(img_tiles)
+
+
+def tiles_gen(im_paths, tile_size,overlap, base_path):
+    #first sort out the nuclei channel fovs, then the rest
+    im_arrs=[]
+    for path in im_paths:
+        image = Image.open(path)
+        #image = ImageOps.grayscale(image)
+        img = np.asarray(image)
+        x_pad=img.shape[0]%tile_size
+        y_pad=img.shape[1]%tile_size
+        img_padded = np.pad(img, ((x_pad,x_pad), (y_pad,y_pad)), constant_values=0.0, mode="constant")
+        im_arrs.append(img_padded)
+        print(f'Image imported, shape is {img_padded.shape}')
+        #im_arrs[path.split("/")[8]]=img_padded
+    print(f'im_arr length: {len(im_arrs)}')
+    print(f'im_arr 1: {im_arrs[0].shape}')
+
+    X_points = start_points(im_arrs[0].shape[0], tile_size, overlap)
+    Y_points = start_points(im_arrs[0].shape[1], tile_size, overlap)
+    tile_points=[Y_points, X_points]
+    img_tiles=[]
+
+    fov_structure_prim= [
+            (0, 0, 0),
+            (0, 1, 0),
+            (0, 2, 0),
+            (0, 3, 0),
+            (0, 4, 0),
+            (0, 5, 0),
+        ]
+    fov_structure_he= [
+            (0, 0, 0)
+        ]
+
+    #this part was made in case i wanted to make a larger csv file containing all the possible fovs
+    #N_fovs=len(im_arrs[0])/tile_size
+    #prim_fovs = [[fov_structure_prim]*N_fovs]
+    #nucl_fovs = [[fov_structure_he]*N_fovs]
+    #nuclei_arr=fovs_gen(im_arrs[0], tile_size, tile_points, base_path, fov_structure_he, "nuclei")
+    nuclei_arr=0
+    prim_arr=fovs_gen(im_arrs[1:], tile_size, tile_points, base_path, fov_structure_prim, "primary")
+    return([nuclei_arr, prim_arr])
+    #pad images so that it is divisible by the tile size
+
+base_path="/media/data/AtteR/projects/starfish/images/real_ims/FOVs"
+
+all_arrs=tiles_gen(im_paths, 2000,0.1, base_path)
+
+im_arrs=[]
+for path in im_paths:
+    image = Image.open(path)
+    #image = ImageOps.grayscale(image)
+    img = np.asarray(image)
+    x_pad=img.shape[0]%2000
+    y_pad=img.shape[1]%2000
+    img_padded = np.pad(img, ((x_pad,x_pad), (y_pad,y_pad)), constant_values=0.0, mode="constant")
+    im_arrs.append(img_padded)
+im_arrs[1:][0].shape
+
+for c,im in enumerate(im_arrs):
+    print(im)
+    print(im.shape)
+    split = im[0:0+2000, 0:0+2000]
+
+
+fov_structure_prim= [[
+        (0, 0, 0),
+        (0, 1, 0),
+        (0, 2, 0),
+        (0, 3, 0),
+        (0, 4, 0),
+        (0, 5, 0),
+    ],
+    (0, 0, 0),
+    (0, 1, 0),
+    (0, 2, 0),
+    (0, 3, 0),
+    (0, 4, 0),
+    (0, 5, 0),
+]
+
+coordinates_of_fovs = [
+    {
+        'xc_min': 0.0,
+        'xc_max': 0.1,
+        'yc_min': 0.0,
+        'yc_max': 0.1,
+        'zc_min': 0.005,
+        'zc_max': 0.010,
+    }]
+for f_i, (fov_info, fov_coord) in enumerate(zip(fov_structure_prim, coordinates_of_fovs)):
+    print(f_i)
+    print(type(fov_info))
+    print(fov_coord)
+    print("###############")
+    for round_label, ch_label, zplane_label in fov_info:
+        print(ch_label)
+
+#meil on yks fov per alakansio... vai pitäiskö tehä iha vaa nii ett kaikki fovit primarysta jne.
+#pistetään samaan kansioon? ne on kuitenki nimetty oikei...
+for fov_id, (fov_info, coord_fov) in enumerate(zip(fov_structure_prim, coordinates_of_fovs)):
+    tile_coordinates = coord_fov.copy()
+    tile_coordinates.update({
+        'fov': fov_id,
+        'round': fov_info[0],
+        'ch': fov_info[1],
+        'zplane': fov_info[2],
+    })
+tile_coordinates
+
+base_path='/media/data/AtteR/projects/starfish/images/real_ims/FOVs'
+fov_dir="test_os"
+fov_path = os.path.join(base_path, fov_dir)
+fov_path
+
+image = Image.open(im_paths[0])
+#image = ImageOps.grayscale(image)
+img = np.asarray(image)
+
+x_pad=img.shape[0]%2000
+y_pad=img.shape[1]%2000
+
+fov_structure= [
+        (0, 0, 0),
+        (0, 1, 0),
+        (0, 2, 0),
+        (0, 3, 0),
+        (0, 4, 0),
+        (0, 5, 0),
+    ]
+
+N_fovs=3
+prim_fovs = [
+    [fov_structure]*N_fovs
+]
+    
+
+#only apply padding to the original one but iterate using the original shape as we fill in the
+#values in the new version of the old array
+img_arr = np.pad(img, ((x_pad,x_pad), (y_pad,y_pad)), constant_values=0.0, mode="constant")
+
+img.shape
+img_arr.shape
 
 #generate tiles
 def gen_tiles(im_path,tile_path, tile_size, overlap):
@@ -60,12 +403,24 @@ def gen_tiles(im_path,tile_path, tile_size, overlap):
     img_tiles=[]
     for i in Y_points:
         for j in X_points:
+            #Add here all the 6 channels, apply same procedure, name them, make their own
+            #fov subdir and save there. import images as lists
             split = img[i:i+tile_size, j:j+tile_size]
             tile_im=Image.fromarray(split)
             tile_im.save(tile_path + "/tile_" + str(j)+ "_" + str(i) + ".tif")
-
             img_tiles.append(split)
     return(img_tiles)
+
+#make a function that takes in the X, Y coordinates
+
+#class
+# funct1: first import all images as np arrays, save into a list and return it
+# funct2: takes one array from the list, doesnt matter which one as they all should be same size.
+#it calculates the X and Y coordinates and iterates over them, making the split image of each array,
+#creates a dict for the specific fov and saves the 6 different channels of the same tile into it
+
+
+#make a class that has the function which takes in the x,y points and the list of 
 
 def plot_image_grid(images, ncols=None, cmap='gray'):
     '''Plot a grid of images'''
@@ -132,8 +487,6 @@ the starfish object and running analyses, then taking the rest and eventually me
 #make a script for segmenting them after they are part of starfish object or prior to it?
 
 
-he_arr
-cdna_arr
 #list of the respective HE-DAPI pairs
 resp_ims=[he_arr[100], cdna_arr[100], c1_arr[100], c2_arr[100], c3_arr[100], c4_arr[100]]
 resp_ims[0].shape
@@ -155,14 +508,6 @@ import numpy as np
 
 from starfish.core.types import Coordinates, CoordinateValue, Axes
 
-tile_2d_shape = (82, 82)
-num_z = 1
-num_r = 1
-num_c = 2
-
-
-synthetic_data = np.random.random(size=(num_r, num_c, num_z) + tile_2d_shape).astype(np.float32)
-synthetic_data.shape
 
 
 #Now build a FetchedTile and TileFetcher based on this data.
@@ -178,7 +523,8 @@ import skimage
 print(skimage.__version__)
 
 from starfish.experiment.builder import FetchedTile, TileFetcher
-
+tile_2d_shape = (tiles_arr.shape[-2], tiles_arr.shape[-1])
+tile_2d_shape
 # We use this to cache images across tiles.  To avoid reopening and decoding the TIFF file, we use a
 # single-element cache that maps between file_path and the array data.
 @functools.lru_cache(maxsize=1)
@@ -220,17 +566,20 @@ class DemoTileFetcher(TileFetcher):
 ImageStacks can only be initialized with aligned Tilesets.
 '''
 from starfish import ImageStack
-import os
-tiles_arr[0]
-tile_2d_shape = (82, 82)
-num_z = 1
-num_r = 1
-num_c = 6#Write as a series of 3D tiffs.
 import os, tempfile
 from imageio import volread, volwrite
 
+num_z = 1
+num_r = 1
+num_c = 6#Write as a series of 3D tiffs.
+
+#tile_2d_shape = (2000, 2000)
+#synthetic_data = np.random.random(size=(num_r, num_c, num_z) + tile_2d_shape).astype(np.float32)
+#synthetic_data.shape
+
 dir = tempfile.TemporaryDirectory()
 dir
+#tiles_arr.shape
 
 #saving the individual tiles
 for r in range(num_r):
@@ -239,6 +588,14 @@ for r in range(num_r):
 
 import glob
 print(glob.glob(str(dir).split(" ")[1].split(">")[0].split("'")[1].split("'")[0]+'/*'))
+
+image = Image.open('/tmp/tmpr5bzdor_/r0_c4.tiff')
+image = Image.open('/tmp/tmpr5bzdor_/r0_c0.tiff')
+#image = ImageOps.grayscale(image)
+img = np.asarray(image)
+img.shape
+plt.imshow(img)
+plt.show()
 
 #######################################
 
@@ -253,21 +610,78 @@ stack = ImageStack.from_tilefetcher(
     zplanes=range(tiles_arr.shape[2]),
     group_by=(Axes.ROUND, Axes.CH),
 )
+stack
+####################################
+'''
+Example: 2 FOVs, 2 rounds, 1 channel, and 3 z-planes
+'''
+fovs = [
+    [
+        (0, 0, 0),
+        (0, 0, 1),
+        (0, 0, 2),
+        (1, 0, 0),
+        (1, 0, 1),
+        (1, 0, 2),
+    ],
+    [
+        (0, 0, 0),
+        (0, 0, 1),
+        (0, 0, 2),
+        (1, 0, 0),
+        (1, 0, 1),
+        (1, 0, 2),
+    ],
+]
 
-print(repr(stack))
 
+
+stack.xarray[0,0,0]
+c3=stack.xarray[0,3,0].to_numpy
+c3
+tiles_arr.shape
+
+stack.xarray.data
+tiles_arr[0][0]
+stack.xarray[0,1,0].values
+
+x_ar_he=stack.xarray[0,1,0]
+x_ar_he.values.shape
+x_ar_cdna=stack.xarray[0,2,0]
+x_ar_cdna.values.shape
+
+plt.imshow(x_ar_cdna.values)
+plt.show()
+#stacks can be saved as the field of views
+
+################
+#fovs: prim. image and the auxiliary image
+fovs[0]
+for fov_id, fov in enumerate(fovs):
+    for round_label, ch_label, zplane_label in fov:
+        print(round_label)
+        print(ch_label)
+        print(zplane_label)
+        print("======")
+
+'''
+primary images - genes
+dots - cdna (contains all molecules of the experiment?)
+
+rename the tiles:
+<image_type>-f<fov_id>-r<round_label>-c<ch_label>-z<zplane_label>.
+
+e.g:
+nuclei-f0-r2-c3-z33.tiff
+
+Because each image_type is treated as a separate set of images, you need a different
+coordinates CSV file for each image_type. Therefore, each image_type must be converted
+in its own directory containing all the 2D image files and and CSV file
+'''
 #extracting the specific image from the numpy version (has the same dims as the stack ver) works fine but
 #when transformed into stack, then taken xarray and then numpy via .values, then does not work. gives alwawys the 
 #DAPI one only
-stack.xarray[0,0,0]
 
-stack.xarray[0,1,0].values
-
-x_ar_DAPI=stack.xarray[0,1,0]
-x_ar_DAPI.values
-plt.imshow(x_ar_DAPI.values)
-plt.show()
-#stacks can be saved as the field of views
 
 ###################
 from starfish import Codebook
