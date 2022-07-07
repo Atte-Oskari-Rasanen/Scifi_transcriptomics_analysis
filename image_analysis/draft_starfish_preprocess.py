@@ -114,6 +114,29 @@ def start_points(size, split_size, overlap):
     return points
 
 import csv
+def save_fov_coordinates(fov_path, fov_struc, coord_fovs_list):
+    #save the coordinate file into each fov subdir
+    with open(os.path.join(fov_path, "coordinates.csv"), "w") as fh:
+        csv_writer = csv.DictWriter(
+            fh,
+            [
+                'fov', 'round', 'ch', 'zplane',
+                'xc_min', 'yc_min', 'zc_min', 'xc_max', 'yc_max', 'zc_max',
+            ]
+        )
+        csv_writer.writeheader()
+        for fov_id, (fov_info, coord_fov) in enumerate(zip(fov_struc, coord_fovs_list)):
+            tile_coordinates = coord_fov.copy()
+            tile_coordinates.update({
+                'fov': fov_id,
+                'round': fov_info[0],
+                'ch': fov_info[1],
+                'zplane': fov_info[2],
+            })
+            csv_writer.writerow(tile_coordinates)
+
+
+
 
 def fovs_gen(im_arrs, tile_size, tile_points, base_path, fov_struc, image_type):
     #make this into a function that takes in the im_arrs list and iterates over the list
@@ -143,11 +166,16 @@ def fovs_gen(im_arrs, tile_size, tile_points, base_path, fov_struc, image_type):
         except FileExistsError:
             print("Directory already exists")
         base_path=prim_path
-    
+    #coord_fovs={'zc_min':0.005, 'zc_max':0.010}
+
     img_tiles=[]
     fov_n=0
-    for y in tile_points[0][:-2]:
-        for x in tile_points[1][:-2]:
+    Y_points=tile_points[0]
+    X_points=tile_points[1]
+    for y_i, y in enumerate(tile_points[0][:-2]):
+        for x_i, x in enumerate(tile_points[1][:-2]):
+            coord_fovs={}
+
             '''
             Add here all the 6 channels, apply same procedure, name them, make their own
             fov subdir and save there. import images as lists. the HE saved into its own fov bits,
@@ -156,14 +184,17 @@ def fovs_gen(im_arrs, tile_size, tile_points, base_path, fov_struc, image_type):
             xmin=0
             xmax=xmin+tile_size
             '''
+
             #coordinates that will be saved into the coordinate file
-            coord_fovs["yc_min"]=y/tile_points[0][-1]
-            coord_fovs["yc_max"]=(y+tile_points[0][y+1])/tile_points[0][-1]
-            coord_fovs["xc_min"]=x/tile_points[1][-1]
-            coord_fovs["xc_max"]=(x+tile_points[1][x+1])/tile_points[1][-1]
+            coord_fovs["yc_min"]=round(y/tile_points[0][-1], 6)
+            coord_fovs["yc_max"]=round(tile_points[0][y_i+1]/tile_points[0][-1], 6)
+            #coord_fovs["yc_max"]=Y_points[y+1]
+            coord_fovs["xc_min"]=round(x/tile_points[1][-1], 6)
+            #coord_fovs["xc_min"]=x
+            coord_fovs["xc_max"]=round(X_points[x_i+1]/tile_points[1][-1], 6)
             coord_fovs_list=[]
             coord_fovs_list.append(coord_fovs)
-
+            print(coord_fovs)
             fov_dir=f'fov_{fov_n}'
             fov_path = os.path.join(base_path, fov_dir)
             try:
@@ -171,7 +202,7 @@ def fovs_gen(im_arrs, tile_size, tile_points, base_path, fov_struc, image_type):
                 print("Directory '% s' created" % fov_path)
             except FileExistsError:
                 print("Directory exists")
-            fov_n+=1
+
             #nuclei-f0-r2-c3-z33.tiff
             '''
             now you have the fov and fov coord dirs set up. in these places you save each tile
@@ -199,37 +230,17 @@ def fovs_gen(im_arrs, tile_size, tile_points, base_path, fov_struc, image_type):
             
             #save the tile from each im to the fov dir
             for c,im in enumerate(im_arrs):
-                print(im)
-                print(im.shape)
+                #print(im)
+                #print(im.shape)
                 split = im[y:y+tile_size, x:x+tile_size]
                 tile_im=Image.fromarray(split)
                 tile_im.save(f'{fov_path}/{image_type}-f{fov_n}-r0-c{c}-z0.tif')
                 img_tiles.append(split)
-            
-            print(coord_fovs_list)
-            #save the coordinate file into each fov subdir
-            with open(os.path.join(fov_path, "coordinates.csv"), "w") as fh:
-                csv_writer = csv.DictWriter(
-                    fh,
-                    [
-                        'fov', 'round', 'ch', 'zplane',
-                        'xc_min', 'yc_min', 'zc_min', 'xc_max', 'yc_max', 'zc_max',
-                    ]
-                )
-                csv_writer.writeheader()
-                for fov_id, (fov_info, coord_fov) in enumerate(zip(fov_struc, coord_fovs_list)):
-                    tile_coordinates = coord_fov.copy()
-                    tile_coordinates.update({
-                        'fov': fov_id,
-                        'round': fov_info[0],
-                        'ch': fov_info[1],
-                        'zplane': fov_info[2],
-                    })
-                    csv_writer.writerow(tile_coordinates)
+            fov_n+=1
+            save_fov_coordinates(fov_path, fov_struc, coord_fovs_list)
 
-
+            #print(coord_fovs_list)
     return(img_tiles)
-
 
 def tiles_gen(im_paths, tile_size,overlap, base_path):
     #first sort out the nuclei channel fovs, then the rest
@@ -268,8 +279,8 @@ def tiles_gen(im_paths, tile_size,overlap, base_path):
     #N_fovs=len(im_arrs[0])/tile_size
     #prim_fovs = [[fov_structure_prim]*N_fovs]
     #nucl_fovs = [[fov_structure_he]*N_fovs]
-    #nuclei_arr=fovs_gen(im_arrs[0], tile_size, tile_points, base_path, fov_structure_he, "nuclei")
-    nuclei_arr=0
+    nuclei_arr=fovs_gen(im_arrs[0], tile_size, tile_points, base_path, fov_structure_he, "nuclei")
+    #nuclei_arr=0
     prim_arr=fovs_gen(im_arrs[1:], tile_size, tile_points, base_path, fov_structure_prim, "primary")
     return([nuclei_arr, prim_arr])
     #pad images so that it is divisible by the tile size
@@ -278,101 +289,11 @@ base_path="/media/data/AtteR/projects/starfish/images/real_ims/FOVs"
 
 all_arrs=tiles_gen(im_paths, 2000,0.1, base_path)
 
-im_arrs=[]
-for path in im_paths:
-    image = Image.open(path)
-    #image = ImageOps.grayscale(image)
-    img = np.asarray(image)
-    x_pad=img.shape[0]%2000
-    y_pad=img.shape[1]%2000
-    img_padded = np.pad(img, ((x_pad,x_pad), (y_pad,y_pad)), constant_values=0.0, mode="constant")
-    im_arrs.append(img_padded)
-im_arrs[1:][0].shape
-
-for c,im in enumerate(im_arrs):
-    print(im)
-    print(im.shape)
-    split = im[0:0+2000, 0:0+2000]
-
-
-fov_structure_prim= [[
-        (0, 0, 0),
-        (0, 1, 0),
-        (0, 2, 0),
-        (0, 3, 0),
-        (0, 4, 0),
-        (0, 5, 0),
-    ],
-    (0, 0, 0),
-    (0, 1, 0),
-    (0, 2, 0),
-    (0, 3, 0),
-    (0, 4, 0),
-    (0, 5, 0),
-]
-
-coordinates_of_fovs = [
-    {
-        'xc_min': 0.0,
-        'xc_max': 0.1,
-        'yc_min': 0.0,
-        'yc_max': 0.1,
-        'zc_min': 0.005,
-        'zc_max': 0.010,
-    }]
-for f_i, (fov_info, fov_coord) in enumerate(zip(fov_structure_prim, coordinates_of_fovs)):
-    print(f_i)
-    print(type(fov_info))
-    print(fov_coord)
-    print("###############")
-    for round_label, ch_label, zplane_label in fov_info:
-        print(ch_label)
-
-#meil on yks fov per alakansio... vai pitäiskö tehä iha vaa nii ett kaikki fovit primarysta jne.
-#pistetään samaan kansioon? ne on kuitenki nimetty oikei...
-for fov_id, (fov_info, coord_fov) in enumerate(zip(fov_structure_prim, coordinates_of_fovs)):
-    tile_coordinates = coord_fov.copy()
-    tile_coordinates.update({
-        'fov': fov_id,
-        'round': fov_info[0],
-        'ch': fov_info[1],
-        'zplane': fov_info[2],
-    })
-tile_coordinates
-
-base_path='/media/data/AtteR/projects/starfish/images/real_ims/FOVs'
-fov_dir="test_os"
-fov_path = os.path.join(base_path, fov_dir)
-fov_path
-
-image = Image.open(im_paths[0])
-#image = ImageOps.grayscale(image)
-img = np.asarray(image)
-
-x_pad=img.shape[0]%2000
-y_pad=img.shape[1]%2000
-
-fov_structure= [
-        (0, 0, 0),
-        (0, 1, 0),
-        (0, 2, 0),
-        (0, 3, 0),
-        (0, 4, 0),
-        (0, 5, 0),
-    ]
-
-N_fovs=3
-prim_fovs = [
-    [fov_structure]*N_fovs
-]
+############################################################################
     
 
 #only apply padding to the original one but iterate using the original shape as we fill in the
 #values in the new version of the old array
-img_arr = np.pad(img, ((x_pad,x_pad), (y_pad,y_pad)), constant_values=0.0, mode="constant")
-
-img.shape
-img_arr.shape
 
 #generate tiles
 def gen_tiles(im_path,tile_path, tile_size, overlap):
