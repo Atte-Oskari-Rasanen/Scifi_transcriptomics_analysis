@@ -174,7 +174,7 @@ def fovs_gen(im_arrs, tile_size, tile_points, base_path, fov_struc, image_type):
     X_points=tile_points[1]
     for y_i, y in enumerate(tile_points[0][:-2]):
         for x_i, x in enumerate(tile_points[1][:-2]):
-            coord_fovs={}
+            coord_fovs={'zc_min':0.005, 'zc_max':0.010}
 
             '''
             Add here all the 6 channels, apply same procedure, name them, make their own
@@ -229,13 +229,23 @@ def fovs_gen(im_arrs, tile_size, tile_points, base_path, fov_struc, image_type):
             '''
             
             #save the tile from each im to the fov dir
-            for c,im in enumerate(im_arrs):
-                #print(im)
-                #print(im.shape)
-                split = im[y:y+tile_size, x:x+tile_size]
+            if image_type=='nuclei':
+                print(im_arrs[0].shape)
+                print(type(im_arrs))
+
+                split = im_arrs[0][y:y+tile_size, x:x+tile_size]
                 tile_im=Image.fromarray(split)
-                tile_im.save(f'{fov_path}/{image_type}-f{fov_n}-r0-c{c}-z0.tif')
+                tile_im.save(f'{fov_path}/{image_type}-f{fov_n}-r0-c0-z0.tif')
                 img_tiles.append(split)
+                im_arrs=list(im_arrs)
+            else:
+                for c,im in enumerate(im_arrs):
+                    #print(im)
+                    #print(im.shape)
+                    split = im[y:y+tile_size, x:x+tile_size]
+                    tile_im=Image.fromarray(split)
+                    tile_im.save(f'{fov_path}/{image_type}-f{fov_n}-r0-c{c}-z0.tif')
+                    img_tiles.append(split)
             fov_n+=1
             save_fov_coordinates(fov_path, fov_struc, coord_fovs_list)
 
@@ -279,7 +289,7 @@ def tiles_gen(im_paths, tile_size,overlap, base_path):
     #N_fovs=len(im_arrs[0])/tile_size
     #prim_fovs = [[fov_structure_prim]*N_fovs]
     #nucl_fovs = [[fov_structure_he]*N_fovs]
-    nuclei_arr=fovs_gen(im_arrs[0], tile_size, tile_points, base_path, fov_structure_he, "nuclei")
+    nuclei_arr=fovs_gen(im_arrs, tile_size, tile_points, base_path, fov_structure_he, "nuclei")
     #nuclei_arr=0
     prim_arr=fovs_gen(im_arrs[1:], tile_size, tile_points, base_path, fov_structure_prim, "primary")
     return([nuclei_arr, prim_arr])
@@ -288,6 +298,7 @@ def tiles_gen(im_paths, tile_size,overlap, base_path):
 base_path="/media/data/AtteR/projects/starfish/images/real_ims/FOVs"
 
 all_arrs=tiles_gen(im_paths, 2000,0.1, base_path)
+
 
 ############################################################################
     
