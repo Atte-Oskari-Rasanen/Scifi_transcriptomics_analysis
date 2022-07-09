@@ -235,21 +235,42 @@ def fovs_gen(im_arrs, tile_size, tile_points, base_path, fov_struc, image_type):
 
                 split = im_arrs[0][y:y+tile_size, x:x+tile_size]
                 tile_im=Image.fromarray(split)
-                tile_im.save(f'{fov_path}/{image_type}-f{fov_n}-r0-c0-z0.tif')
+                tile_im.save(f'{base_path}/{image_type}-f{fov_n}-r0-c0-z0.tif')
                 img_tiles.append(split)
-                im_arrs=list(im_arrs)
+                xc_min_list.append(round(x/tile_points[1][-1], 6))
+                yc_min_list.append(round(y/tile_points[0][-1]))
+                zc_min_list.append(0.01)
+                xc_max_list.append(round(X_points[x_i+1]/tile_points[1][-1],6))
+                yc_max_list.append(round(Y_points[y_i+1]/tile_points[1][-1],6))
+                zc_max_list.append(0.005)
+                fov_list.append(fov_n)
+                round_list.append(1)
+                ch_list.append(1)
+                zplane_list.append(1)
+                
             else:
-                for c,im in enumerate(im_arrs):
-                    #print(im)
-                    #print(im.shape)
+                for c,im in enumerate(im_arrs[1:]):
                     split = im[y:y+tile_size, x:x+tile_size]
                     tile_im=Image.fromarray(split)
-                    tile_im.save(f'{fov_path}/{image_type}-f{fov_n}-r0-c{c}-z0.tif')
+                    tile_im.save(f'{base_path}/{image_type}-f{fov_n}-r0-c{c}-z0.tif')
                     img_tiles.append(split)
+                    #fov,round,ch,zplane,xc_min,yc_min,zc_min,xc_max,yc_max,zc_max
+                    xc_min_list.append(round(x/tile_points[1][-1], 6))
+                    yc_min_list.append(round(y/tile_points[0][-1]))
+                    zc_min_list.append(0.01)
+                    xc_max_list.append(round(X_points[x_i+1]/tile_points[1][-1],6))
+                    yc_max_list.append(round(Y_points[y_i+1]/tile_points[1][-1],6))
+                    zc_max_list.append(0.005)
+                    fov_list.append(fov_n)
+                    round_list.append(1)
+                    ch_list.append(c)
+                    zplane_list.append(1)
             fov_n+=1
-            save_fov_coordinates(fov_path, fov_struc, coord_fovs_list)
-
-            #print(coord_fovs_list)
+    df_coord = pd.DataFrame(list(zip(fov_list, round_list, ch_list, zplane_list, xc_min_list, yc_min_list,zc_min_list, xc_max_list, yc_max_list,zc_max_list)))
+    df_coord.columns=['fov','round','ch','zplane','xc_min','yc_min','zc_min','xc_max','yc_max','zc_max']
+    print("column names:")
+    print(df_coord.columns)
+    save_fov_coordinates(base_path, df_coord)
     return(img_tiles)
 
 def tiles_gen(im_paths, tile_size,overlap, base_path):
