@@ -447,7 +447,6 @@ exp_file={
 "version": "5.0.0",
 "images": {
     "primary": "primary_images.json",
-    "nuclei": "nuclei_.json"
 },
 "codebook": "codebook.json",
 "extras": {
@@ -504,6 +503,12 @@ base_path
 
 #AttributeError: 'list' object has no attribute 'decode' --- maybe issues with how the fov files were created? 
 #you appended to the tiles 
+
+'''
+Starfish loads data by referencing the top-level experiment.json objects in a SpaceTx Format
+dataset. The main way to load data on your machine is through the Experiment constructor
+as follows:
+'''
 
 experiment = Experiment.from_json(base_path +"/experiment.json")
 
