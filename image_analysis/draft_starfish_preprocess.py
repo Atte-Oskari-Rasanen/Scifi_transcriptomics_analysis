@@ -114,31 +114,149 @@ def start_points(size, split_size, overlap):
     return points
 
 import csv
-def save_fov_coordinates(fov_path, fov_struc, coord_fovs_list):
-    #save the coordinate file into each fov subdir
-    with open(os.path.join(fov_path, "coordinates.csv"), "w") as fh:
-        csv_writer = csv.DictWriter(
-            fh,
-            [
-                'fov', 'round', 'ch', 'zplane',
-                'xc_min', 'yc_min', 'zc_min', 'xc_max', 'yc_max', 'zc_max',
-            ]
-        )
-        csv_writer.writeheader()
-        for fov_id, (fov_info, coord_fov) in enumerate(zip(fov_struc, coord_fovs_list)):
-            tile_coordinates = coord_fov.copy()
-            tile_coordinates.update({
-                'fov': fov_id,
-                'round': fov_info[0],
-                'ch': fov_info[1],
-                'zplane': fov_info[2],
-            })
-            csv_writer.writerow(tile_coordinates)
+def save_fov_coordinates(fov_path, coordinate_tiles):
+    with open(fov_path + "/coordinates.csv", "w") as out: #write the dataframe into an output file
+    #write the dataframe into an output file
+        coordinate_tiles.to_csv(out, sep='\t')
+        # df.to_string(out, index=None)
+        print('output info file saved!')
+FOV_dir= {
+    "default_tile_format": "TIFF",
+    "dimensions": ["z","xc","x","yc","y","zc","c","r"],
+    "extras": {},
+    "shape": {
+        "c": 4,
+        "r": 3,
+        "z": 1
+    },
+    "tiles": [
+        {
+            "coordinates": {
+                "xc": [
+                    0.0,
+                    0.112
+                ],
+                "yc": [
+                    0.0,
+                    0.0539
+                ],
+                "zc": [
+                    0.0,
+                    0.0001
+                ]
+            },
+            "file": "primary-fov_000-c0-r0-z0.tiff",
+            "indices": {
+                "c": 0,
+                "r": 0,
+                "z": 0
+            },
+            "tile_format": "TIFF",
+            "tile_shape": {
+                "x": 1120,
+                "y": 539
+            }
+        },
+        {
+            "coordinates": {
+                "xc": [
+                    0.0,
+                    0.112
+                ],
+                "yc": [
+                    0.0,
+                    0.0539
+                ],
+                "zc": [
+                    0.0,
+                    0.0001
+                ]
+            },
+            "file": "primary-fov_000-c1-r0-z0.tiff",
+            "indices": {
+                "c": 1,
+                "r": 0,
+                "z": 0
+            },
+            "tile_format": "TIFF",
+            "tile_shape": {
+                "x": 1120,
+                "y": 539
+            }
+        }
+    ],
+    "version": "0.1.0"
+}
 
 
+#The script creates a FOV for each one. so FOV_0.json etc.
+#Then we have the manifest file which contains paths to FOV_?.json
+#Then on top of all we have the experiment files connecting to the manifest ones
+
+cord_e={'coordinates': {'xc': [0.0, 0.112], 'yc': [0.0, 0.0539], 'zc': [0.0, 0.0001]}, 'file': 'primary-fov_000-c1-r0-z0.tiff', 'indices': {'c': 1, 'r': 0, 'z': 0}, 'tile_format': 'TIFF', 'tile_shape': {'x': 1120, 'y': 539}}
+
+fov0_shape={'c': 6, 'r': 1, 'z': 1}
+FOV_dir["shape"]=fov0_shape
+FOV_dir.keys()
+FOV_dir['tiles'].append(cord_e)
 
 
-def fovs_gen(im_arrs, tile_size, tile_points, base_path, fov_struc, image_type):
+'''
+The function fovs_gen takes in a dict which follows the following structure:
+----------------
+FOV_dir structure
+----------------
+Main keys:
+- default_tile_format - x
+- dimensions - x
+- extras - x
+- shape - x 
+- tiles - [fov_tile_coordinate_1, fov_tile_coordinate_2]
+- version
+
+-----------------------------
+fov_tile_coordinate structure:
+-----------------------------
+{'coordinates': {'xc': [0.0, 0.112], 'yc': [0.0, 0.0539],
+'zc': [0.0, 0.0001]}, 'file': 'primary-fov_000-c1-r0-z0.tiff',
+'indices': {'c': 1, 'r': 0, 'z': 0}, 'tile_format': 'TIFF',
+'tile_shape': {'x': 1120, 'y': 539}
+
+'''
+
+manifest_file={
+  "version": "0.0.0",
+  "contents": {
+    "fov_000": "primary-images-fov_000.json",
+    "fov_001": "primary-images-fov_001.json",
+    "fov_00N": "primary-images-fov_002.json"
+  },
+  "extras": "null"
+}
+
+d={"fov_005": "primary-images-fov_000.json"}
+manifest_file["contents"].update(d)
+
+
+type(FOV_dir["tiles"][1])
+
+import json
+Image.MAX_IMAGE_PIXELS = None
+
+def fovs_gen(im_arrs, tile_size, tile_points, base_path, manifest_file, image_type):
+    FOV_dir= {
+    "default_tile_format": "TIFF",
+    "dimensions": ["z","xc","x","yc","y","zc","c","r"],
+    "extras": {},
+    "shape": {
+        "c": 4,
+        "r": 3,
+        "z": 1
+    },
+    "tiles": [],
+    "version": "0.1.0"
+}
+
     #make this into a function that takes in the im_arrs list and iterates over the list
     #components
     #print(f'imported im_arrs shape: {im_arrs.shape}')
@@ -167,111 +285,87 @@ def fovs_gen(im_arrs, tile_size, tile_points, base_path, fov_struc, image_type):
             print("Directory already exists")
         base_path=prim_path
     #coord_fovs={'zc_min':0.005, 'zc_max':0.010}
-
     img_tiles=[]
-    fov_n=0
     Y_points=tile_points[0]
     X_points=tile_points[1]
+    yc_min_list=[]
+    yc_max_list=[]
+    xc_min_list=[]
+    xc_max_list=[]
+    zc_min_list=[]
+    zc_max_list=[]
+    #fov,round,ch,zplane,xc_min,yc_min,zc_min,xc_max,yc_max,zc_max
+    fov_list=[]
+    round_list=[]
+    ch_list=[]
+    zplane_list=[]
+    fov_i=0
     for y_i, y in enumerate(tile_points[0][:-2]):
         for x_i, x in enumerate(tile_points[1][:-2]):
-            coord_fovs={'zc_min':0.005, 'zc_max':0.010}
-
-            '''
-            Add here all the 6 channels, apply same procedure, name them, make their own
-            fov subdir and save there. import images as lists. the HE saved into its own fov bits,
-            the rest into the same fovs. make give coordinates as percs based on y and x points
-            so:
-            xmin=0
-            xmax=xmin+tile_size
-            '''
-
-            #coordinates that will be saved into the coordinate file
-            coord_fovs["yc_min"]=round(y/tile_points[0][-1], 6)
-            coord_fovs["yc_max"]=round(tile_points[0][y_i+1]/tile_points[0][-1], 6)
-            #coord_fovs["yc_max"]=Y_points[y+1]
-            coord_fovs["xc_min"]=round(x/tile_points[1][-1], 6)
-            #coord_fovs["xc_min"]=x
-            coord_fovs["xc_max"]=round(X_points[x_i+1]/tile_points[1][-1], 6)
-            coord_fovs_list=[]
-            coord_fovs_list.append(coord_fovs)
-            print(coord_fovs)
-            fov_dir=f'fov_{fov_n}'
-            fov_path = os.path.join(base_path, fov_dir)
-            try:
-                os.mkdir(fov_path)
-                print("Directory '% s' created" % fov_path)
-            except FileExistsError:
-                print("Directory exists")
-
-            #nuclei-f0-r2-c3-z33.tiff
-            '''
-            now you have the fov and fov coord dirs set up. in these places you save each tile
-            dir structure
-            └── Primary
-                ├──<Fov_0>
-                    ├── Primary-f0-r1-c1-z1.tiff
-                    ├── Primary-f0-r1-c2-z1.tiff
-                    ├── ...
-                ├──<Fov_1>
-                    ├── Primary-f1-r1-c1-z1.tiff
-                    ├── Primary-f1-r1-c2-z1.tiff
-                    ├── ...
-            ------------------------------------
-            └── nuclei
-                ├──<Fov_0>
-                    ├── nuclei-f0-r1-c1-z1.tiff
-                    ├── nuclei-f0-r1-c2-z1.tiff
-                    ├── ...
-                ├──<Fov_1>
-                    ├── nuclei-f1-r1-c1-z1.tiff
-                    ├── nuclei-f1-r1-c2-z1.tiff
-                    ├── ...
-            '''
-            
+            #coordinate_tiles=[]
             #save the tile from each im to the fov dir
             if image_type=='nuclei':
-                print(im_arrs[0].shape)
-                print(type(im_arrs))
+                xmin=round(x/tile_points[1][-1], 6)
+                xmax=round(X_points[x_i+1]/tile_points[1][-1],6)
+                ymin=round(y/tile_points[0][-1])
+                ymax=round(Y_points[y_i+1]/tile_points[1][-1],6)
+                zmin=0.01
+                zmax=0.005
+                tilename=f'{image_type}-f{fov_i}-r0-c0-z0.tiff'
+                fov_i_dir={'coordinates': {'xc': [xmin, xmax], 'yc': [ymin, ymax],
+                'zc': [zmin, zmax]}, 'file': tilename,
+                'indices': {'c': 0, 'r': 0, 'z': 0}, 'tile_format': 'TIFF',
+                'tile_shape': {'x': tile_size, 'y': tile_size}}
+                FOV_dir["tiles"].append(fov_i_dir)
 
-                split = im_arrs[0][y:y+tile_size, x:x+tile_size]
-                tile_im=Image.fromarray(split)
-                tile_im.save(f'{base_path}/{image_type}-f{fov_n}-r0-c0-z0.tif')
-                img_tiles.append(split)
-                xc_min_list.append(round(x/tile_points[1][-1], 6))
-                yc_min_list.append(round(y/tile_points[0][-1]))
-                zc_min_list.append(0.01)
-                xc_max_list.append(round(X_points[x_i+1]/tile_points[1][-1],6))
-                yc_max_list.append(round(Y_points[y_i+1]/tile_points[1][-1],6))
-                zc_max_list.append(0.005)
-                fov_list.append(fov_n)
-                round_list.append(1)
-                ch_list.append(1)
-                zplane_list.append(1)
-                
+                #split = im[y:y+tile_size, x:x+tile_size]
+                #print(split)
+                #tile_im=Image.fromarray(split)
+                #tile_im.save(f'{base_path}/{tilename}')
+                #img_tiles.append(split)
+
             else:
-                for c,im in enumerate(im_arrs[1:]):
+                for c,im in enumerate(im_arrs):
                     split = im[y:y+tile_size, x:x+tile_size]
+                    
+
                     tile_im=Image.fromarray(split)
-                    tile_im.save(f'{base_path}/{image_type}-f{fov_n}-r0-c{c}-z0.tif')
-                    img_tiles.append(split)
+                    tilename=f'{image_type}-f{fov_i}-r0-c{c}-z0.tiff'
+
+                    tile_im.save(f'{base_path}/{tilename}')
+                    #img_tiles.append(split)
                     #fov,round,ch,zplane,xc_min,yc_min,zc_min,xc_max,yc_max,zc_max
-                    xc_min_list.append(round(x/tile_points[1][-1], 6))
-                    yc_min_list.append(round(y/tile_points[0][-1]))
-                    zc_min_list.append(0.01)
-                    xc_max_list.append(round(X_points[x_i+1]/tile_points[1][-1],6))
-                    yc_max_list.append(round(Y_points[y_i+1]/tile_points[1][-1],6))
-                    zc_max_list.append(0.005)
-                    fov_list.append(fov_n)
-                    round_list.append(1)
-                    ch_list.append(c)
-                    zplane_list.append(1)
-            fov_n+=1
-    df_coord = pd.DataFrame(list(zip(fov_list, round_list, ch_list, zplane_list, xc_min_list, yc_min_list,zc_min_list, xc_max_list, yc_max_list,zc_max_list)))
-    df_coord.columns=['fov','round','ch','zplane','xc_min','yc_min','zc_min','xc_max','yc_max','zc_max']
-    print("column names:")
-    print(df_coord.columns)
-    save_fov_coordinates(base_path, df_coord)
+                    xmin=round(x/tile_points[1][-1], 6)
+                    xmax=round(X_points[x_i+1]/tile_points[1][-1],6)
+                    ymin=round(y/tile_points[0][-1])
+                    ymax=round(Y_points[y_i+1]/tile_points[1][-1],6)
+                    zmin=0.01
+                    zmax=0.005
+                    fov_i_dir={'coordinates': {'xc': [xmin, xmax], 'yc': [ymin, ymax],
+                    'zc': [zmin, zmax]}, 'file': tilename,
+                    'indices': {'c': 0, 'r': 0, 'z': 0}, 'tile_format': 'TIFF',
+                    'tile_shape': {'x': tile_size, 'y': tile_size}}
+                    FOV_dir["tiles"].append(fov_i_dir)
+                with open(f'{base_path}/{image_type}-images-fov_{fov_i}.json', "w") as jsonfile:
+                    json.dump(FOV_dir,jsonfile) 
+            fov_key=f'fov_{fov_i}'
+            im_name=f'{base_path}/{image_type}-images-fov_{fov_i}.json'
+            current_fov_dir={fov_key: im_name}
+
+            manifest_file["contents"].update(current_fov_dir)
+
+            fov_i+=1
+    print('Saved all fov.json files!')
+    #df_coord = pd.DataFrame(list(zip(fov_list, round_list, ch_list, zplane_list, xc_min_list, yc_min_list,zc_min_list, xc_max_list, yc_max_list,zc_max_list)))
+    #df_coord.columns=['fov','round','ch','zplane','xc_min','yc_min','zc_min','xc_max','yc_max','zc_max']
+    with open(f'{base_path}/{image_type}_images.json', "w") as jsonfile:
+        json.dump(manifest_file,jsonfile) 
+    print(f'manifest file saved with all the fovs as: {base_path}/{image_type}_images.json')
     return(img_tiles)
+
+'''
+IF THE CURRENT ONE DOES NOT WORK TRY CHANGING THE ORDER OF NAMING OF ROUNDS, CHANNELS ETC OF TIFFS
+'''
 
 def tiles_gen(im_paths, tile_size,overlap, base_path):
     #first sort out the nuclei channel fovs, then the rest
@@ -307,22 +401,368 @@ def tiles_gen(im_paths, tile_size,overlap, base_path):
         ]
 
     #this part was made in case i wanted to make a larger csv file containing all the possible fovs
-    #N_fovs=len(im_arrs[0])/tile_size
-    #prim_fovs = [[fov_structure_prim]*N_fovs]
-    #nucl_fovs = [[fov_structure_he]*N_fovs]
-    nuclei_arr=fovs_gen(im_arrs, tile_size, tile_points, base_path, fov_structure_he, "nuclei")
+    N_fovs=int(len(im_arrs[0])/tile_size)
+    prim_fovs = [[fov_structure_prim]*N_fovs]
+    nucl_fovs = [[fov_structure_he]*N_fovs]
+    prim_manifest={"version": "0.0.0",
+    "contents": {},
+    "extras": 'none'
+    }
+    nucl_manifest={"version": "0.0.0",
+    "contents": {},
+    "extras": 'none'
+    }
+    nuclei_arr=fovs_gen(im_arrs, tile_size, tile_points, base_path,nucl_manifest,"nuclei")
     #nuclei_arr=0
-    prim_arr=fovs_gen(im_arrs[1:], tile_size, tile_points, base_path, fov_structure_prim, "primary")
+    prim_arr=fovs_gen(im_arrs, tile_size, tile_points, base_path,prim_manifest,"primary")
+    #prim_arr=0
+
+    #pass the manifest files into the functions and update as you go through the loops
+    exp_file={
+    "version": "0.0.0",
+    "images": {
+        "primary": "primary_images.json",
+        "nuclei": "nuclei_.json"
+    },
+    "codebook": "codebook.json",
+    "extras": {
+        "is_space_tx_cool": 'True'
+    }
+    }
+    with open(f'{base_path}/experiment.json', "w") as jsonfile:
+        json.dump(exp_file,jsonfile) 
+
+    print(f'experiment file saved with all the fovs as: {base_path}/experiment.json')
+
     return([nuclei_arr, prim_arr])
     #pad images so that it is divisible by the tile size
+
 
 base_path="/media/data/AtteR/projects/starfish/images/real_ims/FOVs"
 
 all_arrs=tiles_gen(im_paths, 2000,0.1, base_path)
 
 
+exp_file={
+"version": "5.0.0",
+"images": {
+    "primary": "primary_images.json",
+    "nuclei": "nuclei_.json"
+},
+"codebook": "codebook.json",
+"extras": {
+    "is_space_tx_cool": 'True'
+}
+}
+with open(f'{base_path}/experiment.json', "w") as jsonfile:
+    json.dump(exp_file,jsonfile) 
+
+#0-HE, 1-cDNA, 2-DARP32, 3-Chat, 4-PENK, 5-DRD1
+codebook={
+  "version": "0.0.0",
+  "mappings": [
+    {
+      "codeword": [
+        {"c": 0, "r": 0, "v": 1},
+        {"c": 2, "r": 0, "v": 1}
+
+      ],
+      "target": "DARP32"
+    },
+    {
+      "codeword": [
+        {"c": 0, "r": 0, "v": 1},
+        {"c": 3, "r": 0, "v": 1}
+
+      ],
+      "target": "Chat"
+    },
+    {
+      "codeword": [
+        {"c": 0, "r": 0, "v": 1},
+        {"c": 4, "r": 0, "v": 1}
+
+      ],
+      "target":"PENK"
+    },
+
+    {
+      "codeword": [
+        {"c": 0, "r": 0, "v": 1},
+        {"c": 5, "r": 0, "v": 1}
+
+      ],
+      "target":"DRD1"
+    }
+  ]
+}
+with open(f'{base_path}/codebook.json', "w") as jsonfile:
+    json.dump(codebook,jsonfile) 
+
+from starfish import Experiment
+base_path
+
+#AttributeError: 'list' object has no attribute 'decode' --- maybe issues with how the fov files were created? 
+#you appended to the tiles 
+
+experiment = Experiment.from_json(base_path +"/experiment.json")
+
+
+
+import pandas as pd
+coord=pd.read_csv('/media/data/AtteR/projects/starfish/images/real_ims/FOVs/primary/coordinates.csv',sep='\t')
+coord = coord.loc[:, ~coord.columns.str.contains('^Unnamed')]
+coord.columns
+coord['fov']
+
+coord.iloc[0,:]
+
+coord
+primary_dir="/media/data/AtteR/projects/starfish/images/real_ims/FOVs/primary"
+
+
 ############################################################################
-    
+
+from starfish import Codebook
+sd = Codebook.synthetic_one_hot_codebook(n_round=1, n_channel=6, n_codes=4)
+sd
+
+'''
+Build a 3-round 4-channel codebook where :code:`ACTA` is specified by intensity in round 0,
+channel 1, and :code:`ACTB` is coded by fluorescence in channels 0, 1, and 2 of rounds 0,
+1, and 2.
+'''
+
+
+import numpy as np
+
+'''
+#make a numpy array of zeros, add pos. signals (1s) to parts where a signal for specific target should be found
+data = np.zeros((1,2,1), dtype=np.uint8)
+#data = np.zeros((1,2,1, 50,50), dtype=np.uint8)
+
+data.shape
+data
+
+
+The size of the codeword arrays should equal the “r” and “c” dimensions of the primary imagestack
+
+
+#so round 1, channel 2, z stack 1
+data[0, 1, 0] = 1 # HE
+data[0, 2, 0] = 1 # cDNA
+data[0, 3, 0] = 1 #DARP32
+data[0, 4, 0] = 1 #Chat
+data[0, 5, 0] = 1 #PENK
+data[0, 6, 0] = 1 #DRD1
+'''
+from starfish.types import Axes, Features
+from starfish import Codebook
+codebook = [
+    {
+        Features.CODEWORD: [
+            {Axes.ROUND.value: 0, Axes.CH.value: 1, Features.CODE_VALUE: 1},
+            {Axes.ROUND.value: 0, Axes.CH.value: 3, Features.CODE_VALUE: 1},
+        ],
+        Features.TARGET: "DARP32"
+    },
+    {
+        Features.CODEWORD: [
+            {Axes.ROUND.value: 0, Axes.CH.value: 1, Features.CODE_VALUE: 1},
+            {Axes.ROUND.value: 1, Axes.CH.value: 4, Features.CODE_VALUE: 1},
+        ],
+        Features.TARGET: "Chat"
+},
+    {
+        Features.CODEWORD: [
+            {Axes.ROUND.value: 0, Axes.CH.value: 1, Features.CODE_VALUE: 1},
+            {Axes.ROUND.value: 1, Axes.CH.value: 5, Features.CODE_VALUE: 1},
+        ],
+        Features.TARGET: "PENK"
+},
+    {
+        Features.CODEWORD: [
+            {Axes.ROUND.value: 0, Axes.CH.value: 1, Features.CODE_VALUE: 1},
+            {Axes.ROUND.value: 1, Axes.CH.value: 6, Features.CODE_VALUE: 1},
+        ],
+        Features.TARGET: "DRD1"
+},
+
+]
+Codebook.from_code_array(codebook)
+
+Codebook.from_numpy(['DARP32', 'Chat', 'PENK', 'DRD1'], n_channel=6, n_round=0, data=data)
+
+
+)
+
+
+############################################################################
+import functools
+from imageio import volread
+from skimage.io import imread
+from typing import Mapping, Union
+
+from starfish.experiment.builder import FetchedTile
+from starfish.types import Axes, Coordinates
+
+
+# a 2D read function
+def read_fn(file_path) -> np.ndarray:
+    return imread(file_path)
+
+
+# example of a cached 3D read function
+# not used in this example
+@functools.lru_cache(maxsize=1)
+def cached_3D_read_fn(file_path) -> np.ndarray:
+    return volread(file_path)
+
+
+# subclass FetchedTile
+class RNATile(FetchedTile):
+
+    def __init__(
+            self,
+            file_path: str,
+            coordinates: Mapping[Union[str, Coordinates], tuple]
+    ) -> None:
+        """Parser for a tile.
+
+        Parameters
+        ----------
+        file_path : str
+            location of the tiff
+        coordinates : Mapping[Union[str, Coordinates], tuple]
+            the coordinates for the selected tile, extracted from the metadata
+        """
+        self.file_path = file_path
+
+        # coordinates must match shape
+        self._coordinates = coordinates
+
+    @property
+    def shape(self) -> Mapping[Axes, int]:
+        return {Axes.Y: 10, Axes.X: 10}  # hard coded for this example
+
+    @property
+    def coordinates(self):
+        return self._coordinates
+
+    def tile_data(self) -> np.ndarray:
+        return read_fn(self.file_path)
+
+#############
+# physical coordinates for two FOVs
+
+coordinates_of_fovs = [
+    {
+        Coordinates.X: (0.0, 0.1),
+        Coordinates.Y: (0.0, 0.1),
+        Coordinates.Z: (0.005, 0.010),
+    },
+    {
+        Coordinates.X: (0.1, 0.2),
+        Coordinates.Y: (0.0, 0.1),
+        Coordinates.Z: (0.005, 0.010),
+    },
+]
+coordinates_of_fovs=pd.read_csv('/media/data/AtteR/projects/starfish/images/real_ims/FOVs/nuclei/coordinates.csv',sep='\t')
+import pandas as pd
+coord=pd.read_csv('/media/data/AtteR/projects/starfish/images/real_ims/FOVs/primary/coordinates.csv',sep='\t')
+coordinates_of_fovs = coord.loc[:, ~coord.columns.str.contains('^Unnamed')]
+
+prim_path="/media/data/AtteR/projects/starfish/images/real_ims/FOVs/primary"
+for subdir, dirs, files in os.walk(prim_path):
+    for file in files:
+        if file=='coordinates.csv':
+            print(os.path.join(subdir, file))
+
+
+from starfish.experiment.builder import TileFetcher
+'''
+how can the coordinate file be same for the primary and nuclei images? they consist of different
+number of channels. and the codebook cant be the same for both either as codebook structure is 
+N(rounds)xN(channels)
+'''
+class PrimaryTileFetcher(TileFetcher):
+
+    def __init__(self, input_dir: str) -> None:
+        self.input_dir = os.path.join(input_dir)
+        self.num_z = 1
+
+    def get_tile(
+            self, fov_id: int, round_label: int, ch_label: int, zplane_label: int) -> FetchedTile:
+        filename = f"primary-f{fov_id}-r{round_label}-c{ch_label}-z{zplane_label}.tiff"
+        return RNATile(os.path.join(self.input_dir, filename), coordinates_of_fovs[fov_id])
+
+
+
+
+#give each fov dir shape: c:6, r:1, z:1
+
+
+FOV_dir["tiles"][0]
+FOV_dir["tiles"][1]['file']
+
+#so for each coordinate, save th
+
+class NucleiTileFetcher(TileFetcher):
+
+    def __init__(self, input_dir: str) -> None:
+        self.input_dir = os.path.join(input_dir)
+        self.num_z = 1
+
+    def get_tile(
+            self, fov_id: int, round_label: int, ch_label: int, zplane_label: int) -> FetchedTile:
+        filename = f"nuclei-f{fov_id}-r{round_label}-c{ch_label}-z{zplane_label}.tiff"
+        return RNATile(os.path.join(self.input_dir, filename), coordinates_of_fovs[fov_id])
+#############
+from slicedimage import ImageFormat
+from starfish.experiment.builder import write_experiment_json
+
+import tempfile
+
+outputdir = tempfile.TemporaryDirectory()
+
+primary_tile_fetcher = PrimaryTileFetcher(primary_dir)
+
+nuclei_tile_fetcher = NucleiTileFetcher("/media/data/AtteR/projects/starfish/images/real_ims/FOVs/nuclei")
+
+# This is hardcoded for this example data set
+primary_image_dimensions: Mapping[Union[str, Axes], int] = {
+    Axes.ROUND: 1,
+    Axes.CH: 6,
+    Axes.ZPLANE: 1,
+}
+aux_images_dimensions: Mapping[str, Mapping[Union[str, Axes], int]] = {
+    "nuclei": {
+        Axes.ROUND: 1,
+        Axes.CH: 1,
+        Axes.ZPLANE: 1,
+    },
+}
+'''
+data must be in spacetx format if you want to load your experiment into a starfish pipeline.
+spacetx uses json files to organise single.plane tiffs.
+
+'''
+
+#whats our field of views? this varies based on the number of channels?
+
+write_experiment_json(
+    path=outputdir.name,
+    fov_count=169,    
+    tile_format=ImageFormat.TIFF,
+    primary_image_dimensions=primary_image_dimensions,
+    aux_name_to_dimensions=aux_images_dimensions,
+    primary_tile_fetcher=primary_tile_fetcher,
+    aux_tile_fetcher={"nuclei": nuclei_tile_fetcher},
+    dimension_order=(Axes.ROUND, Axes.CH, Axes.ZPLANE)
+)
+
+
+############################################################################
 
 #only apply padding to the original one but iterate using the original shape as we fill in the
 #values in the new version of the old array
@@ -646,6 +1086,7 @@ Build a 3-round 4-channel codebook where :code:`ACTA` is specified by intensity 
 channel 1, and :code:`ACTB` is coded by fluorescence in channels 0, 1, and 2 of rounds 0,
 1, and 2.
 '''
+
 
 import numpy as np
 from starfish import Codebook
