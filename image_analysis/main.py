@@ -84,6 +84,8 @@ exp_file={
 "version": "5.0.0",
 "images": {
     "primary": "primary/primary_images.json",
+    "nuclei": "nuclei/nuclei_images.json"
+
 },
 "codebook": "codebook.json",
 "extras": {
@@ -140,7 +142,6 @@ all_arrs=tiles_gen(im_paths, 2000,0.1, base_path, exp_file, codebook, manifest_f
 
 ##################################################################
 from starfish import Experiment
-
 #AttributeError: 'list' object has no attribute 'decode' --- maybe issues with how the fov files were created? 
 #you appended to the tiles 
 
@@ -152,46 +153,19 @@ as follows:
 
 #make a function for visualising all 6 channel tiles next to each other and then another one 
 #for visualising an individual one
-def show_ch_mult(fov):
-    # get the images
-    a=fov.xarray[0,1,0]
-
-    orig_plot: xr.DataArray = imgs.sel({Axes.CH: 0, Axes.ROUND: 0}).xarray.squeeze()
-    clip_plot: xr.DataArray = clipped.sel({Axes.CH: 0, Axes.ROUND: 0}).xarray.squeeze()
-
-    f, (ax1, ax2) = plt.subplots(ncols=6)
-    ax1.imshow(orig_plot)
-    ax1.set_title("original")
-    ax2.imshow(clip_plot)
-    ax2.set_title("clipped")
-
-
-
-    plt.show()
-
-
-def show_ch_one(sf_obj, i):
-    np_arr=sf_obj.xarray.to_numpy()
-    c1=(np_arr[0][i]*255).astype(np.uint8)
-    c1_2=np.squeeze(c1, axis=0)
-    data_c1 = im.fromarray(c1_2)
-    imgplot = plt.imshow(data_c1)
-    plt.show()
-    #return(c1)
-
-
-
 
 import xarray as xr
 
 #could put the HE as the nuclei image... and maybe cdna as the dots?
 experiment = Experiment.from_json(base_path +"/experiment.json")
 experiment
+
 '''
 fov_0: <starfish.FieldOfView>
   Primary Image: <slicedimage.TileSet (c: 4, z: 1, r: 3, x: 2000, y: 2000)>
 '''
 e_fov1=experiment['fov_0'].get_image('primary')
+e_fov1=experiment['fov_0'].get_image('nuclei')
 
 
 
@@ -224,21 +198,14 @@ print(projected_imgs)
 show_im(projected_imgs,0)
 
 plt.imshow(projected_imgs)
+import matplotlib
+from starfish.util.plot import diagnose_registration
+
+matplotlib.rcParams["figure.dpi"] = 250
+diagnose_registration(projected_imgs, {Axes.CH:0}, {Axes.CH:1}, {Axes.CH:2}, {Axes.CH:3})
 
 experiment.codebook
 #get the total
-
-a=e_fov2.xarray
-a=e_fov2.xarray[0,1,0]
-a.shape
-a[0].shape
-a=projected_imgs.xarray
-np_arr=a[0].to_numpy()
-np_arr.shape
-c1=np.squeeze(np_arr)
-c1.shape
-imgplot = plt.imshow(c1)
-plt.show()
 
 ############################################################################
 from starfish.image import ApplyTransform, LearnTransform
