@@ -354,21 +354,22 @@ def fovs_gen(im_arrs, tile_size, tile_points, base_path, manifest_file, image_ty
                     fov_i_dir['indices']['z']=0
                     print(fov_i_dir['indices']['c'])
                     FOV_dir["tiles"].append(fov_i_dir)
-                with open(f'{base_path}/{image_type}-f{fov_i}-r0-c{c}-z0.json', "w") as jsonfile:
+                with open(f'{base_path}/{image_type}-images-fov_{fov_i}.json', "w") as jsonfile:
                     json.dump(FOV_dir,jsonfile)
+
+                FOV_dir= {"default_tile_format": "TIFF", "dimensions": ["z","xc","x","yc","y","zc","c","r"],"extras": {},
+                "shape": {
+                    "c": 5,
+                    "r": 0,
+                    "z": 0
+                },"tiles": [],"version": "0.1.0"}
+                FOV_dir["tiles"]=[]
+                fov_key=f'fov_{fov_i}'
+                im_name=f'{base_path}/{image_type}-images-fov_{fov_i}.json'
+                current_fov_dir={fov_key: im_name}
+                manifest_file["contents"].update(current_fov_dir)
                 fov_i+=1
 
-            FOV_dir= {"default_tile_format": "TIFF", "dimensions": ["z","xc","x","yc","y","zc","c","r"],"extras": {},
-            "shape": {
-                "c": 5,
-                "r": 0,
-                "z": 0
-            },"tiles": [],"version": "0.1.0"}
-            FOV_dir["tiles"]=[]
-            fov_key=f'fov_{fov_i}'
-            im_name=f'{base_path}/{image_type}-images-fov_{fov_i}.json'
-            current_fov_dir={fov_key: im_name}
-            manifest_file["contents"].update(current_fov_dir)
     print('Saved all fov.json files!')
     #df_coord = pd.DataFrame(list(zip(fov_list, round_list, ch_list, zplane_list, xc_min_list, yc_min_list,zc_min_list, xc_max_list, yc_max_list,zc_max_list)))
     #df_coord.columns=['fov','round','ch','zplane','xc_min','yc_min','zc_min','xc_max','yc_max','zc_max']
@@ -377,11 +378,6 @@ def fovs_gen(im_arrs, tile_size, tile_points, base_path, manifest_file, image_ty
     print(f'manifest file saved with all the fovs as: {base_path}/{image_type}_images.json')
     return(FOV_dir)
 
-
-'''
-IF THE CURRENT ONE DOES NOT WORK TRY CHANGING THE ORDER OF NAMING OF ROUNDS, CHANNELS ETC
-OF TIFFS
-'''
 
 def tiles_gen(im_paths, tile_size,overlap, base_path):
     #first sort out the nuclei channel fovs, then the rest
@@ -392,9 +388,9 @@ def tiles_gen(im_paths, tile_size,overlap, base_path):
         img = np.asarray(image)
         x_pad=img.shape[0]%tile_size
         y_pad=img.shape[1]%tile_size
-        img_padded = np.pad(img, ((x_pad,x_pad), (y_pad,y_pad)), constant_values=0.0, mode="constant")
-        im_arrs.append(img_padded)
-        print(f'Image imported, shape is {img_padded.shape}')
+        #img_padded = np.pad(img, ((x_pad,x_pad), (y_pad,y_pad)), constant_values=0.0, mode="constant")
+        im_arrs.append(img)
+        print(f'Image imported, shape is {img.shape}')
         #im_arrs[path.split("/")[8]]=img_padded
     print(f'im_arr length: {len(im_arrs)}')
     print(f'im_arr 1: {im_arrs[0].shape}')
@@ -437,7 +433,7 @@ def tiles_gen(im_paths, tile_size,overlap, base_path):
     exp_file={
     "version": "5.0.0",
     "images": {
-        "primary": "primary_images.json",
+        "primary": "primary/primary_images.json",
     },
     "codebook": "codebook.json",
     "extras": {
@@ -449,7 +445,7 @@ def tiles_gen(im_paths, tile_size,overlap, base_path):
 
     print(f'experiment file saved with all the fovs as: {base_path}/experiment.json')
 
-    return(prim_arr)
+    return(im_arrs)
     #pad images so that it is divisible by the tile size
 
 
@@ -542,6 +538,7 @@ with open(f'{base_path}/codebook.json', "w") as jsonfile:
     json.dump(codebook,jsonfile) 
 
 from starfish import Experiment
+
 base_path
 
 #AttributeError: 'list' object has no attribute 'decode' --- maybe issues with how the fov files were created? 
@@ -579,18 +576,21 @@ imgs
 
 #get the total
 
-a=imgs.xarray
+a=e_fov1.xarray
+
 a.shape
 a[0].shape
 np_arr=a[0].to_numpy()
 np_arr.shape
+c1=np.squeeze(np_arr[0])
+c1.shape
 c1=(np_arr[0][i]*255).astype(np.uint8)
 c1_2=np.squeeze(np_arr, axis=0)
 c1_2.shape
 c1_2=np.squeeze(c1_2, axis=0)
 
 data_c1 = im.fromarray(c1_2)
-imgplot = plt.imshow(c1_2)
+imgplot = plt.imshow(c1)
 plt.show()
 
 import pandas as pd
