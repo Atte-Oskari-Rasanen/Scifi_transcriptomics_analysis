@@ -1,5 +1,6 @@
 from binascii import a2b_hex
 from curses import window
+from tkinter import image_types
 from typing import Mapping, Union
 
 import numpy as np
@@ -244,18 +245,6 @@ import json
 Image.MAX_IMAGE_PIXELS = None
 
 def fovs_gen(im_arrs, tile_size, tile_points, base_path, manifest_file, image_type):
-    FOV_dir= {
-    "default_tile_format": "TIFF",
-    "dimensions": ["z","xc","x","yc","y","zc","c","r"],
-    "extras": {},
-    "shape": {
-        "c": 4,
-        "r": 3,
-        "z": 1
-    },
-    "tiles": [],
-    "version": "0.1.0"
-}
 
     #make this into a function that takes in the im_arrs list and iterates over the list
     #components
@@ -300,21 +289,32 @@ def fovs_gen(im_arrs, tile_size, tile_points, base_path, manifest_file, image_ty
     ch_list=[]
     zplane_list=[]
     fov_i=0
+    FOV_dir= {"default_tile_format": "TIFF", "dimensions": ["z","xc","x","yc","y","zc","c","r"],"extras": {},
+                "shape": {
+                    "c": 5,
+                    "r": 0,
+                    "z": 0
+                },
+                "tiles": [],
+                "version": "0.1.0"
+                }
+
     for y_i, y in enumerate(tile_points[0][:-2]):
         for x_i, x in enumerate(tile_points[1][:-2]):
+
             #coordinate_tiles=[]
             #save the tile from each im to the fov dir
             if image_type=='nuclei':
                 xmin=round(x/tile_points[1][-1], 6)
-                xmax=round(X_points[x_i+1]/tile_points[1][-1],6)
+                xmax=round(X_points[x_i+1]/im_arrs[0].shape[0],6)
                 ymin=round(y/tile_points[0][-1])
-                ymax=round(Y_points[y_i+1]/tile_points[1][-1],6)
+                ymax=round(Y_points[y_i+1]/im_arrs[0].shape[1],6)
                 zmin=0.01
                 zmax=0.005
                 tilename=f'{image_type}-f{fov_i}-r0-c0-z0.tiff'
                 fov_i_dir={'coordinates': {'xc': [xmin, xmax], 'yc': [ymin, ymax],
                 'zc': [zmin, zmax]}, 'file': tilename,
-                'indices': {'c': 0, 'r': 0, 'z': 0}, 'tile_format': 'TIFF',
+                'indices': {'c': c, 'r': 0, 'z': 0}, 'tile_format': 'TIFF',
                 'tile_shape': {'x': tile_size, 'y': tile_size}}
                 FOV_dir["tiles"].append(fov_i_dir)
 
@@ -326,9 +326,7 @@ def fovs_gen(im_arrs, tile_size, tile_points, base_path, manifest_file, image_ty
 
             else:
                 for c,im in enumerate(im_arrs):
-                    split = im[y:y+tile_size, x:x+tile_size]
-                    
-
+                    split = im[y:y+tile_size, x:x+tile_size]                
                     tile_im=Image.fromarray(split)
                     tilename=f'{image_type}-f{fov_i}-r0-c{c}-z0.tiff'
 
@@ -336,35 +334,53 @@ def fovs_gen(im_arrs, tile_size, tile_points, base_path, manifest_file, image_ty
                     #img_tiles.append(split)
                     #fov,round,ch,zplane,xc_min,yc_min,zc_min,xc_max,yc_max,zc_max
                     xmin=round(x/tile_points[1][-1], 6)
-                    xmax=round(X_points[x_i+1]/tile_points[1][-1],6)
+                    xmax=round(X_points[x_i+1]/im_arrs[0].shape[0],6)
                     ymin=round(y/tile_points[0][-1])
-                    ymax=round(Y_points[y_i+1]/tile_points[1][-1],6)
+                    ymax=round(Y_points[y_i+1]/im_arrs[0].shape[1],6)
                     zmin=0.01
                     zmax=0.005
+                    print(f'c: {c}')
                     fov_i_dir={'coordinates': {'xc': [xmin, xmax], 'yc': [ymin, ymax],
                     'zc': [zmin, zmax]}, 'file': tilename,
-                    'indices': {'c': 0, 'r': 0, 'z': 0}, 'tile_format': 'TIFF',
+                    'indices': {'c': c, 'r': 0, 'z': 0}, 'tile_format': 'TIFF',
                     'tile_shape': {'x': tile_size, 'y': tile_size}}
+                    fov_i_dir['tile_shape']['x']=tile_size
+                    fov_i_dir['tile_shape']['y']=tile_size
+                    fov_i_dir['coordinates']['xc']=[xmin, xmax]
+                    fov_i_dir['coordinates']['yc']=[ymin, ymax]
+                    fov_i_dir['coordinates']['zc']=[zmin, zmax]
+                    fov_i_dir['indices']['c']=c
+                    fov_i_dir['indices']['r']=0
+                    fov_i_dir['indices']['z']=0
+                    print(fov_i_dir['indices']['c'])
                     FOV_dir["tiles"].append(fov_i_dir)
-                with open(f'{base_path}/{image_type}-images-fov_{fov_i}.json', "w") as jsonfile:
-                    json.dump(FOV_dir,jsonfile) 
+                with open(f'{base_path}/{image_type}-f{fov_i}-r0-c{c}-z0.json', "w") as jsonfile:
+                    json.dump(FOV_dir,jsonfile)
+                fov_i+=1
+
+            FOV_dir= {"default_tile_format": "TIFF", "dimensions": ["z","xc","x","yc","y","zc","c","r"],"extras": {},
+            "shape": {
+                "c": 5,
+                "r": 0,
+                "z": 0
+            },"tiles": [],"version": "0.1.0"}
+            FOV_dir["tiles"]=[]
             fov_key=f'fov_{fov_i}'
             im_name=f'{base_path}/{image_type}-images-fov_{fov_i}.json'
             current_fov_dir={fov_key: im_name}
-
             manifest_file["contents"].update(current_fov_dir)
-
-            fov_i+=1
     print('Saved all fov.json files!')
     #df_coord = pd.DataFrame(list(zip(fov_list, round_list, ch_list, zplane_list, xc_min_list, yc_min_list,zc_min_list, xc_max_list, yc_max_list,zc_max_list)))
     #df_coord.columns=['fov','round','ch','zplane','xc_min','yc_min','zc_min','xc_max','yc_max','zc_max']
-    with open(f'{base_path}/{image_type}_images.json', "w") as jsonfile:
+    with open(f'{base_path}/{image_type}_images.json', 'w') as jsonfile:
         json.dump(manifest_file,jsonfile) 
     print(f'manifest file saved with all the fovs as: {base_path}/{image_type}_images.json')
-    return(img_tiles)
+    return(FOV_dir)
+
 
 '''
-IF THE CURRENT ONE DOES NOT WORK TRY CHANGING THE ORDER OF NAMING OF ROUNDS, CHANNELS ETC OF TIFFS
+IF THE CURRENT ONE DOES NOT WORK TRY CHANGING THE ORDER OF NAMING OF ROUNDS, CHANNELS ETC
+OF TIFFS
 '''
 
 def tiles_gen(im_paths, tile_size,overlap, base_path):
@@ -412,35 +428,46 @@ def tiles_gen(im_paths, tile_size,overlap, base_path):
     "contents": {},
     "extras": 'none'
     }
-    nuclei_arr=fovs_gen(im_arrs, tile_size, tile_points, base_path,nucl_manifest,"nuclei")
+    #nuclei_arr=fovs_gen(im_arrs, tile_size, tile_points, base_path,nucl_manifest,"nuclei")
     #nuclei_arr=0
     prim_arr=fovs_gen(im_arrs, tile_size, tile_points, base_path,prim_manifest,"primary")
     #prim_arr=0
 
     #pass the manifest files into the functions and update as you go through the loops
     exp_file={
-    "version": "0.0.0",
+    "version": "5.0.0",
     "images": {
         "primary": "primary_images.json",
-        "nuclei": "nuclei_.json"
     },
     "codebook": "codebook.json",
     "extras": {
         "is_space_tx_cool": 'True'
-    }
-    }
+        }
+    }    
     with open(f'{base_path}/experiment.json', "w") as jsonfile:
         json.dump(exp_file,jsonfile) 
 
     print(f'experiment file saved with all the fovs as: {base_path}/experiment.json')
 
-    return([nuclei_arr, prim_arr])
+    return(prim_arr)
     #pad images so that it is divisible by the tile size
 
 
 base_path="/media/data/AtteR/projects/starfish/images/real_ims/FOVs"
 
 all_arrs=tiles_gen(im_paths, 2000,0.1, base_path)
+all_arrs
+
+##################################################################
+#primary-f64-r0-c5-z0.json
+fov_json='/media/data/AtteR/projects/starfish/images/real_ims/FOVs/primary/primary-f62-r0-c5-z0.json'
+
+with open(fov_json) as d:
+    fov_dict=json.load(d)
+
+len(fov_dict['tiles'])
+
+fov_dict['tiles'][0]['indices']['c']
 
 
 exp_file={
@@ -460,6 +487,22 @@ with open(f'{base_path}/experiment.json', "w") as jsonfile:
 codebook={
   "version": "0.0.0",
   "mappings": [
+    {
+      "codeword": [
+        {"c": 0, "r": 0, "v": 1},
+
+      ],
+      "target": "HE"
+    },
+
+    {
+      "codeword": [
+        {"c": 1, "r": 0, "v": 1},
+
+      ],
+      "target": "cDNA"
+    },
+
     {
       "codeword": [
         {"c": 0, "r": 0, "v": 1},
@@ -510,9 +553,45 @@ dataset. The main way to load data on your machine is through the Experiment con
 as follows:
 '''
 
+import xarray as xr
+
+#could put the HE as the nuclei image... and maybe cdna as the dots?
 experiment = Experiment.from_json(base_path +"/experiment.json")
+experiment
+'''
+fov_0: <starfish.FieldOfView>
+  Primary Image: <slicedimage.TileSet (c: 4, z: 1, r: 3, x: 2000, y: 2000)>
+'''
+e_fov1=experiment['fov_0'].get_image('primary')
+e_fov1.xarray
+e_fov2=experiment['fov_2'].get_image('primary')
 
 
+experiment.codebook
+
+#now the fovs are imported as a single image of size 2000x2000 instead of all the fovs...
+#maybe the coordinate system is off with the fov.jsons?
+
+#Finally, each tile also specifies the coordinates of the image in physical space,
+#relative to some experiment-wide reference point specified in micrometers.
+imgs = experiment.fov().get_image('primary')
+imgs
+
+#get the total
+
+a=imgs.xarray
+a.shape
+a[0].shape
+np_arr=a[0].to_numpy()
+np_arr.shape
+c1=(np_arr[0][i]*255).astype(np.uint8)
+c1_2=np.squeeze(np_arr, axis=0)
+c1_2.shape
+c1_2=np.squeeze(c1_2, axis=0)
+
+data_c1 = im.fromarray(c1_2)
+imgplot = plt.imshow(c1_2)
+plt.show()
 
 import pandas as pd
 coord=pd.read_csv('/media/data/AtteR/projects/starfish/images/real_ims/FOVs/primary/coordinates.csv',sep='\t')
