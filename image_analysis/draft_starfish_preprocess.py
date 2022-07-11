@@ -480,25 +480,10 @@ with open(f'{base_path}/experiment.json', "w") as jsonfile:
     json.dump(exp_file,jsonfile) 
 
 #0-HE, 1-cDNA, 2-DARP32, 3-Chat, 4-PENK, 5-DRD1
+
 codebook={
   "version": "0.0.0",
   "mappings": [
-    {
-      "codeword": [
-        {"c": 0, "r": 0, "v": 1},
-
-      ],
-      "target": "HE"
-    },
-
-    {
-      "codeword": [
-        {"c": 1, "r": 0, "v": 1},
-
-      ],
-      "target": "cDNA"
-    },
-
     {
       "codeword": [
         {"c": 0, "r": 0, "v": 1},
@@ -534,6 +519,7 @@ codebook={
     }
   ]
 }
+
 with open(f'{base_path}/codebook.json', "w") as jsonfile:
     json.dump(codebook,jsonfile) 
 
@@ -576,34 +562,16 @@ imgs
 
 #get the total
 
-a=e_fov1.xarray
+a=e_fov2.xarray
 
 a.shape
 a[0].shape
 np_arr=a[0].to_numpy()
 np_arr.shape
-c1=np.squeeze(np_arr[0])
-c1.shape
-c1=(np_arr[0][i]*255).astype(np.uint8)
-c1_2=np.squeeze(np_arr, axis=0)
-c1_2.shape
-c1_2=np.squeeze(c1_2, axis=0)
+c1=np.squeeze(np_arr[4])
 
-data_c1 = im.fromarray(c1_2)
 imgplot = plt.imshow(c1)
 plt.show()
-
-import pandas as pd
-coord=pd.read_csv('/media/data/AtteR/projects/starfish/images/real_ims/FOVs/primary/coordinates.csv',sep='\t')
-coord = coord.loc[:, ~coord.columns.str.contains('^Unnamed')]
-coord.columns
-coord['fov']
-
-coord.iloc[0,:]
-
-coord
-primary_dir="/media/data/AtteR/projects/starfish/images/real_ims/FOVs/primary"
-
 
 ############################################################################
 
