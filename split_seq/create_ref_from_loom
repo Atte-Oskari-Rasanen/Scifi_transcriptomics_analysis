@@ -1,0 +1,114 @@
+loom_dir='/media/data/AtteR/projects/parsebio/ParsePipeline/docker_singlecell/analysis_stuff/ref'
+import loompy
+import pandas as pd
+import numpy as np
+#ds = loompy.connect(loom_dir+"/L1_MidbrainDorsal.loom")
+ds = loompy.connect(loom_dir+"/L5_All.loom")
+
+ds.shape
+ds[0:10, 0:10]
+ds.attrs['CreationDate']
+ds.ra.keys()
+len(ds.ra['Gene'])
+len(ds.ra['_LogMean']) #for each gene 
+
+ds.ra['_LogCV']
+ds.ca.keys()
+ds.ca['Subclass']
+np.unique(ds.ca['Class'])
+np.unique(ds.ca['Description'])
+ds.ca['CellConc']
+
+len(ds.ca['Description'])
+da_cell = [cell for cell in enumerate(ds.ca['Description']) if "Dop" in cell]
+da_cell = [(index, cell) for index, cell in enumerate(ds.ca['Description']) if "Dop" in cell]
+da_cell = [cell for cell in ds.ca['Description'] if "Dop" in cell]
+
+type(da_cell[0])
+len(da_cell)
+def indeces(lst):
+
+    return [item[0] for item in lst]
+
+
+ds.ra.Gene
+
+ds.ra['Gene']
+
+col_names = ds.ca['Class']
+
+col_names #how to get the corresponding log values? atm we can get a long string of genes + corresponding
+#single log mean value for each gene....
+len(col_names)
+row_names = ds.ra['Gene']
+len(row_names)
+
+
+counts = ds.ra['_LogMean']
+
+import anndata as ad
+import pandas as pd
+ref_mat = pd.DataFrame(ds[:,:], columns=col_names, index=row_names)
+ref_mat = pd.DataFrame(ds[:,:], columns=da_cell, index=row_names)
+
+ref_mat
+adata = ad.AnnData(ds[:,:])
+adata.X
+
+#adata.obs_names = row_names
+#adata.var_names = col_names
+
+#adata.var["cell_type"] = pd.Categorical(col_names)  
+adata.var["cell_type"] = pd.Categorical(da_cell)  
+len(da_cell)
+adata.obs["gene"] = pd.Categorical(row_names)  
+
+adata
+adata.write(loom_dir + "/adata_ref_midbrain_da.h5ad")
+ds.close()
+
+
+ref_mat.to_csv(loom_dir+"/ref_midbrain.csv", sep="\t")
+
+#we get a log count matrix with cell x genes. why do we need the cells?
+
+#columns are the cell types. rows are the genes. the matrix is in log counts.
+
+ds.ca['Dopaminergic neurons, ventral midbrain (SNc, VTA)']
+ds.ca['Description']
+
+ds.ca
+DA_subset = [(index, element) for index, element in enumerate(list(ds.ca['Description'])) if "Dopa" in element]
+DA_subset[0]
+
+def extract(lst):
+    return list(list(zip(*lst))[0])
+
+DA_indeces = extract(DA_subset)
+DA_indeces
+
+np.unique(DA_subset)
+len(ds.ca['CellID'])
+#on top of this we need labels var
+ds.shape
+
+pd.DataFrame(ds.ix[DA_indeces])
+DA_indeces[0]
+test_ref = pd.DataFrame(ds[:DA_indeces[0]], index=ds.ra['Gene'], columns=ds.ca['CellID'])
+test_ref.shape
+test_ref.iloc[0,0]
+len(test_ref.columns())
+len(test_ref.index())
+
+ds.ca['Subclass']
+
+
+test_ref
+df_labels = pd.DataFrame(list(ds.ca['Description']),
+               columns =['Label'])
+
+test_ref.to_csv(loom_dir+"/ref.csv")
+df_labels.to_csv(loom_dir+"/labels.csv")
+
+ds.close()
+
