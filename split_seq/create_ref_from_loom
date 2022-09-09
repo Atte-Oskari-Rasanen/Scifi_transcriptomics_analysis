@@ -1,40 +1,311 @@
-loom_dir='/media/data/AtteR/projects/parsebio/ParsePipeline/docker_singlecell/analysis_stuff/ref'
-import loompy
+import os
 import pandas as pd
+import anndata as ad
 import numpy as np
-#ds = loompy.connect(loom_dir+"/L1_MidbrainDorsal.loom")
+import loompy
+loom_dir="/media/data/AtteR/projects/parsebio/ParsePipeline/docker_singlecell/analysis_stuff/ref"
+
+#also check:
+ds = loompy.connect(loom_dir+"/L6_Cns_neurons.loom")
+ds = loompy.connect(loom_dir+"/L6_Cns_glia.loom")
+
+ds = loompy.connect(loom_dir+"/L1_MidbrainDorsal.loom")
 ds = loompy.connect(loom_dir+"/L5_All.loom")
+ds = loompy.connect(loom_dir+"/L1_MidbrainVentral.loom")
+ds = loompy.connect(loom_dir+"/linnarsson_mouse_selection-VM_STR_Ctx_final.loom")
+
+subset_vmb = ['Dopaminergic neurons, ventral midbrain (SNc, VTA)', 'Ependymal cells, midbrain', 
+'Ependymal cells', 'Excitatory neurons, midbrain', 'Matrix D1 neurons, striatum', 'Mature oligodendrocytes',
+'Microglia', 'Microglia, activated', 'Newly formed oligodendrocytes (NFOL)',
+       'Non-telencephalon astrocytes, fibrous',
+       'Non-telencephalon astrocytes, protoplasmic',
+       'Oligodendrocytes precursor cells',
+     'Pericytes', 'Satellite glia', 'Satellite glia, proliferating', 'Schwann cells',
+       'Vascular endothelial cells, capillary',
+       'Vascular endothelial cells, venous',
+       'Vascular leptomeningeal cells',
+       'Vascular smooth muscle cells, arterial']
+
+subset_vmb = ['Dopaminergic neurons, ventral midbrain (SNc, VTA)', 'Inhibitory neurons, midbrain',
+'Mature oligodendrocytes', 'Microglia', 'Microglia, activated',
+       'Myelin forming oligodendrocytes (MFOL)','Neuronal intermidate progenitor cells',
+       'Pericytes', 'Vascular endothelial cells, capillary', 'Vascular endothelial cells, venous']
+ds.close()
+#make a merge of things not overlapping between jana's ref and ours
+subset_vmb_nonoverlap = [
+'Mature oligodendrocytes', 'Pericytes', 
+'Vascular endothelial cells,capillary', 'Vascular endothelial cells, venous']
+
+subset_j = ["Vascular endothelial cells, arterial", "Vascular endothelial cells, venous",
+ "Neuronal intermidate progenitor cells", "Vascular leptomeningeal cells", 
+ "Vascular endothelial cells, capillary", "Vascular smooth muscle cells, arterial",
+"Myelin forming oligodendrocytes (MFOL)", "Microglia", "Inhibitory neurons, midbrain",
+ "Dopaminergic neurons, ventral midbrain (SNc, VTA)"]
+
+subset_neur = ['Neuronal intermidate progenitor cells', 'Excitatory neurons, midbrain']
+subset_glia = ['Non-telencephalon astrocytes, protoplasmic', 'Newly formed oligodendrocytes (NFOL)',
+'Mature oligodendrocytes', 'Dorsal midbrain Myoc-expressing astrocyte-like']
+
+len(ds.ra['Accession'])
+len(ds.ra['Gene'])
+
+ds.ra.keys()
+
+len(ds.ra['_LogMean'])
+len(ds.ra['_Total'])
+
+ds.ca['Region']
+
+col_names = ds.ca['Description']
+row_names = ds.ra['Gene']
+#row_names = ds.ra['Accession']
+
+
+def get_genes_from_acc(path):
+    with open(path, "r") as f:
+        print(type(f))
+        return(f.readlines())
+
+row_names=get_genes_from_acc(loom_dir+"/genes_from_acc_neur.fasta")
+row_names
+
+u, c = np.unique(ds.ra['Gene'], return_counts=True)
+dup = u[c > 1]
+len(dup)
+len(col_names)
+
+ds[1:5,1:5]
+
+ds[:,:]
+
+ref_mat = pd.DataFrame(ds[:,:], columns=col_names, index=row_names)
+ref_mat.columns
+
+np.unique(np.asarray(ref_mat.columns))
+
+ref_mat= ref_mat[subset_neur]
+ref_mat = ref_mat[subset_glia]
+#ref_mat_mbv = ref_mat_mbv[subset_vmb]
+#ref_mat = ref_mat[subset_j]
+ref_mat.columns
+#ref_mat.to_csv(loom_dir + "/df_mbv_j.csv")
+ref_mat.to_csv(loom_dir + "/df_glia_subset.csv")
+ds.close()
+
+
+with open(loom_dir + "/acc_num_list.txt", "w") as f:
+    for acc_n in ref_mat.index:
+        f.write(acc_n + "\n")
+
+def preprocess_df(df):
+    df = df.reset_index(level=0)
+    df = df.drop(columns=['index'])
+    df.rename(columns = {'Unnamed: 0':'genes'}, inplace = True)
+    df = df.set_index('genes')
+    df = df.groupby(level=0).sum()
+    return(df)
+
+
+neur_sub = pd.read_csv(loom_dir + '/df_neur_subset.csv')
+glia_sub = pd.read_csv(loom_dir + '/df_glia_subset.csv')
+ref_j = pd.read_csv(loom_dir + "/df_mbv_j.csv")
+ref_mat_mbv = pd.read_csv(loom_dir + '/df_mbv.csv')
+
+
+with open(loom_dir + "/acc_num_list_neur.txt", "w") as f:
+    for acc_n in neur_sub.index:
+        f.write(acc_n + "\n")
+
+neur_sub=preprocess_df(neur_sub)
+glia_sub=preprocess_df(glia_sub)
+ref_j=preprocess_df(ref_j)
+dups = neur_sub[neur_sub.index.isin(neur_sub.index[neur_sub.index.duplicated()])]
+dups
+bool_series = glia_sub.duplicated()
+
+
+neur_glia_df = pd.merge(neur_sub, glia_sub, left_index=True, right_index=True)
+dups = neur_sub[neur_glia_df.index.isin(neur_glia_df.index[neur_glia_df.index.duplicated()])]
+
+capital_genes = [gene.lower().capitalize() for gene in list(ref_j.index)]
+ref_j.index=capital_genes
+
+full_df = pd.merge(neur_glia_df, ref_j, how="outer")
+#full_df = pd.merge(neur_glia_df, ref_j, left_index=True, right_index=True, how="outer")
+full_df
+dups = full_df[full_df.index.isin(full_df.index[full_df.index.duplicated()])]
+dups
+full_df = full_df.groupby(level=0).sum()
+
+neur_glia_df.drop_duplicates(keep='first', inplace=True, ignore_index=True)
+
+########################################################
+full_df_concat = pd.concat([neur_glia_df, ref_mat_mbv2])
+full_df_concat
+########################################################
+
+dups = neur_glia_df[neur_glia_df.index.isin(neur_glia_df.index[neur_glia_df.index.duplicated()])]
+dups
+dups = full_df[full_df.index.isin(full_df.index[full_df.index.duplicated()])]
+
+#merge dfs. this way only the common genes are merged, the rest discarded. after this concat
+#the non-overlapping genes (the subs_ref_mat_mbv)
+neur_glia_df.columns
+ref_mat_mbv2.columns
+
+neur_glia_df.index
+ref_mat_mbv2.index
+
+#############################################
+import re
+def remove_numbering_cells(full_df):
+    fixed_cell_names = []
+    for cell in full_df.columns:
+        #c_new = filter(lambda x: x.isalpha(), c)
+        c_new=''.join(c if c not in map(str,range(0,10)) else "" for c in cell)
+        c_new=c_new.split("_")[0]
+        regex = re.compile('[^a-zA-Z]')
+        c_new = regex.sub('', c_new)
+        fixed_cell_names.append(c_new)
+    full_df.columns=fixed_cell_names
+    return(full_df)
+
+full_df=remove_numbering_cells(full_df)
+full_df.columns
+#neur_glia_df=remove_numbering_cells(neur_glia_df)
+#ref_mat_mbv2=remove_numbering_cells(ref_mat_mbv2)
+
+full_df = pd.merge(neur_glia_df, ref_mat_mbv2, how="outer")
+full_df = pd.merge(neur_glia_df, ref_mat_mbv2, how='left', on=['Neuronalintermidateprogenitorcells','Matureoligodendrocytes'])
+full_df = pd.merge(neur_glia_df, ref_mat_mbv2, how='left', on=) 
+full_df = pd.concat()
+full_df.columns
+
+fixed_cell_names = []
+for cell in full_df.columns:
+    #c_new = filter(lambda x: x.isalpha(), c)
+    c_new=cell.split("_")[0]
+    fixed_cell_names.append(c_new)
+full_df.columns=fixed_cell_names
+
+#############################################
+
+#full_df = pd.merge(neur_glia_df, ref_mat_mbv2, how="outer", suffixes=("_All", "_MB"))
+#Viimeisin yritys. tuottaa edelleen x, y sarakkeet.
+full_df= ref_mat_mbv2.join(neur_glia_df, how='left', lsuffix='_All', rsuffix='_MB')
+
+
+
+full_df = pd.merge(neur_glia_df, ref_mat_mbv2, left_index=True, right_index=True)
+#full_df = ref_mat_mbv2.join(neur_glia_df)
+full_df.to_csv(loom_dir + '/Full_merged_df.csv')
+full_df=pd.read_csv(loom_dir + '/Full_merged_df.csv')
+
+full_df.columns
+full_df.shape #(25569, 50412)
+full_df = full_df.fillna(0)
+
+
+
+full_df = remove_numbering_cells(full_df)
+
+full_df.drop_duplicates(keep='first', inplace=True, ignore_index=True)
+full_df
+
+ids = full_df.index
+ids
+
+dups = full_df[ids.isin(ids[ids.duplicated()])]
+dups
+#duplicates --- what to do with them?
+
+################################################
+
+import anndata as ad
+import pandas as pd
+adata = ad.AnnData(full_df)
+adata.var["cell_type"] = pd.Categorical(list(full_df.columns))  
+adata.obs["gene"] = pd.Categorical(list(full_df.index))
+adata.obs_names_make_unique
+adata.var_names_make_unique
+
+adata_counts = pd.DataFrame(adata.X)
+adata_cols = pd.DataFrame(adata.var["cell_type"])
+adata_rows = pd.DataFrame(adata.obs["gene"])
+
+adata_rows = adata_rows.drop_duplicates()
+
+adata_counts.to_csv(loom_dir + "/adata_ref_midbrain_neur_glia_j_counts.csv")
+adata_cols.to_csv(loom_dir + "/adata_ref_midbrain_neur_glia_j_cols.csv")
+adata_rows.to_csv(loom_dir + "/adata_ref_midbrain_neur_glia_j_rows.csv")
+adata.write(loom_dir + "/adata_ref_j_neur_glia_all.h5ad")
+#################################################
+
 
 ds.shape
 ds[0:10, 0:10]
 ds.attrs['CreationDate']
 ds.ra.keys()
+ds.ca.keys()
+
 len(ds.ra['Gene'])
 len(ds.ra['_LogMean']) #for each gene 
+ds.close()
 
 ds.ra['_LogCV']
 ds.ca.keys()
-ds.ca['Subclass']
+np.unique(ds.ca['Subclass'])
 np.unique(ds.ca['Class'])
 np.unique(ds.ca['Description'])
 ds.ca['CellConc']
 
-len(ds.ca['Description'])
-da_cell = [cell for cell in enumerate(ds.ca['Description']) if "Dop" in cell]
-da_cell = [(index, cell) for index, cell in enumerate(ds.ca['Description']) if "Dop" in cell]
-da_cell = [cell for cell in ds.ca['Description'] if "Dop" in cell]
+ds.close()
 
+
+cell_types_list = ['astrocytes', 'striatum', 'Dop']
+#cell_types_list = ['Dop']
+
+len(ds.ca['Description'])
+da_cell = [cell for cell in enumerate(ds.ca['Description']) if "D" in cell]
+da_cell = [(index, cell) for index, cell in enumerate(ds.ca['Description']) if "Dop" in cell]
+
+colors = ['yellow', 'orange', 'red'] 
+search = "e"
+result = [color for color in colors if search in color]  
+print(result) # Orange
+
+da_cell = [(index, cell) for index, cell in enumerate(ds.ca['Description']) if cell in cell_types_list]
+da_cell
+cells = [(index, cell) for index, cell in enumerate(ds.ca['Description'])]
+cells = [cell for cell in ds.ca['Description']]
+
+#subset all the needed DA cells straight away
+cells
+cells_sub = [cell for cell in cells if cell in cell_types_list]
+cells_sub
+
+cells_subset=[]
+cell_types_list = ['astrocytes', 'striatum', 'Dop']
+for i,cell in enumerate(ds.ca['Description']):
+    print(cell)
+    if cell in cell_types_list:
+        cells_subset.append([i,cell])
+
+da_cell = [cell for cell in ds.ca['Description'] if "Dop" in cell]
+da_cell
+
+def extract_i(lst, i):
+    return list(list(zip(*lst))[i])
+da_i_subset=extract_i(da_cell, 0)
+da_i_subset
+da_cell_names_subset = extract_i(da_cell, 1)
 type(da_cell[0])
 len(da_cell)
-def indeces(lst):
-
-    return [item[0] for item in lst]
-
-
-ds.ra.Gene
 
 ds.ra['Gene']
 
+###############################
+col_names = ds.ca['Description']
 col_names = ds.ca['Class']
 
 col_names #how to get the corresponding log values? atm we can get a long string of genes + corresponding
@@ -43,30 +314,104 @@ len(col_names)
 row_names = ds.ra['Gene']
 len(row_names)
 
-
 counts = ds.ra['_LogMean']
-
+###############################
 import anndata as ad
 import pandas as pd
-ref_mat = pd.DataFrame(ds[:,:], columns=col_names, index=row_names)
-ref_mat = pd.DataFrame(ds[:,:], columns=da_cell, index=row_names)
+ref_mat_mb_d = pd.DataFrame(ds[:,:], columns=col_names, index=row_names)
+################################################
+adata = ad.AnnData(ref_mat_mb_d)
+adata.var["cell_type"] = pd.Categorical(list(ref_mat_mb_d.columns))  
+adata.obs["gene"] = pd.Categorical(list(ref_mat_mb_d.index))  
+adata.obs_names_make_unique
+adata.var_names_make_unique
+adata.write(loom_dir + "/adata_ref_midbrain.h5ad")
+#################################################
+ref_mat_da = pd.DataFrame(ds[:,da_i_subset], columns=da_cell_names_subset, index=row_names)
+ref_mat_da
+################################################
+adata = ad.AnnData(ref_mat_da)
+adata.var["cell_type"] = pd.Categorical(list(ref_mat_da.columns))  
+adata.obs["gene"] = pd.Categorical(list(ref_mat_da.index))  
+adata.obs_names_make_unique
+adata.var_names_make_unique
+adata.write(loom_dir + "/adata_ref_midbrain_da.h5ad")
+#################################################
 
-ref_mat
+
+ref_mat_da['genes'] = ref_mat_da.index
+
+ref_mat_da.columns
+
+ref_mat_da.to_csv(loom_dir + "/ref_da_pd.csv")
+pd.Series(len(set(row_names))).to_csv(loom_dir + "/ref_da_rows.csv")
+
+ref_mat_mb_d = ref_mat_mb_d.reset_index(level=0)
+ref_mat_da = ref_mat_da.reset_index(level=0)
+
+ref_mat_mb_d.shape
+ref_mat_da.shape
+
+ref_mat_merged=ref_mat_da.merge(ref_mat_mb_d, left_on='index', right_on='index')
+ref_mat_merged= pd.merge(ref_mat_da , ref_mat_mb_d , on=['index'])
+ref_mat_merged=ref_mat_merged.set_index('index')
+set(ref_mat_da.index)
+################################################
+adata = ad.AnnData(ref_mat_merged)
+adata.obs_names_make_unique
+adata.var_names_make_unique
+adata.var["cell_type"] = pd.Categorical(list(ref_mat_merged.columns))  
+adata.obs["gene"] = pd.Categorical(list(ref_mat_merged.index))  
+
+adata.write(loom_dir + "/adata_ref_midbrain_da_mixed.h5ad")
+pd.DataFrame(adata.X).to_csv(loom_dir + "/adata_ref_midbrain_da_mixed_X.csv")
+
+
+#################################################
+
+
+ref_mat_merged
+
+len(ref_mat_merged.index)
+len(set(ref_mat_merged.index))
+ref_mat_merged_non_dup = ref_mat_merged[ref_mat_merged.duplicated(keep=False)]
+ref_mat_merged_non_dup
+ref_mat_merged
+
+ref_mat_merged_non_dup = ref_mat_merged_non_dup.drop('level_0', axis=1)
+
+adata = ad.AnnData(X: ref_mat_merged.iloc[1:,1:],
+                        obs: ref_mat_merged.iloc[:,0:1],
+                        var: ref_mat_merged.iloc[0:1,:])
+
+adata = ad.AnnData(ref_mat_merged)
+adata
+adata.var["cell_type"] = pd.Categorical(list(ref_mat_merged.columns))  
+len(da_cell)
+adata.obs["gene"] = pd.Categorical(list(ref_mat_merged.index))  
+adata.obs_names_make_unique
+adata.var_names_make_unique
+adata.write(loom_dir + "/adata_ref_mix.h5ad")
+
 adata = ad.AnnData(ds[:,:])
-adata.X
+adata=ad.AnnData(ds[:,da_i_subset])
+adata
 
 #adata.obs_names = row_names
 #adata.var_names = col_names
 
-#adata.var["cell_type"] = pd.Categorical(col_names)  
+adata.var["cell_type"] = pd.Categorical(col_names)  
 adata.var["cell_type"] = pd.Categorical(da_cell)  
 len(da_cell)
 adata.obs["gene"] = pd.Categorical(row_names)  
-
 adata
-adata.write(loom_dir + "/adata_ref_midbrain_da.h5ad")
+
+adata.X
+adata.write(loom_dir + "/adata_ref_da_only.h5ad")
 ds.close()
 
+adata.var["cell_type"]
+adata.write_csvs(loom_dir + "/adata_ref_mix.csv")
 
 ref_mat.to_csv(loom_dir+"/ref_midbrain.csv", sep="\t")
 
@@ -75,7 +420,6 @@ ref_mat.to_csv(loom_dir+"/ref_midbrain.csv", sep="\t")
 #columns are the cell types. rows are the genes. the matrix is in log counts.
 
 ds.ca['Dopaminergic neurons, ventral midbrain (SNc, VTA)']
-ds.ca['Description']
 
 ds.ca
 DA_subset = [(index, element) for index, element in enumerate(list(ds.ca['Description'])) if "Dopa" in element]
@@ -111,4 +455,83 @@ test_ref.to_csv(loom_dir+"/ref.csv")
 df_labels.to_csv(loom_dir+"/labels.csv")
 
 ds.close()
+
+
+############
+#make gene-cell binary matrix 
+genes = ["TH", "DDC", "GCH1", "VMAT", "SLC6A3","EPHA4", "CHRNA5", "NRIP3", 
+                                    "KCNS3", "CPLX1", "SOX6", "NDNF", "ALDH11A", "ALDH1A7",
+                                    "LIX1", "PTPNS", "NOSTRIN", "SERPINE2", "KCNIP3",
+          "FJX1", "FOXA2", "EN2", "NTF3", "GFRA2", "KLFC3", "CALB1", "CHST8", "CLBN4", "LPL", 
+        "NHKH2", "OTX1", "OTX2", "NEUROD6", "GRP", "TCF12", "CALCA", "NTF3", "GFRA2", "VIP", "CCK",
+         "SYN2", "CBLN1", "GPX3", "SLC32A1", "CTXN3", "ETC1", "LMX1A"]
+
+genes = list(np.unique(np.asarray(genes)))
+
+cells = {'DA_SNc':["TH", "DDC", "GCH1", "SLC18A2", "SLC6A3", "EPHA4", "CHRNA5", "NRIP3", "KCNS3", "CPLX1", "SOX6", "NDNF", "ALDH11A", "ALDH1A7",
+"LIX1", "PTPNS", "NOSTRIN", "SERPINE2", "KCNIP3"], 'DA_VTA1':["TH", "DDC", "GCH1", "VMAT", "SLC6A3", "EPHA4", "CHRNA5", "NRIP3", "KCNS3", "CPLX1", "SOX6", "NDNF",
+             "FJX1", "FOXA2", "EN2", "NTF3", "GFRA2"], 'DA_VTA2':["TH", "DDC", "GCH1", "VMAT", "SLC6A3", "KLFC3", "CALB1", "CHST8", "CLBN4", "LPL", "ALDH11A", "ALDH1A7", 
+            "NHKH2", "OTX1", "OTX2", "NEUROD6", "GRP", "TCF12", "CALCA"],
+            'DA_VTA3':["TH", "DDC", "GCH1", "VMAT", "SLC6A3", "KLFC3", "CALB1", "CHST8", "CBLN4", "LPL", "NHLH2", "OTX1", "SYN2",
+             "CBLN1", "GPX3", "FJX1", "FOXA2", "EN2","NTF3", "GFRA2", "VIP", "CCK"],
+             'DA_VTA4':["TH", "DDC", "GCH1", "VMAT", "SLC6A3", "KLFC3", "CALB1", "CHST8", "SYN2", "CBLN1","GPX3", "SLC32A1", "CTXN3", "ETC1", "LMX1A"]}
+
+genes = ["TH", "DDC", "GCH1", "SLC18A2", "ALDH1A1", "SOX6", "VLGUT2", "OTX2", "VGAT", "VIP", "CCK", "CALB1" ]
+cells = {'Aldh1a1+/Sox6+':["TH", "DDC", "GCH1", "SLC18A2", "ALDH1A1", "SOX6"], 
+        'Aldh1a1+/Sox6-':["TH", "DDC", "GCH1", "SLC18A2", "ALDH1A1"], 
+        'Vglut2+/Aldh1a1- (SNc)':["TH", "DDC", "GCH1", "SLC18A2", "VLGUT2"], 
+        'Aldh1a1+/Otx2+/Vglut2+': ["TH", "DDC", "GCH1", "SLC18A2", "VLGUT2", "ALDH1A1","OTX2"],
+        'Vglut2+/Aldh1a1- (VTA)': ["TH", "DDC", "GCH1", "SLC18A2", "VLGUT2"],
+        'Vgat+/Vglut2': ["TH", "DDC", "GCH1", "SLC18A2", "VLGUT2", "VGAT"],
+        'VIP/VGLUT2':["TH", "DDC", "GCH1", "SLC18A2", "VLGUT2", "VIP"],
+        'Poorly defined': ["TH", "DDC", "GCH1", "SLC18A2", "VLGUT2", "CCK", "CALB1"]}
+
+genes = ["TH", "DDC", "GCH1", "SLC18A2", "ALDH1A1", "SOX6", "OTX2", "VIP", "CCK", "CALB1" ]
+
+cells = {'Aldh1a1+/Sox6+':["TH", "DDC", "GCH1", "SLC18A2", "ALDH1A1", "SOX6"], 
+        'Aldh1a1+/Sox6-':["TH", "DDC", "GCH1", "SLC18A2", "ALDH1A1"], 
+        'Vglut2+/Aldh1a1- (SNc)':["TH", "DDC", "GCH1", "SLC18A2"], 
+        'Aldh1a1+/Otx2+/Vglut2+': ["TH", "DDC", "GCH1", "SLC18A2", "ALDH1A1","OTX2"],
+        'Vglut2+/Aldh1a1- (VTA)': ["TH", "DDC", "GCH1", "SLC18A2"],
+        'VIP/VGLUT2':["TH", "DDC", "GCH1", "SLC18A2", "VIP"],
+        'Poorly defined': ["TH", "DDC", "GCH1", "SLC18A2", "CCK", "CALB1"],
+        'DA_SNc':["TH", "DDC", "GCH1", "SLC18A2", "SLC6A3", "EPHA4", "CHRNA5", "NRIP3", "KCNS3", "CPLX1", "SOX6", "NDNF", "ALDH11A", "ALDH1A7",
+"LIX1", "PTPNS", "NOSTRIN", "SERPINE2", "KCNIP3"], 'DA_VTA1':["TH", "DDC", "GCH1", "VMAT", "SLC6A3", "EPHA4", "CHRNA5", "NRIP3", "KCNS3", "CPLX1", "SOX6", "NDNF",
+             "FJX1", "FOXA2", "EN2", "NTF3", "GFRA2"], 'DA_VTA2':["TH", "DDC", "GCH1", "VMAT", "SLC6A3", "KLFC3", "CALB1", "CHST8", "CLBN4", "LPL", "ALDH11A", "ALDH1A7", 
+            "NHKH2", "OTX1", "OTX2", "NEUROD6", "GRP", "TCF12", "CALCA"],
+            'DA_VTA3':["TH", "DDC", "GCH1", "VMAT", "SLC6A3", "KLFC3", "CALB1", "CHST8", "CBLN4", "LPL", "NHLH2", "OTX1", "SYN2",
+             "CBLN1", "GPX3", "FJX1", "FOXA2", "EN2","NTF3", "GFRA2", "VIP", "CCK"],
+             'DA_VTA4':["TH", "DDC", "GCH1", "VMAT", "SLC6A3", "KLFC3", "CALB1", "CHST8", "SYN2", "CBLN1","GPX3", "SLC32A1", "CTXN3", "ETC1", "LMX1A"]}
+genes = ["TH", "DDC", "GCH1", "VMAT", "SLC6A3","EPHA4", "CHRNA5", "NRIP3", 
+                                    "KCNS3", "CPLX1", "SOX6", "NDNF", "ALDH11A", "ALDH1A7",
+                                    "LIX1", "PTPNS", "NOSTRIN", "SERPINE2", "KCNIP3",
+          "FJX1", "FOXA2", "EN2", "NTF3", "GFRA2", "KLFC3", "CALB1", "CHST8", "CLBN4", "LPL", 
+        "NHKH2", "OTX1", "OTX2", "NEUROD6", "GRP", "TCF12", "CALCA", "NTF3", "GFRA2", "VIP", "CCK",
+         "SYN2", "CBLN1", "GPX3", "SLC32A1", "CTXN3", "ETC1", "LMX1A"]
+
+gene_cell_bin={}
+gene_cell_scina={}
+
+gene_cell_bin["Genes"]=genes
+gene_per_cell = []
+for cell_type, cell_gene in cells.items():
+    print(cell_type)
+    binary_count=[]
+    for gene in genes:
+        if gene in cell_gene:
+            binary_count.append(1)
+            gene_per_cell.append(gene)
+        else:
+            binary_count.append(0)
+    gene_cell_bin[cell_type]=binary_count
+    gene_cell_scina[cell_type]=gene_per_cell
+gene_cell_bin.keys()
+
+gene_cell_bin_df = pd.DataFrame.from_dict(gene_cell_scina)
+gene_cell_bin_df.set_index("Genes")
+
+gene_cell_bin_df
+
+gene_cell_bin_df.to_csv(loom_dir+"/DA_ref.csv", index=False)
+
 
